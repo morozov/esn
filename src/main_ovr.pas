@@ -151,7 +151,7 @@ var
   cmCentre(LightGray, White,   cy - 5, 'ZX Spectrum Navigator');
   cmCentre(LightGray, Black,   cy - 3, 'Version ' + Ver + ',');
   cmCentre(LightGray, Black,   cy - 2,
-    'Compiled Thu, 25 Jun 2003 at 17:17:17');
+    'Compiled on ' + {$I %COMPILE_DATE%});
   cmCentre(LightGray, White,   cy - 0, 'http://www.sn.nnov.ru');
   cmCentre(LightGray, Black,   cy + 2,
     'Copyright (c) 1997-2003 RomanRoms Software Co.');

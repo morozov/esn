@@ -1,4 +1,5 @@
 FPC      := fpc
+export COMPILE_DATE := $(shell date '+%a, %d %b %Y at %H:%M:%S %Z')
 FPCFLAGS := -Sd -O2 -gl -Sc -Sm -Sewn -vewnhi
 
 # On macOS, point FPC at the active SDK so the linker can find libSystem.
