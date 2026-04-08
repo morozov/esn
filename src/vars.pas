@@ -13,7 +13,7 @@ Const
 
      MaxFiles=1500;
 
-     Ver='1.14';
+     Ver={$I %VERSION%};
 
 Var
      SNDEBUG:boolean;
