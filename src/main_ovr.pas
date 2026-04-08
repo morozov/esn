@@ -468,9 +468,6 @@ if not sys then
   FreeMemPCDirs;
   DoneVideo;
   DoneKeyboard;
-  WriteLn('ZX Spectrum Navigator '+ver+'E');
-  WriteLn('Shell for ZX Spectrum files');
-  WriteLn('RomanRom2, rom@sn.nnov.ru');
   Halt(0);
  End;
 End;
