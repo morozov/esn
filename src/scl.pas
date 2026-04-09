@@ -35,45 +35,23 @@ end;
 
 {============================================================================}
 Function isSCL(path:string):boolean;
-type
-    tbuf=array[1..2] of byte;
 var
     ff:file;
-    s:string; cs,l:longint; bufsize,w,nr:word;
-    buf:^tbuf;
-
-label fin;
+    s:string;
+    w,nr:word;
+    buf:array[1..8] of byte;
 Begin
 isSCL:=false;
-nr:=0;
 {$I-}
-getmem(buf,8);
-filemode:=0; assign(ff,path); reset(ff,1); seek(ff,0);
-BlockRead(ff,buf^,8,nr);
-s:=''; for w:=1 to 8 do s:=s+chr(buf^[w]);
-freemem(buf,8);
-if s<>'SINCLAIR' then goto fin;
-l:=0;
-bufsize:=49152;
-getmem(buf,bufsize);
-seek(ff,0);
-Repeat
-BlockRead(ff,buf^,bufsize,nr);
-if nr=bufsize then for w:=1 to bufsize do inc(l,buf^[w]);
-if (nr<>bufsize)and(nr<>0) then
- begin
-  cs:=(buf^[nr-3]+256*buf^[nr-2])+65536*(buf^[nr-1]+256*buf^[nr-0]);
-  dec(nr,4);
-  for w:=1 to nr do inc(l,buf^[w]);
- end;
-Until nr=0;
-freemem(buf,bufsize);
-
-if (cs=l)or(cs=l-65536) then isSCL:=true;
-fin:
+filemode:=0; assign(ff,path); reset(ff,1);
+if ioresult<>0 then Exit;
+BlockRead(ff,buf,8,nr);
 Close(ff);
 {$I+}
-if ioresult<>0 then;
+if ioresult<>0 then Exit;
+if nr<>8 then Exit;
+s:=''; for w:=1 to 8 do s:=s+chr(buf[w]);
+if s='SINCLAIR' then isSCL:=true;
 end;
 
 
