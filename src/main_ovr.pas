@@ -147,15 +147,17 @@ var
   CurOff;
   cy := DlgCY;
   Colour(LightGray, White);
-  sPutWin(HalfMaxX - 25, cy - 7, HalfMaxX + 26, cy + 9);
-  cmCentre(LightGray, White,   cy - 5, 'ZX Spectrum Navigator');
-  cmCentre(LightGray, Black,   cy - 3, 'Version ' + Ver + ',');
-  cmCentre(LightGray, Black,   cy - 2,
+  sPutWin(HalfMaxX - 25, cy - 9, HalfMaxX + 26, cy + 9);
+  cmCentre(LightGray, White,   cy - 7, 'ZX Spectrum Navigator');
+  cmCentre(LightGray, Black,   cy - 5, 'Version ' + Ver + ',');
+  cmCentre(LightGray, Black,   cy - 4,
     'Compiled on ' + {$I %COMPILE_DATE%});
-  cmCentre(LightGray, White,   cy - 0, 'http://www.sn.nnov.ru');
-  cmCentre(LightGray, Black,   cy + 2,
+  cmCentre(LightGray, Blue,    cy - 2, 'https://github.com/morozov/esn');
+  cmCentre(LightGray, Black,   cy + 0,
     'Copyright (c) 1997-2003 RomanRoms Software Co.');
-  cmCentre(LightGray, Black,   cy + 3, 'Russia. Nizhny Novgorod.');
+  cmCentre(LightGray, Black,   cy + 1, 'Russia. Nizhny Novgorod.');
+  cmCentre(LightGray, Black,   cy + 3,
+    'Free Pascal port by Sergei Morozov, 2026');
   cmCentre(LightGray, Black,   cy + 5, 'This product is a freeware');
   cButton(pal.bkdButtonA, pal.txtdButtonA,
     pal.bkdButtonShadow, pal.txtdButtonShadow,
