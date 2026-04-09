@@ -35,7 +35,7 @@ run() {
   # -----------------------------------------------------------------------
   step 2 "Verify panel is in the expected state before exit"
   send_key
-  assert_text_present "${CASE_ID}_02_before_exit" "bytes free" \
+  assert_text_present "${CASE_ID}_02_before_exit" " free" \
     "Panel is in expected state before exit"
 
   # -----------------------------------------------------------------------

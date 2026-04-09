@@ -200,6 +200,42 @@ begin
     DiskFree := longint(free);
 end;
 
+function DiskFreePath(const dir: string): Int64;
+var
+  saved: string;
+  free: Int64;
+begin
+  saved := GetCurrentDir;
+  if SetCurrentDir(dir) then begin
+    free := SysUtils.DiskFree(0);
+    SetCurrentDir(saved);
+    if free < 0 then
+      DiskFreePath := 0
+    else
+      DiskFreePath := free;
+  end else
+    DiskFreePath := 0;
+end;
+
+function GetDevId(const dir: string): Int64;
+{$IFDEF UNIX}
+var
+  info: BaseUnix.Stat;
+  path: AnsiString;
+begin
+  info := Default(BaseUnix.Stat);
+  path := dir;
+  if fpStat(path, info) = 0 then
+    GetDevId := info.st_dev
+  else
+    GetDevId := -1;
+end;
+{$ELSE}
+begin
+  GetDevId := 0;
+end;
+{$ENDIF}
+
 function DiskSize(drive: byte): longint;
 var
   sz: int64;
@@ -214,13 +250,26 @@ begin
 end;
 
 function FormatFreeBytes(freeBytes: Int64): string;
+const
+  suffixes: array[0..4] of char = ('B', 'K', 'M', 'G', 'T');
+var
+  idx: integer;
+  whole, frac: Int64;
 begin
   if freeBytes < 0 then freeBytes := 0;
-  if freeBytes > 999999999 then
-    FormatFreeBytes := ChangeChar(
-      ExtNum(IntToStr(freeBytes div 1000000)),
-      ' ', ',') + 'G'
+  idx := 0;
+  whole := freeBytes;
+  frac := 0;
+  while (idx < 4) and (whole >= 1024) do begin
+    frac := whole mod 1024;
+    whole := whole div 1024;
+    Inc(idx);
+  end;
+  if idx = 0 then
+    FormatFreeBytes := IntToStr(whole)
+  else if whole < 10 then
+    FormatFreeBytes := IntToStr(whole) + '.' +
+      IntToStr((frac * 10) div 1024) + suffixes[idx]
   else
-    FormatFreeBytes := ChangeChar(
-      ExtNum(IntToStr(freeBytes)), ' ', ',');
+    FormatFreeBytes := IntToStr(whole) + suffixes[idx];
 end;

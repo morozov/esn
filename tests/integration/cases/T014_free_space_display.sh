@@ -21,13 +21,13 @@ run() {
   # -----------------------------------------------------------------------
   step 1 "PC panel — free space line"
   send_key
-  assert_text_present "${CASE_ID}_01_pc_free_format" "bytes free" \
-    "Third info line in pcPanel shows 'bytes free on drive'"
+  assert_text_present "${CASE_ID}_01_pc_free_format" " free" \
+    "Third info line in pcPanel shows free space"
 
   # -----------------------------------------------------------------------
   step 2 "Free space is non-negative"
-  assert_text_absent "${CASE_ID}_02_no_negative" "-1 bytes" \
-    "Free space is never shown as '-1 bytes' (no unguarded diskfree=-1)"
+  assert_text_absent "${CASE_ID}_02_no_negative" "-1" \
+    "Free space is never shown as negative"
 
   # -----------------------------------------------------------------------
   step 3 "TRD panel — free sectors display"

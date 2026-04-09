@@ -34,7 +34,7 @@ run() {
   assert_text_present "${CASE_ID}_01_no_selection" "No files selected" \
     "second info line shows 'No files selected'"
 
-  assert_text_present "${CASE_ID}_01_free_space" "bytes free" \
+  assert_text_present "${CASE_ID}_01_free_space" " free" \
     "third info line shows free space"
 
   assert_text_present "${CASE_ID}_01_status_exit" "Exit" \

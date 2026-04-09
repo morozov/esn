@@ -276,6 +276,8 @@ procedure WriteProfile(inifile, section, key, value: string);
 { ===== Disk / media helpers ===== }
 function  DiskStatus(drive: byte): byte;
 function  DiskFree(drive: byte): longint;
+function  DiskFreePath(const dir: string): Int64;
+function  GetDevId(const dir: string): Int64;
 function  DiskSize(drive: byte): longint;
 function  FormatFreeBytes(freeBytes: Int64): string;
 

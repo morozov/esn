@@ -39,7 +39,7 @@ run() {
   # -----------------------------------------------------------------------
   step 4 "Single-column mode: name line details"
   send_key
-  assert_text_present "${CASE_ID}_04_info_line_present" "bytes free" \
+  assert_text_present "${CASE_ID}_04_info_line_present" " free" \
     "Free space info line is present"
 
   # -----------------------------------------------------------------------
@@ -48,7 +48,7 @@ run() {
   send_key
   assert_text_present "${CASE_ID}_05_size_in_name_line" "SUB-DIR" \
     "Name line shows SUB-DIR for the parent dir entry type indicator"
-  assert_text_present "${CASE_ID}_05_free_space" "bytes free" \
+  assert_text_present "${CASE_ID}_05_free_space" " free" \
     "Third info line shows free space on drive"
 
   # -----------------------------------------------------------------------

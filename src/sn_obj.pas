@@ -111,6 +111,7 @@ Type
        pcIns                    :^pcinsedp;
        pcnd,oldpcnd             :string;
        pcnn                     :string;
+       devId                    :Int64;
        TreeC                    :byte;
        SortType                 :byte;
 
@@ -543,6 +544,7 @@ begin
   pcnd := GetCurrentDir;
   if (Length(pcnd) > 0) and (pcnd[Length(pcnd)] <> PathDelim) then
     pcnd := pcnd + PathDelim;
+  devId := GetDevId(pcnd);
 GetTreeC(pcnd);
 
   oldpctdirs  := pctdirs;
@@ -1133,8 +1135,8 @@ if (pos('f',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
      BEGIN
       if infolines>2 then
        begin
-        freeBytes:=DiskFree(0); nm:=FormatFreeBytes(freeBytes);
-        stemp:='~`'+nm+'~` bytes free';
+        freeBytes:=DiskFreePath(pcnd); nm:=FormatFreeBytes(freeBytes);
+        stemp:='~`'+nm+'~` free';
         i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
         nm:=space(i)+stemp;
         nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
@@ -1631,6 +1633,7 @@ Procedure TPanel.Enter;
 Var
   fullPath, ext, stemp: string;
   i: word;
+  oldDevId: Int64;
 Begin
 Case PanelType of
     pcPanel: begin
@@ -1645,10 +1648,14 @@ Case PanelType of
       Exit;
      end;
         fullPath := IncludeTrailingPathDelimiter(pcnd) + fullPath;
+        oldDevId := devId;
         inc(treec); pcfrom := 1; pcf := 1;
         pcMDF(fullPath);
         Inside;
-        Info('csi');
+        if devId <> oldDevId then
+          Info('csfi')
+        else
+          Info('csi');
         pcPDF(pcfrom);
         exit;
       end;
@@ -1818,12 +1825,14 @@ End;
 Procedure TPanel.CtrlPgUp;
 Var
     stemp:string; i:word;
+    oldDevId: Int64;
 Begin
 Case PanelType of
  pcPanel:
    BEGIN
     if TreeC>1 then
      Begin
+      oldDevId := devId;
       Dec(TreeC);      stemp:=ExcludeTrailingPathDelimiter(pcnd);
       pcnn:=ExtractFileName(stemp);
       stemp:=ExtractFilePath(stemp);
@@ -1832,7 +1841,10 @@ Case PanelType of
       pcMDF(stemp);
       TrueCur;
       Inside;
-      Info('csi');
+      if devId <> oldDevId then
+        Info('csfi')
+      else
+        Info('csi');
       pcPDF(pcfrom);{}
      End;
    END;
@@ -1858,10 +1870,12 @@ End;
 Procedure TPanel.CtrlPgDn;
 Var
     stemp:string;
+    oldDevId: Int64;
 Begin
 Case PanelType of
  pcPanel:
    BEGIN
+    oldDevId := devId;
     if Index<=tdirs then
      begin
       if NoSpace(pcnn)='..' then
@@ -1877,7 +1891,10 @@ Case PanelType of
        end;
      end;
     Inside;
-    Info('csi');
+    if devId <> oldDevId then
+      Info('csfi')
+    else
+      Info('csi');
     pcPDF(pcfrom);{}
    END;
 End;
