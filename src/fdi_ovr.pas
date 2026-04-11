@@ -1,15 +1,15 @@
-{$O+,F+}
+{$mode objfpc}{$H+}
 Unit FDI_Ovr;
 Interface
 Uses
-     RV,sn_Obj, Vars, Palette, Main, TRD, PC,PC_Ovr,Main_Ovr,TRD_Ovr,SCL,SCL_Ovr;
+     RV,sn_Obj, Vars, Palette, Main, TRD, PC,Main_Ovr,TRD_Ovr,SCL;
 
 function  fdiLoad(var p:TPanel; ind:word):boolean;
 function  fdiSave(var p:TPanel):boolean;
 
 function  fdiDel(var p:TPanel):boolean;
 function  fdiRename:boolean;
-function  fdiMove(var p:Tpanel):boolean;
+function  fdiMove(var p:TPanel):boolean;
 function  fdiLabel:boolean;
 
 procedure fdiMakeImage(var p:TPanel; BootOnly:boolean);
@@ -37,7 +37,7 @@ assign(f,p.fdifile); filemode:=0; reset(f,1);
 seek(f,p.fdiRec.offData+bpos(p.trdDir^[ind].n1tr,p.trdDir^[ind].n1sec));
 blockread(f,HobetaInfo.body^,256*HobetaInfo.totalsec);
 close(f);
-{$I-}
+{$I+}
 if ioresult=0 then fdiLoad:=true else FreeMem(HobetaInfo.body,256*HobetaInfo.totalsec);
 End;
 
@@ -90,7 +90,7 @@ seek(f,p.fdiRec.offData+16*(p.zxdisk.files-1)); blockwrite(f,buf,16);
 
 FreeMem(HobetaInfo.body,256*HobetaInfo.totalsec);
 close(f);
-{$I-}
+{$I+}
 if ioresult=0 then fdiSave:=true;
 End;
 
@@ -154,8 +154,8 @@ if p.Index<=1 then exit;
 CancelSB;
 colour(pal.bkCurNT,pal.txtCurNT);
 stemp:=p.trddir^[p.Index].name+'.'+TRDOSe3(p,p.Index);
-s:=stemp; GetCurXYOf(focus,xc,yc);
-curon; SetCursor(400); stemp:=zxsnscanf(xc,yc,stemp,p.trddir^[p.Index].typ); curoff;
+s:=stemp; xc:=0; yc:=0; GetCurXYOf(focus,xc,yc);
+curon; stemp:=zxsnscanf(xc,yc,stemp,p.trddir^[p.Index].typ); curoff;
 if not scanf_esc then
  begin
   {$I-}
@@ -191,14 +191,14 @@ End;
 
 
 {============================================================================}
-function fdiMove(var p:Tpanel):boolean;
+function fdiMove(var p:TPanel):boolean;
 type hbuft=array[1..2] of byte;
 var fr,t:word;
     c,i,a,m:integer; fs:file; buf:^hbuft; nr,nw:word; hbuf:array[0..15] of byte;
     b:byte;
     stemp:string;
 begin
-fdiMove:=false;
+fdiMove:=false; nr:=0; nw:=0;
 if p.zxdisk.delfiles=0 then exit;
 CancelSB;
 stemp:='Do you wish to move'#255'this disk ?';
@@ -206,7 +206,7 @@ if not trdautomove then
 if not cquestion(stemp,lang) then exit;
 if checkdirfile(p.fdifile)<>0 then
  begin
-  errormessage('File '+strlo(getof(p.fdifile,_name))+'.fdi not found');
+  errormessage('File '+LowerCase(getof(p.fdifile,_name))+'.fdi not found');
   p.paneltype:=pcpanel;
   p.pcMDF(p.pcnd);
   p.truecur;
@@ -295,6 +295,7 @@ end;
 {============================================================================}
 function fdiLabel:boolean;
 var s:string; fs:file of byte; b:byte; p:TPanel;
+    i:integer;
 label fin;
 begin
 fdiLabel:=false; Case focus of left:p:=lp; right:p:=rp; End;
@@ -332,22 +333,20 @@ var name:string; stemp,tr:string;
     i,w:word;
     ff:file;
     fb:file of byte;
-    ft:text;
     s,b,h:byte;
     fpos:longint;
-    pp:TPanel;
 begin
- CancelSB;
+ CancelSB; name:=''; tr:='';
 if BootOnly then else
 BEGIN
  colour(pal.bkdRama,pal.txtdRama);
- scputwin(pal.bkdRama,pal.txtdRama,27,halfmaxy-4,54,halfmaxy+2);
+ scputwin(pal.bkdRama,pal.txtdRama,halfmaxx-13,halfmaxy-4,halfmaxx+14,halfmaxy+2);
  cmcentre(pal.bkdRama,pal.txtdRama,halfmaxy-4,' New FDI-file ');
 
- cmprint(pal.bkdLabelST,pal.txtdLabelST,31,halfmaxy-2,'File name:');
- cmprint(pal.bkdLabelST,pal.txtdLabelST,31,halfmaxy-0,'Tracks on disk:');
- printself(pal.bkdInputNT,pal.txtdInputNT,42,halfmaxy-2,8);
- printself(pal.bkdInputNT,pal.txtdInputNT,47,halfmaxy-0,3);
+ cmprint(pal.bkdLabelST,pal.txtdLabelST,halfmaxx-9,halfmaxy-2,'File name:');
+ cmprint(pal.bkdLabelST,pal.txtdLabelST,halfmaxx-9,halfmaxy-0,'Tracks on disk:');
+ printself(pal.bkdInputNT,pal.txtdInputNT,halfmaxx+2,halfmaxy-2,8);
+ printself(pal.bkdInputNT,pal.txtdInputNT,halfmaxx+7,halfmaxy-0,3);
  colour(pal.bkdInputNT,pal.txtdInputNT);
  curon;
  mtscanf('','80',name,tr);
@@ -364,9 +363,9 @@ if scanf_esc then exit;
 if nospace(name)<>'' then
  begin
  {$I-}
-  scputwin(pal.bkdRama,pal.txtdRama,27,halfmaxy-4,54,halfmaxy+2);
-  cmprint(pal.bkdLabelST,pal.txtdLabelST,30,halfmaxy-2,'Formating...');
-  cmprint(7,0,30,halfmaxy-1,fill(23,#177));
+  scputwin(pal.bkdRama,pal.txtdRama,halfmaxx-13,halfmaxy-4,halfmaxx+14,halfmaxy+2);
+  cmprint(pal.bkdLabelST,pal.txtdLabelST,halfmaxx-10,halfmaxy-2,'Formating...');
+  cmprint(7,0,halfmaxx-10,halfmaxy-1,fill(23,#177));
 
   stemp:='File '+getof(name,_name)+'.fdi'+' alredy exist.'+#255+' Overwrite?';
   if checkdirfile(p.pcnd+getof(name,_name)+'.fdi')=0 then
@@ -387,8 +386,8 @@ if nospace(name)<>'' then
   fpos:=0;
   for i:=0 to vall(tr)-1 do for h:=1 to 2 do
    Begin
-    buf[1]:=lo(longlo(fpos)); buf[2]:=hi(longlo(fpos));
-    buf[3]:=lo(longhi(fpos)); buf[4]:=hi(longhi(fpos));
+    buf[1]:=lo(word(fpos)); buf[2]:=hi(word(fpos));
+    buf[3]:=lo(word(fpos shr 16)); buf[4]:=hi(word(fpos shr 16));
     buf[5]:=0; buf[6]:=0; buf[7]:=16;
     blockwrite(ff,buf,7);
     for s:=0 to 15 do
@@ -412,7 +411,7 @@ if nospace(name)<>'' then
    begin
     blockwrite(ff,buf,sizeof(buf));
     ProcessBar(0,round(100*i/vall(tr)),22,'');
-    cmprint(7,0,49,halfmaxy-0,strr(round(100*i/vall(tr))-1)+'%');
+    cmprint(7,0,halfmaxx+9,halfmaxy-0,strr(round(100*i/vall(tr))-1)+'%');
    end;
 
   close(ff);

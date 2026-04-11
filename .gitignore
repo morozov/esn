@@ -1,0 +1,7 @@
+bin/
+*.ppu
+*.o
+*.res
+ppaslink.sh
+tests/integration/results
+tests/unit/run_tests

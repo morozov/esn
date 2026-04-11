@@ -1,89 +1,481 @@
-{$O+,F+}
 Unit Main_Ovr;
-Interface
-Uses sn_Obj;
+{$mode objfpc}{$H+}
+
+interface
+
+uses vars;
 
 Procedure snDone(sys:boolean);
+function  CQuestion(quest: string; lan: byte): boolean;
+procedure PutSmallWindow(ts, bs: string);
+function  GetWildMask(tit, currentMask: string): string;
+procedure About;
+procedure ErrorMessage(tekst: string);
 
-Procedure About;
+var
+  willcm_skip: boolean;
+
+Function WillCopyMove(wtype:word; var TargetPath:string; var Skip:boolean):boolean;
+procedure GlobalFind;
 Procedure AltF10Pressed;
 Procedure CtrlLPressed;
+
+implementation
+
+uses rv, palette, Video, SysUtils,
+     main, sn_Obj, sn_mem, trd,
+     init, Keyboard, pc;
+
+{ Horizontal centre of the dialog, in screen columns. }
+function DlgCX: byte; begin DlgCX := HalfMaxX; end;
+{ Vertical centre of the dialog, in screen rows. }
+function DlgCY: byte; begin DlgCY := HalfMaxY; end;
+
+{============================================================================}
+{== COLOR QESTION ===========================================================}
+{============================================================================}
 function  CQuestion (quest:string; lan:byte):boolean;
-Procedure PutSmallWindow(ts:string; bs:string);
+var
+  k:word;
+  m: byte;
+  cx, cy, x1, x2: byte;
+  sep: integer;
+begin
+  if lan = 0 then ;  { suppress unused-param hint }
+CurOff;
+  cx := DlgCX;
+  cy := DlgCY;
+  x1 := cx - 20;
+  x2 := cx + 21;
+  Colour(pal.bkdRama, pal.txtdRama);
+  sPutWin(x1, cy - 4, x2, cy + 3);
+  cmCentre(pal.bkdRama, pal.txtdRama, cy - 4, ' Confirmation ');
 
-function  GetWildMask(tit,curentmask:string):string;
+  sep := Pos(#255, quest);
+  if sep > 0 then begin
+  CStatusLineColor(pal.bkdStatic,pal.txtdStatic,pal.txtdStatic,
+      cy -2, Copy(quest,1, sep - 1));
+  CStatusLineColor(pal.bkdStatic,pal.txtdStatic,pal.txtdStatic,cy-1,Copy(quest,sep+1,255));
+ end
+else
+ CStatusLineColor(pal.bkdStatic,pal.txtdStatic,pal.txtdStatic,cy-2,quest);
 
-{Procedure DoExec(CmdStr:string; look:boolean);
-{}
-Procedure LocalFind;
-Procedure GlobalFind;
+m:=1;
+  repeat
+    if m = 1 then begin
+      cButton(pal.bkdButtonA, pal.txtdButtonA,
+        pal.bkdButtonShadow, pal.txtdButtonShadow,
+        cx - 9, cy + 1, '  Yes   ', true);
+      cButton(pal.bkdButtonNA, pal.txtdButtonNA,
+        pal.bkdButtonShadow, pal.txtdButtonShadow,
+        cx + 3, cy + 1, '   No   ', false);
+    end else begin
+      cButton(pal.bkdButtonNA, pal.txtdButtonNA,
+        pal.bkdButtonShadow, pal.txtdButtonShadow,
+        cx - 9, cy + 1, '  Yes   ', false);
+      cButton(pal.bkdButtonA, pal.txtdButtonA,
+        pal.bkdButtonShadow, pal.txtdButtonShadow,
+        cx + 3, cy + 1, '   No   ', true);
+    end;
+    UpdateScreen(false);
+    k := rKey;
+    case k of
+      _Esc: begin CQuestion := false; RestScr; exit; end;
+      _Enter, PadEnter: begin
+        CQuestion := (m = 1);
+        RestScr;
+        exit;
+  end;
+      _Left,  Pad4: m := 1;
+      _Right, Pad6: m := 0;
+      _LowY, _UpY:  begin CQuestion := true;  RestScr; exit; end;
+      _LowN, _UpN:  begin CQuestion := false; RestScr; exit; end;
+  end;
+  until false;
+end;
 
-Implementation
-Uses
-     crc32c,Crt, Dos, RV, Clock,
-     Vars, Main, sn_Mem, Palette,
-     PC, TRD;
+{ ===== PutSmallWindow ===== }
+
+procedure PutSmallWindow(ts, bs: string);
+var
+  cy: byte;
+begin
+  cy := DlgCY;
+  Colour(pal.bkdRama, pal.txtdRama);
+  scPutWin(pal.bkdRama, pal.txtdRama,
+    HalfMaxX - 11, cy - 4, HalfMaxX + 12, cy + 3);
+  cmCentre(pal.bkdRama, pal.txtdRama, cy - 4, ts);
+  cButton(pal.bkdButtonA, pal.txtdButtonA,
+    pal.bkdButtonShadow, pal.txtdButtonShadow,
+    HalfMaxX - 4, cy + 1, bs, true);
+  UpdateScreen(false);
+end;
+
+{ ===== GetWildMask ===== }
+
+function GetWildMask(tit, currentMask: string): string;
+var
+  newMask: string;
+  cy: byte;
+    begin
+  cy := DlgCY;
+  Colour(pal.bkdRama, pal.txtdRama);
+  scPutWin(pal.bkdRama, pal.txtdRama,
+    HalfMaxX - 11, cy - 4, HalfMaxX + 12, cy + 3);
+  cmCentre(pal.bkdRama, pal.txtdRama, cy - 4, tit);
+  CMPrint(pal.bkdLabelST, pal.txtdLabelST, HalfMaxX - 7, cy - 2, 'Mask');
+  CMPrint(pal.bkdInputNT, pal.txtdInputNT, HalfMaxX - 8, cy - 1, Space(18));
+  cButton(pal.bkdButtonA, pal.txtdButtonA,
+    pal.bkdButtonShadow, pal.txtdButtonShadow,
+    HalfMaxX - 4, cy + 1, '    OK    ', true);
+  Colour(pal.bkdInputNT, pal.txtdInputNT);
+  newMask := scanf(HalfMaxX - 8, cy - 1, currentMask, 18, 18,
+    Pos('.', currentMask) + 1);
+  RestScr;
+  if scanf_esc then
+    GetWildMask := currentMask
+  else
+    GetWildMask := newMask;
+    end;
+
+{ ===== About ===== }
+
+procedure About;
+var
+  cy: byte;
+                    begin
+  CurOff;
+  cy := DlgCY;
+  Colour(LightGray, White);
+  sPutWin(HalfMaxX - 25, cy - 7, HalfMaxX + 26, cy + 9);
+  cmCentre(LightGray, White,   cy - 5, 'ZX Spectrum Navigator');
+  cmCentre(LightGray, Black,   cy - 3, 'Version ' + Ver + ',');
+  cmCentre(LightGray, Black,   cy - 2,
+    'Compiled Thu, 25 Jun 2003 at 17:17:17');
+  cmCentre(LightGray, White,   cy - 0, 'http://www.sn.nnov.ru');
+  cmCentre(LightGray, Black,   cy + 2,
+    'Copyright (c) 1997-2003 RomanRoms Software Co.');
+  cmCentre(LightGray, Black,   cy + 3, 'Russia. Nizhny Novgorod.');
+  cmCentre(LightGray, Black,   cy + 5, 'This product is a freeware');
+  cButton(pal.bkdButtonA, pal.txtdButtonA,
+    pal.bkdButtonShadow, pal.txtdButtonShadow,
+    HalfMaxX - 3, cy + 7, '   OK   ', true);
+  UpdateScreen(false);
+  rPause;
+  RestScr;
+                  end;
+
+{============================================================================}
+{$push}{$hints off}{$notes off}
+Function  WillCopyMove(wtype:word; var TargetPath:string; var Skip:boolean):boolean;
+Var
+    a1,a2:string[49]; s,st:string; wtemp:word;
+{== SCANF ===================================================================}
+function pscanf(scanf_posx, scanf_posy:byte;
+               scanf_str:string;
+               scanf_total, scanf_visible,
+               scanf_cur:byte):string;
+var
+     scanf_x, scanf_from:byte;
+     scanf_str_old:string;
+     x:byte;
+     kb:word;
+     ch:char;
+     inRadio:boolean;
+begin
+x:=halfmaxx-25;
+scanf_esc:=false;
+scanf_str_old:=scanf_str;
+scanf_str:=scanf_str+space(scanf_total-length(scanf_str));
+scanf_x:=scanf_cur;
+scanf_from:=1;
+if scanf_visible>length(scanf_str) then scanf_visible:=length(scanf_str);
+if skip then
+                  begin
+  cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+0,'( )'+a1);
+  cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+1,'('#7')'+a2);
+ end
+else
+                    begin
+  cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+0,'('#7')'+a1);
+  cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+1,'( )'+a2);
+                    end;
+
+inRadio:=false;
+while true do begin
+if not inRadio then begin
+  mprint(scanf_posx,scanf_posy,copy(scanf_str,scanf_from,scanf_visible));
+  gotoxy(scanf_posx+scanf_x-scanf_from,scanf_posy);
+  UpdateScreen(false);
+end;
+kb:=rKey;
+ch:=chr(kb and $FF);
+
+if inRadio then begin
+  if kb=_Esc then begin pscanf:=scanf_str_old; scanf_esc:=true; exit; end;
+  if (kb=_Enter)or(kb=PadEnter) then begin pscanf:=scanf_str; exit; end;
+  if kb=_Tab then
+   begin
+    cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+0,'( )'+a1);
+    cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+1,'( )'+a2);
+    if skip then
+                  begin
+      cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x+1,halfmaxy+0,' ');
+      cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x+1,halfmaxy+1,#7);
+     end
+    else
+                    begin
+      cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x+1,halfmaxy+0,#7);
+      cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x+1,halfmaxy+1,' ');
+                    end;
+    curon;
+    inRadio:=false;
+    continue;
+                  end;
+  if (kb=_Up)or(kb=Pad8) then
+                  begin
+    skip:=false;
+    cmprint(pal.bkdPoleST,pal.txtdPoleST,x,halfmaxy+0,'('#7')'+a1);
+    cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+1,'( )'+a2);
+                  end;
+  if (kb=_Down)or(kb=Pad2) then
+                  begin
+    skip:=true;
+    cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+0,'( )'+a1);
+    cmprint(pal.bkdPoleST,pal.txtdPoleST,x,halfmaxy+1,'('#7')'+a2);
+                    end;
+  continue;
+                  end;
+
+if kb=_Esc then begin pscanf:=scanf_str_old; scanf_esc:=true; exit; end;
+if (kb=_Enter)or(kb=PadEnter) then begin pscanf:=scanf_str; exit; end;
+
+if (ch>=' ')and(ch<=#255)and(scanf_x<=length(scanf_str)) then
+                    begin
+  scanf_str:=copy(scanf_str,1,scanf_x-1)+ch+copy(scanf_str,scanf_x,length(scanf_str));
+  scanf_str:=copy(scanf_str,1,length(scanf_str)-1);
+  inc(scanf_x);
+  if scanf_x-scanf_from>scanf_visible then inc(scanf_from);
+  if scanf_x>length(scanf_str)+1 then scanf_x:=length(scanf_str)+1;
+                    end;
+
+if ch=#8 then
+                    begin
+  scanf_str:=copy(scanf_str,1,scanf_x-2)+copy(scanf_str,scanf_x,length(scanf_str));
+  dec(scanf_x);
+  if scanf_x<scanf_from then dec(scanf_from);
+  if scanf_x<1 then scanf_x:=1 else scanf_str:=scanf_str+' ';
+  if scanf_from<1 then scanf_from:=1;
+  if scanf_x<1 then scanf_x:=1;
+                  end;
+
+if kb=_Tab then
+                    begin
+  curoff;
+  if skip then
+                  begin
+    cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+0,'( )'+a1);
+    cmprint(pal.bkdPoleST,pal.txtdPoleST,x,halfmaxy+1,'('#7')'+a2);
+   end
+  else
+                    begin
+    cmprint(pal.bkdPoleST,pal.txtdPoleST,x,halfmaxy+0,'('#7')'+a1);
+    cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+1,'( )'+a2);
+                    end;
+  inRadio:=true;
+  continue;
+                  end;
+
+if ch=#25 then
+                    begin
+  scanf_str:=space(scanf_total);
+  scanf_from:=1;
+  scanf_x:=1;
+                  end;
+
+if kb=_Home then begin scanf_from:=1; scanf_x:=1; end;
+if kb=_End  then begin scanf_from:=scanf_total-scanf_visible+1; scanf_x:=length(scanf_str); end;
+if kb=_Del  then scanf_str:=copy(scanf_str,1,scanf_x-1)+copy(scanf_str,scanf_x+1,length(scanf_str))+' ';
+if kb=_Right then
+                    begin
+  inc(scanf_x);
+  if scanf_x-scanf_from>scanf_visible then inc(scanf_from);
+                  end;
+if kb=_Left then
+                  begin
+  dec(scanf_x);
+  if scanf_x<scanf_from then dec(scanf_from);
+                  end;
+
+if scanf_from<1 then scanf_from:=1;
+if scanf_x<1 then scanf_x:=1;
+if scanf_x>length(scanf_str)+1 then begin scanf_x:=length(scanf_str)+1; dec(scanf_from); end;
+if scanf_posx+scanf_x>gmaxx then scanf_x:=gmaxx-scanf_posx;
+
+end; { while }
+                    end;
+{============================================================================}
+{== END SCANF ===============================================================}
+{============================================================================}
+Var p:TPanel;
+Begin
+  a1:=' Overwrite all existing files                    ';
+  a2:=' Skip all existing files                         ';
+Skip:=false;
+WillCopyMove:=false;
+
+if (PanelTypeOf(focus)=zxzPanel)or(PanelTypeOf(ofocus)=zxzPanel) then exit;
+if PanelTypeOf(focus)=pcPanel then
+BEGIN
+if (PanelTypeOf(ofocus)<>pcPanel)and(InsedOf(focus)=0)and(IndexOf(focus)<=tDirsOf(focus))
+then Exit;
+if (PanelTypeOf(ofocus)<>pcPanel)and(InsedOf(focus)=1)and(FirstMarkedOf(focus)<=tDirsOf(focus))
+then Exit;
+
+
+if InsedOf(focus)=0 then Begin s:=TrueNameOf(focus,IndexOf(focus)); wtemp:=IndexOf(focus); End;
+if (InsedOf(focus)=0)and(Trim(s)='..') then Exit;
+if InsedOf(focus)=1 then Begin s:=TrueNameOf(focus,FirstMarkedOf(focus)); wtemp:=FirstMarkedOf(focus); End;
+if wtemp<=tDirsOf(focus)
+  then
+    if wtype=_F5
+    then
+      s:='Copy directory ~`'+s+'~`'
+    else
+      s:='Rename or move directory ~`'+s+'~`'
+  else
+    if wtype=_F5
+    then
+      s:='Copy file ~`'+s+'~`'
+    else
+      s:='Rename or move file ~`'+s+'~`';
+END
+else
+BEGIN
+Case focus of left:p:=lp; right:p:=rp; end;
+if (p.Insed=0)and(p.Index=1) then Exit;
+if p.Insed=0 then
+ Begin
+  s:=p.trdDir^[p.Index].name+'.'+TRDOSe3(p,p.Index);
+  if (s[1]=#0)or(s[1]=#1) then exit;
+  if p.PanelType=tapPanel then
+   begin
+    if (p.Index>2)and(p.trdDir^[p.Index-1].tapflag=0)
+      then s:=p.trdDir^[p.Index-1].name else s:='less';
+    if PanelTypeOf(oFocus)=tapPanel then
+     if p.trdDir^[p.Index].tapflag=0
+      then s:=p.trdDir^[p.Index].name
+      else
+       if (p.Index>2)and(p.trdDir^[p.Index-1].tapflag=0)
+          then s:='codes of "'+p.trdDir^[p.Index-1].name+'"'
+          else s:='codes';
+   end;
+ End;
+if p.Insed=1 then
+ Begin
+  s:=p.trdDir^[p.FirstMarked].name+'.'+TRDOSe3(p,p.FirstMarked);
+  if (s[1]=#0)or(s[1]=#1) then exit;
+  if p.PanelType=tapPanel then
+   begin
+    if (p.FirstMarked>2)and(p.trdDir^[p.FirstMarked-1].tapflag=0)
+      then s:=p.trdDir^[p.FirstMarked-1].name else s:='less';
+    if PanelTypeOf(oFocus)=tapPanel then
+     if p.trdDir^[p.FirstMarked].tapflag=0
+      then s:=p.trdDir^[p.FirstMarked].name
+      else
+       if (p.Index>2)and(p.trdDir^[p.FirstMarked-1].tapflag=0)
+          then s:='codes of "'+p.trdDir^[p.FirstMarked-1].name+'"'
+          else s:='codes';
+                  end;
+                End;
+if wtype=_F5
+    then
+      s:='Copy file ~`'+s+'~`'
+    else
+      s:='Rename or move file ~`'+s+'~`';
+END;
+
+if InsedOf(focus)>1 then
+ Begin
+  s:=strr(InsedOf(focus));
+  if wtype=_F5
+  then
+    s:='Copy ~`'+s+'~` file'+SPlural(InsedOf(focus))
+  else
+    s:='Remane or move ~`'+s+'~` file'+SPlural(InsedOf(focus));
+       End;
+
+CancelSB;
+Colour(pal.bkdRama,pal.txtdRama);
+scPutWin(pal.bkdRama,pal.txtdRama,halfmaxx-28,halfmaxy-5,halfmaxx+29,halfmaxy-3+6);
+if wtype=_F5
+then
+  cmCentre(pal.bkdRama,pal.txtdRama,halfmaxy-5,' Copy ')
+else
+  cmCentre(pal.bkdRama,pal.txtdRama,halfmaxy-5,' Rename/Move ');
+StatusLineColor(pal.bkdLabelST,pal.txtdLabelST,pal.bkdLabelNT,pal.txtdLabelNT,halfmaxx-24,halfmaxy-3,s);
+UpdateScreen(false);
+
+Colour(pal.bkdInputNT,pal.txtdInputNT); curon;
+ s:=Trim(pscanf(halfmaxx-25,halfmaxy-2,'',52,52,1)); curoff; restscr;
+ if not scanf_esc then
+  begin
+   TargetPath:=pcndOf(oFocus);
+
+   if Trim(s)<>'' then TargetPath:=pcndOf(Focus)+(s);
+   if (Length(s)>0)and(s[1]=PathDelim) then TargetPath:=s;
+   if TargetPath[length(TargetPath)]<>PathDelim then TargetPath:=TargetPath+PathDelim;
+   willcm_skip:=Skip;
+   WillCopyMove:=true;
+
+  end;
+
+End;
+{$pop}
+
+{ ===== ErrorMessage ===== }
+
+procedure ErrorMessage(tekst: string);
+var
+  cx, cy: byte;
+  halfW: byte;
+begin
+ CurOff;
+  if Length(tekst) > 60 then tekst := Copy(tekst, 1, 60) + '...';
+  halfW := Length(tekst) div 2 + 5;
+  cx := HalfMaxX;
+  cy := HalfMaxY;
+  scPutWin(Red, White, cx - halfW, cy - 4, cx + halfW, cy);
+  cmCentre(Red, White, cy - 2, tekst);
+  UpdateScreen(false);
+  rKey;
+ RestScr;
+end;
+
+procedure GlobalFind;
+begin
+end;
 
 
 {============================================================================}
 Procedure snDone(sys:boolean);
-Var PT:byte;
 Begin
 if not cQuestion('Exit'#255'Are you sure?',eng) then exit;
 
-ClockExitProc;
 if not sys then
  Begin
-  TextAttr:=SavedAttr; FreeMemPCDirs;
-  Cls;
-  Colour(0,7);
-  mprint(1,1,'ZX Spectrum Navigator '+ver+'E');
-  mprint(1,2,'Shell for ZX Spectrum files');
-  mprint(1,3,'RomanRom2, rom@sn.nnov.ru');
-  GotoXY(1,4);
-  CurOn;
+  if SaveOnExit then SaveConfig;
+  FreeMemPCDirs;
+  DoneVideo;
+  DoneKeyboard;
+  WriteLn('ZX Spectrum Navigator '+ver+'E');
+  WriteLn('Shell for ZX Spectrum files');
+  WriteLn('RomanRom2, rom@sn.nnov.ru');
   Halt(0);
  End;
 End;
 
 
-
-{============================================================================}
-procedure About;
-var y:byte;
-begin
-CurOff; Colour(7,15); y:=halfmaxy;
-sPutWin(15,y-7,66,y+9);
-cmCentre(7,15,y-5,'ZX Spectrum Navigator');
-
-cmCentre(7,0,y-3,'Version '+ver+',');
-cmCentre(7,0,y-2,'Compiled Thu, 25 Jun 2003 at 17:17:17');
-cmCentre(7,15,y-0,'http://www.sn.nnov.ru');
-
-cmCentre(7,0,y+2,'Copyright (c) 1997-2003 RomanRoms Software Co.');
-cmCentre(7,0,y+3,'Russia. Nizhny Novgorod.');
-
-cmCentre(7,0,y+5,'This product is a freeware');
-
-cButton(pal.bkdButtonA,pal.txtdButtonA,pal.bkdButtonShadow,pal.txtdButtonShadow,
-        halfmaxx-3,y+7,'   OK   ',true);
-
-
-rPause;
-RestScr;
-end;
-
-
-{============================================================================}
-Procedure AltF10Pressed;
-begin
-if gmaxy=30 then set80x25 else set80x30; curoff; flash(off);
-GlobalRedraw;
-end;
-
-
-
-{============================================================================}
 Procedure CtrlLPressed;
 Begin
 Case focus of
@@ -97,19 +489,19 @@ Case focus of
       rp.Info('ci');
       Case lp.PanelType of
        pcPanel:
-         BEGIN
+   BEGIN
           pcInfoPanel(left);
-         END;
-      End;
+   END;
+End;
      End
     else
      Begin
       rp.PanelType:=rp.clLastPanelType;
       if (rp.Paneltype>=1)and(rp.Paneltype<=10) then rp.Build('012');
-      reInfo('cbdnsfi');
-      rePDF;
+reInfo('cbdnsfi');
+rePDF;
       snKernelExitCode:=21;
-     End;
+End;
    END;
  right:
    BEGIN
@@ -139,361 +531,14 @@ Case focus of
 End;
 End;
 
-
-
-{============================================================================}
-{== COLOR QESTION ===========================================================}
-{============================================================================}
-function  CQuestion (quest:string; lan:byte):boolean;
-var
-   k:char;
-   cm,m,a,b:integer;
-   x1,x2,dx:byte;
-   yes,no,s:string;
-label l;
+Procedure AltF10Pressed;
 begin
-CurOff;
-yes:='  Yes   '; no:= '   No   ';
-cm:=halfmaxy;
-if length(quest)<5 then dx:=5 else dx:=0;
-x1:=halfmaxx-20;
-x2:=halfmaxx+21;
-Colour(pal.bkdRama,pal.txtdRama); sPutWin(x1,cm-4,x2,cm+3);
-cmcentre(pal.bkdRama,pal.txtdRama,cm-4,' Confirmation ');
-
-if length(quest)<>length(without(quest,#255)) then
- begin
-  CStatusLineColor(pal.bkdStatic,pal.txtdStatic,pal.txtdStatic,cm-2,copy(quest,1,pos(#255,quest)));
-  CStatusLineColor(pal.bkdStatic,pal.txtdStatic,pal.txtdStatic,cm-1,copy(quest,pos(#255,quest)+1,255));
- end
-else
- CStatusLineColor(pal.bkdStatic,pal.txtdStatic,pal.txtdStatic,cm-2,quest);
-
-colour(pal.bkdRama,0);
-m:=1;
-
-l:
- if m=1 then
-  begin
-   cbutton(pal.bkdButtonA,pal.txtdButtonA,pal.bkdButtonShadow,pal.txtdButtonShadow,halfmaxx-9,cm+1,yes,true);
-   cbutton(pal.bkdButtonNA,pal.txtdButtonNA,pal.bkdButtonShadow,pal.txtdButtonShadow,halfmaxx+3,cm+1,no,false);
-  end
- else
-  begin
-   cbutton(pal.bkdButtonNA,pal.txtdButtonNA,pal.bkdButtonShadow,pal.txtdButtonShadow,halfmaxx-9,cm+1,yes,false);
-   cbutton(pal.bkdButtonA,pal.txtdButtonA,pal.bkdButtonShadow,pal.txtdButtonShadow,halfmaxx+3,cm+1,no,true);
-  end;
- k:=ReadKey;
- if k=#27 then begin CQuestion:=false; RestScr; Exit; end;
- if k=#13 then begin if m=0 then CQuestion:=false else CQuestion:=true; RestScr; Exit; end;
- if k=#0 then
-  begin
-   k:=ReadKey;
-   if k=#77 then m:=0;
-   if k=#75 then m:=1;
-  end;
-goto l;
+curoff; flash(off);
+GlobalRedraw;
 end;
 
 
-
-
-
-{============================================================================}
-function GetWildMask(tit,curentmask:string):string;
-var newmask:string;
-begin
- colour(pal.bkdRama,pal.txtdRama);
- scputwin(pal.bkdRama,pal.txtdRama,29,halfmaxy-4,52,halfmaxy+3);
- cmcentre(pal.bkdRama,pal.txtdRama,halfmaxy-4,tit);
- colour(pal.bkdLabelNT,pal.txtdLabelNT);
- cmprint(pal.bkdInputNT,pal.txtdInputNT,32,halfmaxy-1,space(18));
-
- cmprint(pal.bkdLabelST,pal.txtdLabelST,33,halfmaxy-2,'Mask');
- cbutton(pal.bkdButtonA,pal.txtdButtonA,pal.bkdButtonShadow,pal.txtdButtonShadow,36,halfmaxy+1,'    OK    ',true);
-
- colour(pal.bkdInputNT,pal.txtdInputNT);
- curon;
- newmask:=scanf(32,halfmaxy-1,curentmask,18,18,pos('.',CurentMask)+1);
- curoff;
- restscr;
- if scanf_esc then GetWildMask:=curentmask else GetWildMask:=newmask;
-
-end;
-
-
-{============================================================================}
-Procedure PutSmallWindow(ts:string; bs:string);
-Begin
-Colour(pal.bkdRama,pal.txtdRama);
-scPutWin(pal.bkdRama,pal.txtdRama,29,halfmaxy-4,52,halfmaxy+3);
-cmCentre(pal.bkdRama,pal.txtdRama,halfmaxy-4,ts);
-Colour(pal.bkdLabelNT,pal.txtdLabelNT);
-cButton(pal.bkdButtonA,pal.txtdButtonA,pal.bkdButtonShadow,pal.txtdButtonShadow,36,halfmaxy+1,bs,true)
-End;
-
-
-
-
-{============================================================================}
-Procedure LocalFind;
-var
-    p:TPanel;
-    a,kb:word;
-    fname,t,s,ff:string[13];
-
-    i:byte;
-    fnd:boolean;
-
-Label loop,fin;
-Begin
-Case focus of left:p:=lp; right:p:=rp; end;
- CancelSB;
- w_shadow:=false;{}
- scPutWin(pal.bkdRama,pal.txtdRama,p.posx+9,gmaxy-3,p.posx+32,gmaxy-1);
- cmprint(pal.bkdLabelST,pal.txtdLabelST,p.posx+11,gmaxy-2,'Find:');
- printself(pal.bkdInputNT,pal.txtdInputNT,p.posx+18,gmaxy-2,13);
- colour(pal.bkdInputNT,pal.txtdInputNT);
- s:='';
-
-loop:
- cmprint(pal.bkdInputNT,pal.txtdInputNT,p.posx+18,gmaxy-2,s+space(13-length(s)));
- gotoXY(p.posx+18+length(nospace(s)),gmaxy-2);
- CurOn;
-
- kb:=KeyCode;
- if (kb=_ESC)or(kb=_ENTER)or(kb=_Tab) then goto fin;
-
- if kb=_HOME then
-  Case focus of
-   left:
-    begin
-     Case lp.PanelType of
-      pcPanel:  begin lp.pcfrom:=1; lp.pcf:=1; end;
-      trdPanel: begin lp.trdfrom:=1; lp.trdf:=1; end;
-      fdiPanel: begin lp.fdifrom:=1; lp.fdif:=1; end;
-      fddPanel: begin lp.fddfrom:=1; lp.fddf:=1; end;
-      flpPanel: begin lp.flpfrom:=1; lp.flpf:=1; end;
-      sclPanel: begin lp.sclfrom:=1; lp.sclf:=1; end;
-      tapPanel: begin lp.tapfrom:=1; lp.tapf:=1; end;
-      zxzPanel: begin lp.zxzfrom:=1; lp.zxzf:=1; end;
-     End;
-     lp.Inside; rePDF; s:='';
-    end;
-   right:
-    begin
-     Case rp.PanelType of
-      pcPanel:  begin rp.pcfrom:=1; rp.pcf:=1; end;
-      trdPanel: begin rp.trdfrom:=1; rp.trdf:=1; end;
-      fdiPanel: begin rp.fdifrom:=1; rp.fdif:=1; end;
-      fddPanel: begin rp.fddfrom:=1; rp.fddf:=1; end;
-      flpPanel: begin rp.flpfrom:=1; rp.flpf:=1; end;
-      sclPanel: begin rp.sclfrom:=1; rp.sclf:=1; end;
-      tapPanel: begin rp.tapfrom:=1; rp.tapf:=1; end;
-      zxzPanel: begin rp.zxzfrom:=1; rp.zxzf:=1; end;
-     End;
-     rp.Inside; rePDF; s:='';
-    end;
-  End;
-
- if chr(lo(kb)) in [#8] then delete(s,length(s),1);
-
- if (chr(lo(kb)) in [#32..'я'])and
-    (hi(kb) in [0..$d,$10..$1b,$1e..$29,$2b..$35,$39]) then
-  begin
-
-   s:=s+chr(lo(kb));
-   for a:=IndexOf(Focus) to p.tdirs+p.tfiles do
-    begin
-     if PanelTypeOf(focus)=pcPanel
-       then fname:=TrueNameOf(focus,a)
-       else fname:=nospaceLR(p.trdDir^[a].name)+'.'+TRDOSe3(p,a);
-
-
-     t:=fill(length(fname),'?');
-     for i:=1 to length(s) do t[i]:=s[i];
-     fnd:=false;
-     if wild(fname,t,false) then{}
-      begin
-       Case focus of
-        left:  begin
-                Case lp.PanelType of
-                 pcPanel:
-                  begin
-                   inc(lp.pcf,abs(a-IndexOf(focus)));
-                   if lp.pcf>lp.PanelHi*lp.Columns then
-                    begin
-                     inc(lp.pcfrom,(lp.pcf-lp.PanelHi*lp.Columns));
-                     lp.pcf:=lp.PanelHi*lp.Columns;
-                    end;
-                  end;
-                 trdPanel:
-                  begin
-                   inc(lp.trdf,abs(a-IndexOf(focus)));
-                   if lp.trdf>lp.PanelHi*lp.Columns then
-                    begin
-                     inc(lp.trdfrom,(lp.trdf-lp.PanelHi*lp.Columns));
-                     lp.trdf:=lp.PanelHi*lp.Columns;
-                    end;
-                  end;
-                 fdiPanel:
-                  begin
-                   inc(lp.fdif,abs(a-IndexOf(focus)));
-                   if lp.fdif>lp.PanelHi*lp.Columns then
-                    begin
-                     inc(lp.fdifrom,(lp.fdif-lp.PanelHi*lp.Columns));
-                     lp.fdif:=lp.PanelHi*lp.Columns;
-                    end;
-                  end;
-                 fddPanel:
-                  begin
-                   inc(lp.fddf,abs(a-IndexOf(focus)));
-                   if lp.fddf>lp.PanelHi*lp.Columns then
-                    begin
-                     inc(lp.fddfrom,(lp.fddf-lp.PanelHi*lp.Columns));
-                     lp.fddf:=lp.PanelHi*lp.Columns;
-                    end;
-                  end;
-                 flpPanel:
-                  begin
-                   inc(lp.flpf,abs(a-IndexOf(focus)));
-                   if lp.flpf>lp.PanelHi*lp.Columns then
-                    begin
-                     inc(lp.flpfrom,(lp.flpf-lp.PanelHi*lp.Columns));
-                     lp.flpf:=lp.PanelHi*lp.Columns;
-                    end;
-                  end;
-                 sclPanel:
-                  begin
-                   inc(lp.sclf,abs(a-IndexOf(focus)));
-                   if lp.sclf>lp.PanelHi*lp.Columns then
-                    begin
-                     inc(lp.sclfrom,(lp.sclf-lp.PanelHi*lp.Columns));
-                     lp.sclf:=lp.PanelHi*lp.Columns;
-                    end;
-                  end;
-                 tapPanel:
-                  begin
-                   inc(lp.tapf,abs(a-IndexOf(focus)));
-                   if lp.tapf>lp.PanelHi*lp.Columns then
-                    begin
-                     inc(lp.tapfrom,(lp.tapf-lp.PanelHi*lp.Columns));
-                     lp.tapf:=lp.PanelHi*lp.Columns;
-                    end;
-                  end;
-                 zxzPanel:
-                  begin
-                   inc(lp.zxzf,abs(a-IndexOf(focus)));
-                   if lp.zxzf>lp.PanelHi*lp.Columns then
-                    begin
-                     inc(lp.zxzfrom,(lp.zxzf-lp.PanelHi*lp.Columns));
-                     lp.zxzf:=lp.PanelHi*lp.Columns;
-                    end;
-                  end;
-                End;
-                lp.Inside;
-               end;
-        right: begin
-                Case rp.PanelType of
-                 pcPanel:
-                  begin
-                   inc(rp.pcf,abs(a-IndexOf(focus)));
-                   if rp.pcf>rp.PanelHi*rp.Columns then
-                    begin
-                     inc(rp.pcfrom,(rp.pcf-rp.PanelHi*rp.Columns));
-                     rp.pcf:=rp.PanelHi*rp.Columns;
-                    end;
-                  end;
-                 trdPanel:
-                  begin
-                   inc(rp.trdf,abs(a-IndexOf(focus)));
-                   if rp.trdf>rp.PanelHi*rp.Columns then
-                    begin
-                     inc(rp.trdfrom,(rp.trdf-rp.PanelHi*rp.Columns));
-                     rp.trdf:=rp.PanelHi*rp.Columns;
-                    end;
-                  end;
-                 fdiPanel:
-                  begin
-                   inc(rp.fdif,abs(a-IndexOf(focus)));
-                   if rp.fdif>rp.PanelHi*rp.Columns then
-                    begin
-                     inc(rp.fdifrom,(rp.fdif-rp.PanelHi*rp.Columns));
-                     rp.fdif:=rp.PanelHi*rp.Columns;
-                    end;
-                  end;
-                 fddPanel:
-                  begin
-                   inc(rp.fddf,abs(a-IndexOf(focus)));
-                   if rp.fddf>rp.PanelHi*rp.Columns then
-                    begin
-                     inc(rp.fddfrom,(rp.fddf-rp.PanelHi*rp.Columns));
-                     rp.fddf:=rp.PanelHi*rp.Columns;
-                    end;
-                  end;
-                 flpPanel:
-                  begin
-                   inc(rp.flpf,abs(a-IndexOf(focus)));
-                   if rp.flpf>rp.PanelHi*rp.Columns then
-                    begin
-                     inc(rp.flpfrom,(rp.flpf-rp.PanelHi*rp.Columns));
-                     rp.flpf:=rp.PanelHi*rp.Columns;
-                    end;
-                  end;
-                 sclPanel:
-                  begin
-                   inc(rp.sclf,abs(a-IndexOf(focus)));
-                   if rp.sclf>rp.PanelHi*rp.Columns then
-                    begin
-                     inc(rp.sclfrom,(rp.sclf-rp.PanelHi*rp.Columns));
-                     rp.sclf:=rp.PanelHi*rp.Columns;
-                    end;
-                  end;
-                 tapPanel:
-                  begin
-                   inc(rp.tapf,abs(a-IndexOf(focus)));
-                   if rp.tapf>rp.PanelHi*rp.Columns then
-                    begin
-                     inc(rp.tapfrom,(rp.tapf-rp.PanelHi*rp.Columns));
-                     rp.tapf:=rp.PanelHi*rp.Columns;
-                    end;
-                  end;
-                 zxzPanel:
-                  begin
-                   inc(rp.zxzf,abs(a-IndexOf(focus)));
-                   if rp.zxzf>rp.PanelHi*rp.Columns then
-                    begin
-                     inc(rp.zxzfrom,(rp.zxzf-rp.PanelHi*rp.Columns));
-                     rp.zxzf:=rp.PanelHi*rp.Columns;
-                    end;
-                  end;
-                End;
-                rp.Inside;
-               end;
-       End;
-       rePDF;
-       fnd:=true;
-       break;
-      end;
-    end;
-   if not fnd then delete(s,length(s),1);
-  end;
-goto loop;
-
-fin:
- w_shadow:=true;
- CurOff;
- RestScr;
-End;
-
-
-{============================================================================}
-Procedure GlobalFind;
-Begin
-End;
-
-
-Begin
+initialization
 sBar[eng,noPanel]:='~`Alt+X~` Exit';
 sBar[eng,infPanel]:='~`Alt+X~` Exit';
 End.

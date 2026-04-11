@@ -1,7 +1,6 @@
 Unit Main;
+{$mode objfpc}{$H+}
 Interface
-Uses
-     Dos;
 
 Function  CRC16(InString: String) : Word;
 Function  CheckPath(p:string):string;
@@ -12,7 +11,6 @@ Procedure reInfo(parts:string);
 Procedure reInside;
 Procedure reOutside;
 Procedure reTrueCur;
-Procedure reMouse;
 
 Procedure CancelSB;
 Procedure ChangeFocus;
@@ -26,10 +24,8 @@ Function  tFilesOf(w:word):word;
 Function  tDirsFilesOf(w:word):word;
 Function  oFocus:byte;
 Function  pcndOf(w:word):string;
-Function  ViewOf(w:byte; sys:boolean):longint;{}
 Function  pcDirPrioryOf(w:byte; ind:word):byte;
 Function  pcDirFAttrOf(w:byte; ind:word):word;
-Function  pcDirFdtOf(w:byte; ind:word):longint;
 Function  pcDirMarkOf(w:byte; ind:word):boolean;
 Function  trdDirMarkOf(w:byte; ind:word):boolean;
 Function  TreeCOf(w:byte; path:string):byte;
@@ -41,8 +37,9 @@ Procedure Navigate;
 
 Implementation
 Uses
-     RV, Clock, Mouse,
-     Vars, sn_Mem, sn_Obj, Palette;
+     RV,
+     Vars, sn_Mem, sn_Obj, Palette,
+     Main_Ovr, SysUtils, Video;
 
 
 {============================================================================}
@@ -70,57 +67,48 @@ end;
 {============================================================================}
 Function CheckPath(p:string):string;
 Var
-    ie,er:integer; prev:pathstr;
-begin
-GetDir(0,prev);{}
-if (p[Length(p)]='\')and(Length(p)>3){} then Delete(p,Length(p),1);
-{$I-}
-ChDir(p);
-{$I+}
-er:=IOResult;
-if (er=15)or(er=152) then
+    orig:string;
  begin
-  CheckPath:='C:\';
-  Exit;
- end;
-if er<>0 then
+orig:=GetCurrentDir;
+while (Length(p)>1)and(p[Length(p)]=PathDelim) do Delete(p,Length(p),1);
+if not SetCurrentDir(p) then
  begin
-  for ie:=1 to Length(p)-Length(WithOut(p,'\')) do
-   begin
-    Delete(p,Length(p)-Pos('\',ReverseStr(Copy(p,1,Length(p)-1))),255);
-
-    {$I-}
-    ChDir(p);
-    {$I+}
-    if IOResult=0 then
-     begin
-      Break;
-     end;
-    if Length(p)<=3 then
-     begin
-      p:=p[1]+':\';
-      Break;
-     end;
-   end;
+  repeat
+    while (Length(p)>1)and(p[Length(p)]<>PathDelim) do
+      Delete(p,Length(p),1);
+    if Length(p)<=1 then begin p:=GetCurrentDir; break; end;
+    Delete(p,Length(p),1);
+  until SetCurrentDir(p) or (Length(p)<=1);
+  if not SetCurrentDir(p) then p:=GetCurrentDir;
  end;
 
-if p[Length(p)]<>'\' then p:=p+'\';{}
+if p[Length(p)]<>PathDelim then p:=p+PathDelim;
 CheckPath:=p;
 
-{$I-}
-ChDir(prev);
-{$I+}
-if ioresult<>0 then;
+SetCurrentDir(orig);
 end;
 
 
 
 {============================================================================}
 Procedure GlobalRedraw;
+var
+  pf, pfrom, total: longint;
+  pt: byte;
 Begin
+FlushWinStack;
+Cls;
 lp.PanelSetup; rp.PanelSetup;
-if lp.PanelType=noPanel then {lp.Hide{} else lp.Build('012');
-if rp.PanelType=noPanel then {rp.Hide{} else rp.Build('012');
+pf:=lp.f; pfrom:=lp.from;
+total:=lp.tdirs+lp.tfiles;
+ClampPanel(pf, pfrom, lp.PanelHi, lp.Columns, total);
+lp.f:=pf; lp.from:=pfrom;
+pf:=rp.f; pfrom:=rp.from;
+total:=rp.tdirs+rp.tfiles;
+ClampPanel(pf, pfrom, rp.PanelHi, rp.Columns, total);
+rp.f:=pf; rp.from:=pfrom;
+if lp.PanelType<>noPanel then lp.Build('012');
+if rp.PanelType<>noPanel then rp.Build('012');
 lp.Info('cbdnsfi'); rp.Info('cbdnsfi');
 Case lp.PanelType of
  pcPanel:  begin lp.TrueCur; lp.Inside; lp.pcPDF(lp.pcfrom); end;
@@ -130,7 +118,6 @@ Case lp.PanelType of
  tapPanel: begin lp.TrueCur; lp.Inside; lp.tapPDFs(lp.tapfrom); end;
  fddPanel: begin lp.TrueCur; lp.Inside; lp.fddPDFs(lp.fddfrom); end;
  zxzPanel: begin lp.TrueCur; lp.Inside; lp.zxzPDFs(lp.zxzfrom); end;
- flpPanel: begin lp.TrueCur; lp.Inside; lp.flpPDFs(lp.flpfrom); end;
 End;
 Case rp.PanelType of
  pcPanel:  begin rp.TrueCur; rp.Inside; rp.pcPDF(rp.pcfrom); end;
@@ -140,8 +127,11 @@ Case rp.PanelType of
  tapPanel: begin rp.TrueCur; rp.Inside; rp.tapPDFs(rp.tapfrom); end;
  fddPanel: begin rp.TrueCur; rp.Inside; rp.fddPDFs(rp.fddfrom); end;
  zxzPanel: begin rp.TrueCur; rp.Inside; rp.zxzPDFs(rp.zxzfrom); end;
- flpPanel: begin rp.TrueCur; rp.Inside; rp.flpPDFs(rp.flpfrom); end;
 End;
+if focus=Left then pt:=lp.PanelType else pt:=rp.PanelType;
+cStatusBar(Pal.BkSBarNT,Pal.TxtSBarNT,
+           Pal.BkSBarST,Pal.TxtSBarST,
+           1, sBar[lang, pt]);
 End;
 
 
@@ -157,7 +147,6 @@ begin
   tapPanel: lp.tapPDFs(lp.tapfrom);
   fddPanel: lp.fddPDFs(lp.fddfrom);
   zxzPanel: lp.zxzPDFs(lp.zxzfrom);
-  flpPanel: lp.flpPDFs(lp.flpfrom);
  end;
  case rp.PanelType of
   pcPanel:  rp.pcPDF(rp.pcfrom);
@@ -167,7 +156,6 @@ begin
   tapPanel: rp.tapPDFs(rp.tapfrom);
   fddPanel: rp.fddPDFs(rp.fddfrom);
   zxzPanel: rp.zxzPDFs(rp.zxzfrom);
-  flpPanel: rp.flpPDFs(rp.flpfrom);
  end;
 end;
 
@@ -195,7 +183,6 @@ if rPT=infPanel then rPT:=rp.clLastPanelType;
   tapPanel: lp.tapMDFs(lp.tapfile);
   fddPanel: lp.fddMDFs(lp.fddfile);
   zxzPanel: lp.zxzMDFs(lp.zxzfile);
-  flpPanel: lp.flpMDFs(lp.flpDrive);
  end;
 
  case rPT of
@@ -206,7 +193,6 @@ if rPT=infPanel then rPT:=rp.clLastPanelType;
   tapPanel: rp.tapMDFs(rp.tapfile);
   fddPanel: rp.fddMDFs(rp.fddfile);
   zxzPanel: rp.zxzMDFs(rp.zxzfile);
-  flpPanel: rp.flpMDFs(rp.flpDrive);
  end;
 
 end;
@@ -251,13 +237,6 @@ begin
  end;
 end;
 
-
-{============================================================================}
-Procedure reMouse;
-Begin
-if moused then MouseOff;
-if moused then MouseOn;
-End;
 
 
 
@@ -399,18 +378,6 @@ End;
 
 
 {============================================================================}
-
-Function ViewOf(w:byte; sys:boolean):longint;
-Begin
-Case w of
- left:  ViewOf:=lp.View(sys);
- right: ViewOf:=rp.View(sys);
-End;
-End;
-
-
-
-{============================================================================}
 Function  pcDirPrioryOf(w:byte; ind:word):byte;
 Begin
 Case w of
@@ -430,21 +397,6 @@ Case w of
  left:  pcDirFAttrOf:=lp.pcDir^[ind].FAttr;
  right: pcDirFAttrOf:=rp.pcDir^[ind].FAttr;
 End;
-End;
-
-
-
-{============================================================================}
-Function  pcDirFdtOf(w:byte; ind:word):longint;
-Var
-    dt:datetime; ldt:longint;
-Begin
-Case w of
- left:  dt:=lp.pcDir^[ind].Fdt;
- right: dt:=rp.pcDir^[ind].Fdt;
-End;
-PackTime(dt,ldt);
-pcDirFdtOf:=ldt;
 End;
 
 
@@ -536,4 +488,6 @@ End;
 
 
 
+initialization
+  OnResize := @GlobalRedraw;
 End.

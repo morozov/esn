@@ -1,642 +1,115 @@
-{$O+,F+}
+{$mode objfpc}{$H+}
 Unit PC_Ovr;
 Interface
-Uses Crt,Dos,sn_Obj;
+Uses sn_Obj;
 
-Procedure pcF7Pressed(path:string; w:byte);
-Procedure pcDelete(ndpath:string; nm:pathstr; priory:byte; attr:byte);
-Procedure pcF8;
-
-Procedure pc2pc(flag:word);
-
-Procedure pcRename;
-procedure hobRename;
+function  hob2pc(name:string):string;
+function  CheckEx(dir,name:string):string;
 
 Function  hobLoad(name:string):boolean;
 Function  hobSave(path:string; AltF5flag:boolean):boolean;
+
+Procedure pcRename;
+procedure hobRename;
+
 procedure MakeImages(var p:TPanel);
 
+Procedure pc2pc(flag: word);
+
+procedure pcDeleteEntry(const path: string);
 
 Implementation
-Uses Vars,RV,Main,Main_Ovr,Mouse,PC,TRD,FDI,FDD,TRD_Ovr,FDD_Ovr,FDI_Ovr,
-     SCL_Ovr,TAP_Ovr,zxView,Palette,trdos,isdos;
+Uses RV, Vars, Main, Main_Ovr, Palette,
+     PC, TRD, FDI, FDI_Ovr, FDD, FDD_Ovr,
+     TRD_Ovr, SCL_Ovr, TAP_Ovr,
+     SysUtils, Video, Keyboard;
 
 
 {============================================================================}
-procedure pcF7Pressed(path:string; w:byte);
-var d:pathstr;
-    i:integer;
-    s:string[12];
-function pcMakeDir:boolean;
+function hob2pc(name:string):string;
+var i:byte; s,d:string;
 begin
- CancelSB;
- colour(pal.bkdRama,pal.txtdRama);
- scputwin(pal.bkdRama,pal.txtdRama,17,halfmaxy-3,64,halfmaxy-3+3);
- cmcentre(pal.bkdRama,pal.txtdRama,halfmaxy-3,' Make directory ');
- cmprint(pal.bkdLabelST,pal.txtdLabelST,20,halfmaxy-2,'Directory name');
- printself(pal.bkdInputNT,pal.txtdInputNT,19,halfmaxy-1,44);
- colour(pal.bkdInputNT,pal.txtdInputNT);
- curon;
- d:=nospace(scanf(20,halfmaxy-1,'',42,42,1));
- curoff;
- restscr;
- pcMakeDir:=not scanf_esc;
- if nospace(d)='' then pcMakeDir:=false;
-end;
+s:=nospaceLR(Copy(name,1,8));
+d:=LowerCase(s);
+if (d='com1')or(d='com2')or(d='com3')or(d='com4')or(d='com5')or(d='com6')or
+   (d='lpt1')or(d='lpt2')or(d='lpt3')or(d='lpt4')or(d='lpt5')or(d='lpt6')or
+   (d='nul')or(d='con')or(d='aux')or(d='prn') then s:=s+d;
 
-Begin
-if pcMakeDir then
+for i:=1 to length(s) do
  begin
-  s:=strhi(getof(d,_name)+getof(d,_ext));
-
-  if (clen(d)=clen(without(d,':')))and(d[1]<>'\') then d:=path+d;
-  if d[clen(d)]<>'\' then d:=d+'\';
-  createdir(d);
-  reMDF;
-  if w=left then
-   begin
-    lp.pcnn:=s;
-   end
-  else
-   begin
-    rp.pcnn:=s;
-   end;
-  lp.TrueCur; lp.Inside;
-  rp.TrueCur; rp.Inside;
-  reInfo('cdsfi');
-  rePDF;
- end;
+  if s[i]=' ' then s[i]:='_';
+  if s[i] in ['.',':',',','\','/','?','*','>','<','+','"',#39] then s[i]:='-';
+  if s[i]=#0 then s[i]:='0';
+  if s[i]=#1 then s[i]:='1';
+  if s[i]=#2 then s[i]:='2';
+  if s[i]=#3 then s[i]:='3';
+  if s[i]=#4 then s[i]:='4';
+  if s[i]=#5 then s[i]:='5';
+  if s[i]=#6 then s[i]:='6';
+  if s[i]=#7 then s[i]:='7';
+  if s[i]=#8 then s[i]:='8';
+  if s[i]=#9 then s[i]:='9';
+  if s[i]=#10 then s[i]:='A';
+  if s[i]=#11 then s[i]:='B';
+  if s[i]=#12 then s[i]:='C';
+  if s[i]=#13 then s[i]:='D';
+  if s[i]=#14 then s[i]:='E';
+  if s[i]=#15 then s[i]:='F';
+  if s[i]=#16 then s[i]:='G';
+  if s[i]=#17 then s[i]:='H';
+  if s[i]=#18 then s[i]:='I';
+  if s[i]=#19 then s[i]:='J';
+  if s[i]=#20 then s[i]:='K';
+  if s[i]=#21 then s[i]:='L';
+  if s[i]=#22 then s[i]:='M';
+  if s[i]=#23 then s[i]:='N';
+  if s[i]=#24 then s[i]:='O';
+  if s[i]=#25 then s[i]:='P';
+  if s[i]=#26 then s[i]:='Q';
+  if s[i]=#27 then s[i]:='R';
+  if s[i]=#28 then s[i]:='S';
+  if s[i]=#29 then s[i]:='T';
+  if s[i]=#30 then s[i]:='U';
+  if s[i]=#31 then s[i]:='V';
 end;
-
-
-
-
-
-{============================================================================}
-procedure pcDelete(ndpath:string; nm:pathstr; priory:byte; attr:byte);
-
-procedure Dels(path:pathstr);
-procedure DirDel(n:string); begin {$I-} rmdir(n); {$I+} if ioresult<>0 then; end;
-procedure DelFileScan(path:pathstr);
-var sr:searchrec; s:string; attr:word; dest:file;
-begin
- FindFirst(path+'\*.*', $3F, sr);
- while DosError=0 do
-  begin
-   if (sr.attr and (directory or volumeid)=0) then
-    begin
-     s:=path+'\'+sr.name; delete(s,1,length(ndpath));
-     assign(dest,{nospace{}(path+'\'+sr.name));
-     getfattr(dest,attr); if attr and ReadOnly <> 0 then setfattr(dest,(attr xor ReadOnly));
-     filedelete({nospace{}(path+'\'+sr.name));
-    end;
-   FindNext(sr);
-  end;
-end;
-
-procedure DelDirScan(path:pathstr);
-var sr:searchrec; s:string;
-begin
- FindFirst(path+'\*.*', $3F, sr);
- while DosError=0 do
-  begin
-   if ((sr.attr and directory)=directory)and not((sr.name='.')or(sr.name='..')) then
-    begin
-     deldirscan(path+'\'+sr.name);
-     cmcentre(pal.bkdLabelNT,pal.txtdLabelNT,
-              halfmaxy-1,space((17-length(sr.name))div 2)+sr.name+space((17-length(sr.name))div 2));
-     delfilescan(path+'\'+sr.name);
-     dirdel(path+'\'+sr.name);
-     if refresh then reInfo('sf');{}
-    end;
-   FindNext(sr);
-  end;
-end;
-
-var a:string;
-begin
-deldirscan(path);
-delfilescan(path);
-
-if nospace(getof(path,_ext))=''
-  then a:={nospace{}(getof(path,_name))
-  else a:={nospace{}(getof(path,_name)+getof(path,_ext));
-
-cmcentre(pal.bkdLabelNT,pal.txtdLabelNT,halfmaxy-1,
-space((17-length(a))div 2)+
-a+
-space((17-length(a))div 2));
-dirdel(path);
-end;
-
-
-var d:pathstr;
-    i:integer;
-    s:string;
-Begin
-if priory=0
- then s:='Deleting directory'
- else s:='  Deleting file   ';
-cmCentre(pal.bkdLabelNT,pal.txtdLabelNT,halfmaxy-2,s);
-cmCentre(pal.bkdLabelNT,pal.txtdLabelNT,halfmaxy-1,space((17-length(nm))div 2)+nm+space((17-length(nm))div 2));
-if priory=0 then Dels(ndPath+nm) else FileDelete(ndPath+nm);
+hob2pc:=s;
 End;
 
 
 
 
 {============================================================================}
-Procedure pcF8;
-Var
-    i:word; n,s:string;
+function CheckEx(dir,name:string):string;
+var i:longint; s:string[3]; t:string[8]; e:byte;
 Begin
-if InsedOf(focus)=0 then n:=TrueNameOf(focus,IndexOf(focus));
-if InsedOf(focus)=1 then n:=TrueNameOf(focus,FirstMarkedOf(focus));
-if IndexOf(focus)>tdirsOf(focus)
- then
-  s:='Do you wish to delete'#255'file '+n+' ?'
- else
-  s:='Do you wish to delete'#255'directory '+n+' ?';
-if InsedOf(focus)>1 then
-  s:='Do you wish to delete'#255'this files ?';
-if (InsedOf(focus)=0)and(nospace(n)='..') then Exit;
-CancelSB;
-if cQuestion(s,lang) then
+i:=0;
+checkex:=name;
+e:=checkdirfile(dir+name);
+if e<>0 then exit;
+while e=0 do
  Begin
-  if InsedOf(focus)=0 then
-   Case focus of
-    left: lp.pcDir^[IndexOf(focus)].mark:=true;
-    right: rp.pcDir^[IndexOf(focus)].mark:=true;
-   End;
-  PutSmallWindow(' Erase ','   Stop   ');
-  for i:=1 to tdirsfilesOf(focus) do if pcDirMarkOf(focus,i) then
-   Begin
-    pcDelete(pcndOf(focus),TrueNameOf(focus,i),pcDirPrioryOf(focus,i),
-             pcDirFAttrOf(focus,i));
-    Case focus of
-     left: lp.pcDir^[i].mark:=false;
-     right: rp.pcDir^[i].mark:=false;
-    End;
-   End;
-  RestScr;
-  reMDF;
-  lp.TrueCur; rp.TrueCur;
-  lp.Inside; rp.Inside;
-  reInfo('cbdnsfi');
-  rePDF;
+  t:=getof(name,_name);
+  t:=t+space(8-length(t));
+  s:=strr(i);
+  if (i>=0)and(i<10) then s:='00'+s;
+  if (i>=10)and(i<100) then s:='0'+s;
+  t[6]:=s[1];
+  t[7]:=s[2];
+  t[8]:=s[3];
+  checkex:=nospace(t)+getof(name,_ext);
+  inc(i);
+  e:=checkdirfile(dir+nospace(t)+getof(name,_ext));
  End;
 End;
 
 
-{============================================================================}
-Procedure pc2pc(flag:word);
-Var
-    was:longint;
-    TargetPath:string;
-    skip:boolean;
-    total:longint;
-    h,m,s,s100:word; timer,timerstart:longint;
-    vert:array[1..4] of char; cvert,fcvert:byte;
-
-
-Procedure CopyMove_pc2pc(cmflag:word; sPath:string; nm:string; tPath:string;
-                priory:byte; fattr:word; fdt:datetime;
-                skip:boolean; totalsize:longint; var UserOut:boolean);
-Var
-    path:string;
-    stemp:string; itemp:integer;
-
-function GetTimer(sec:string):string;
-Var h,m,s:byte; t:integer;
-begin
-t:=vall(sec);
-h:=t div 3600;
-m:=t div 60;
-s:=t-h*3600-m*60;
-GetTimer:=LZ(h)+':'+LZ(m)+':'+LZ(s);
-end;
-
-procedure copyfile(cfrom,cto:string; fftime:datetime; ffattr:word);
-type mas=array[1..2] of byte;
-var buf:^mas;
-    ffr,fto:file;
-    numread,numwritten:word;
-    k,j,i,bufsize:longint;
-    q:char;
-    ftime:longint;
-label outloop,fin,fin2;
-begin
-if checkdir(getof(cto,_dir))<>0 then createdir(getof(cto,_dir)+'\');
-if (checkdirfile(cto)=0)and(skip) then exit;
-
-if pos('\.\',nospace(tPath))<>0 then
- begin
-  errormessage('Can'#39't copy file to itself');
-  {}
-  userout:=true;
-  goto fin2;
- end;
-
-if checkdir(getof(cto,_dir))<>0 then
- begin
-  errormessage('Error while checking directory');
-  userout:=true;
-  goto fin2;
- end;
-
-if cfrom=cto then
- begin
-
-  errormessage('Can'#39't copy file to itself');
-  {}
-  userout:=true;
-  goto fin2;
- end;
-
-if diskfree(ord(cto[1])-64)<=filelen(cfrom) then
- begin
-  errormessage('Disk '+cto[1]+': full');
-  userout:=true;
-  goto fin2;
- end;
-
-if not checkwrite(cto[1]) then
- begin
-  errormessage('Disk '+cto[1]+': write protect');
-  userout:=true;
-  goto fin2;
- end;
-
- cmprint(pal.bkdLabelST,pal.txtdLabelST,20,halfmaxy-3,'File');
- cmprint(pal.bkdLabelST,pal.txtdLabelST,20,halfmaxy,'Total');
- cmprint(pal.bkdLabelNT,pal.txtdLabelNT,25,halfmaxy-3,strlo(getof(cfrom,_name)+getof(cfrom,_ext))+space(12));
- cmprint(pal.bkdStatic,pal.txtdStatic,22,halfmaxy-2,fill(37,#177));
-
-{$I-}
-assign(ffr,cfrom); assign(fto,cto);
-
-setfattr(fto,archive);
-bufsize:=49152; ftime:=0; k:=filelen(cfrom); fcvert:=1;
-
-IF ((upcase(CFROM[1])<>upcase(CTO[1]))and(cmFlag=_F6))or(cmFlag=_F5) THEN
-BEGIN
-filemode:=1; rewrite(fto,1);
-filemode:=0; reset(ffr,1);
-
-getmem(buf,bufsize);
-{$I-}
-    if filesize(ffr)=0 then goto outloop;
-    repeat
-     if keypressed then
-      begin
-       q:=readkey;
-       stemp:='Stop operation?';
-       if q=#27 then if cquestion(stemp,lang) then begin userout:=true; break; end;
-      end;
-
-     blockread(ffr,buf^,bufsize,numread);
-     blockwrite(fto,buf^,numread,numwritten);
-
-     itemp:=ioresult;
-     if itemp<>0 then begin {errormessage('Неожиданная ошибка '+strr(itemp));{} userout:=true; break; end;
-
-     inc(was,numread); i:=round(((was)/totalsize)*100); if i>100 then i:=100;
-     inc(ftime,numread); j:=round(((ftime)/k)*100); if j>100 then j:=100;
-
-     gettime(h,m,s,s100); timer:=s+m*60+h*3600-timerstart;
-     cmprint(pal.bkdStatic,pal.txtdStatic,55,halfmaxy-4,GetTimer(strr(timer)));
-
-     if timer>0 then if lang=rus
-     then cmcentre(pal.bkdStatic,pal.txtdStatic,halfmaxy-1,'   ('+strr(round((was/timer)/1024))+' kB/сек)  ')
-     else cmcentre(pal.bkdStatic,pal.txtdStatic,halfmaxy-1,'   ('+strr(round((was/timer)/1024))+' kB/sec)  ');
-
-     cmprint(pal.bkdStatic,pal.txtdStatic,20,halfmaxy-2,vert[fcvert]);
-     cmprint(pal.bkdStatic,pal.txtdStatic,22,halfmaxy-2,fill(round(j/2.7),#$DB));
-     cmprint(pal.bkdStatic,pal.txtdStatic,60,halfmaxy-2,strr(j)+'%'+space(4-length(strr(j)+'%')));
-     cmprint(pal.bkdStatic,pal.txtdStatic,20,halfmaxy+1,vert[cvert]);
-     cmprint(pal.bkdStatic,pal.txtdStatic,22,halfmaxy+1,fill(round(i/2.7),#$DB));
-     cmprint(pal.bkdStatic,pal.txtdStatic,60,halfmaxy+1,strr(i)+'%'+space(4-length(strr(i)+'%')));
-     if lang=rus then cmcentre(pal.bkdStatic,pal.txtdStatic,halfmaxy+2,extnum(strr(was))+' байт cкопиpовано')
-                 else cmcentre(pal.bkdStatic,pal.txtdStatic,halfmaxy+2,extnum(strr(was))+' bytes copyed');{}
-     inc(cvert); if cvert>4 then cvert:=1;
-     inc(fcvert); if fcvert>4 then fcvert:=1;
-
-     if moused then MouseOff;
-     if moused then MouseOn;
-    until (numread=0)or(numwritten<>numread);
-outloop:
-freemem(buf,bufsize);
-
-fin:
-packtime(fftime,ftime); setftime(fto,ftime);
-close(ffr); close(fto);
-if itcdrom(cfrom[1]) then else begin getfattr(ffr,ffattr); setfattr(fto,ffattr); end;
-if cmflag=_F6 then
- begin
-  setfattr(ffr,archive); erase(ffr);
- end;
-END
-ELSE
-BEGIN
-     setfattr(fto,archive); erase(fto);
-     rename(ffr,cto);
-
-     if keypressed then
-      begin
-       q:=readkey;
-       stemp:='Stop operation?';
-       if q=#27 then if cquestion(stemp,lang) then begin userout:=true; end;
-      end;
-     j:=100;
-     inc(was,k); i:=round(((was)/totalsize)*100); if i>100 then i:=100;
-
-     cmprint(pal.bkdStatic,pal.txtdStatic,20,halfmaxy-2,vert[fcvert]);
-     cmprint(pal.bkdStatic,pal.txtdStatic,22,halfmaxy-2,fill(round(j/2.7),#$DB));
-     cmprint(pal.bkdStatic,pal.txtdStatic,60,halfmaxy-2,strr(j)+'%'+space(4-length(strr(j)+'%')));
-     cmprint(pal.bkdStatic,pal.txtdStatic,20,halfmaxy+1,vert[cvert]);
-     cmprint(pal.bkdStatic,pal.txtdStatic,22,halfmaxy+1,fill(round(i/2.7),#$DB));
-     cmprint(pal.bkdStatic,pal.txtdStatic,60,halfmaxy+1,strr(i)+'%'+space(4-length(strr(i)+'%')));
-
-     inc(cvert); if cvert>4 then cvert:=1;
-     inc(fcvert); if fcvert>4 then fcvert:=1;
-END;
-
-fin2:
-if userout then erase(fto);
-{$I+}
-if ioresult<>0 then;
-if refresh then reInfo('sf');{}
-end;
-
-procedure CopyFileScan(path:pathstr);
-var sr:searchrec; s:string; dt:datetime;
-begin
- FindFirst(path+'\*.*', $3F, sr);
- while DosError=0 do
-  begin
-   if (sr.attr and (directory or volumeid)=0) then
-    begin
-     if userout then exit;
-     s:=path+'\'+sr.name; delete(s,1,length(pcndOf(focus)));
-     unpacktime(sr.time,dt);
-     copyfile({nospace{}(path+'\'+sr.name),{nospace{}(tPath+s),dt,sr.attr);{}
-     if userout then exit;
-    end;
-   FindNext(sr);
-  end;
-end;
-
-procedure CopyDirScan(path:pathstr);
-var sr:searchrec; s:string;
-begin
- FindFirst(path+'\*.*', $3F, sr);
- while DosError=0 do
-  begin
-   if ((sr.attr and directory)=directory)and not((sr.name='.')or(sr.name='..')) then
-    begin
-     if userout then exit;
-     copydirscan(path+'\'+sr.name);
-     if userout then exit;
-     copyfilescan(path+'\'+sr.name);
-     if userout then exit;
-     {$I-} if cmFlag=_F6 then RmDir(path+'\'+sr.name); {$I+}
-    end;
-   FindNext(sr);
-  end;
-s:=path; delete(s,1,length(pcndOf(focus))); CreateDir(tpath+s+'\');
-end;
-
-Begin
-Path:=sPath+nm;
-if path[length(path)]='.' then delete(path,length(path),1);
-stemp:=reversestr(path);
-stemp:=reversestr(copy(stemp,1,pos('\',stemp)));
-if pos(Path,tPath)<>0 then
- begin
-  errormessage('Directory '+stemp+'; attempt copy to itself');
-  exit;
- end;
-if priory=0 then
- begin
-  if userout then exit;
-  copydirscan(path);
-  if userout then exit;
-  copyfilescan(path);
-  if userout then exit;
-  {$I-} if cmFlag=_F6 then RmDir(path); {$I+}
- end
-else
- begin
-  if userout then exit;
-  CopyFile(path,tPath+nm,fdt,fattr);
-  if userout then exit;
- end;
-if Moused then MouseOff;
-if Moused then MouseOn;
-End;
-
-Var dt:DateTime; ldt:longint; UserOutCopy:boolean;
-BEGIN
-UserOutCopy:=false;
- if WillCopyMove(Flag,TargetPath,Skip) then
-  Begin
-   Colour(pal.bkdRama,pal.txtdRama);
-   scPutWin(pal.bkdRama,pal.txtdRama,17,halfmaxy-5,64,halfmaxy-3+6);
-   if Flag=_F5
-   then
-     cmcentre(pal.bkdRama,pal.txtdRama,halfmaxy-5,' Copy ')
-   else
-     cmcentre(pal.bkdRama,pal.txtdRama,halfmaxy-5,' Move ');
-   cmCentre(pal.bkdStatic,pal.txtdStatic,halfmaxy-1,' Scaning directories...');
-   total:=ViewOf(focus,true);
-   cmCentre(pal.bkdStatic,pal.txtdStatic,halfmaxy-1,'                       ');
-   cmcentre(pal.bkdRama,pal.txtdRama,halfmaxy+3,' Total '+changechar(extnum(strr(total)),' ',',')+' bytes ');
-   cmPrint(pal.bkdStatic,pal.txtdStatic,22,halfmaxy+1,fill(37,#177));
-   was:=0;
-gettime(h,m,s,s100); timerstart:=s+m*60+h*60*60;
-vert[1]:='-'; vert[2]:='\'; vert[3]:='|'; vert[4]:='/';
-cvert:=1;
-   if InsedOf(focus)=0 then
-    begin
-     UnPackTime(pcDirFdtOf(focus,IndexOf(focus)),dt);
-     CopyMove_pc2pc(flag,pcndOf(focus),TrueNameOf(focus,IndexOf(focus)),
-                    TargetPath,
-                    pcDirPrioryOf(focus,IndexOf(focus)),
-                    pcDirFAttrOf(focus,IndexOf(focus)),dt,
-                    Skip,total,UserOutCopy);
-    end;
-   if InsedOf(focus)>0 then for i:=1 to tdirsfilesOf(focus) do if pcDirMarkOf(focus,i) then
-    begin
-     if UserOutCopy then break;
-     UnPackTime(pcDirFdtOf(focus,i),dt);
-     CopyMove_pc2pc(flag,pcndOf(focus),TrueNameOf(focus,i),
-                    TargetPath,
-                    pcDirPrioryOf(focus,i),
-                    pcDirFAttrOf(focus,i),dt,Skip,total,UserOutCopy);
-     if UserOutCopy then break;
-     Case focus of
-      left: lp.pcDir^[i].mark:=false;
-      right: rp.pcDir^[i].mark:=false;
-     End;
-    {}
-    end;
-  End;
- RestScr;
- reMDF;
-  lp.TrueCur; lp.Inside;
-  rp.TrueCur; rp.Inside;
- reInfo('cb nsfi');
- rePDF;
-END;
-
-
-
-
-{============================================================================}
-Procedure pcRename;
-Var
-    s,stemp:string; ff:file; CurXPos, CurYPos:byte;
-    n,dx:byte;
-{== SCANF ===================================================================}
-function SNscanf(scanf_posx, scanf_posy:byte;scanf_str:string):string;
-var
-     scanf_kod:char;
-     scanf_x:byte;
-     scanf_str_old:string;
-label loop;
-begin
-scanf_esc:=false;
-scanf_str_old:=scanf_str;
-scanf_x:=1;
-loop:
-mprint(scanf_posx,scanf_posy,scanf_str);
-gotoxy(scanf_posx+scanf_x-1,scanf_posy);
-scanf_kod:=readkey;
-if (scanf_kod in[' '..')','-','0'..'9','@'..'[',']'..#255])and(scanf_x<=length(scanf_str)) then
- begin
-  scanf_str[scanf_x]:=scanf_kod;
-  inc(scanf_x);
-  if scanf_x=DX+1 then inc(scanf_x);
- end;
-if scanf_kod='.' then scanf_x:=DX+2;
-
-if scanf_kod=#0 then
- begin
-  scanf_kod:=readkey;
-  if scanf_kod=#77 then begin inc(scanf_x); if scanf_x=DX+1 then inc(scanf_x); end;
-  if scanf_kod=#75 then begin dec(scanf_x); if scanf_x=DX+1 then dec(scanf_x); end;
-  if scanf_kod=#72 then scanf_kod:=#13;
-  if scanf_kod=#80 then scanf_kod:=#13;
- end;
-
-if scanf_kod=#27 then begin snscanf:=scanf_str_old; scanf_esc:=true; exit; end;
-if scanf_kod=#13 then begin snscanf:=scanf_str; exit; end;
-
-if scanf_x<1 then scanf_x:=1;
-if scanf_x>DX+4 then begin scanf_x:=DX+4; end;
-goto loop;
-end;
-
-
-Begin
- Case focus of
-  left: stemp:=lp.pcDir^[IndexOf(focus)].fname;
-  right: stemp:=rp.pcDir^[IndexOf(focus)].fname;
- End;
- if nospace(stemp)='..' then exit;
- CancelSB;
- GetCurXYOf(focus,CurXPos,CurYPos);
- Case ColumnsOf(focus) of
-  1,3: DX:=8;
-  2:   Begin DX:=15; if (CurXPos=2)or(CurXPos=42) then dec(DX);{} End;
- End;
-
- Colour(pal.bkCurNT,pal.txtCurNT);
- Case focus of
-  left:  stemp:=sRexpand(lp.pcdir^[IndexOf(focus)].fname,DX)+'.'+sRexpand(lp.pcdir^[IndexOf(focus)].fext,3);
-  right: stemp:=sRexpand(rp.pcdir^[IndexOf(focus)].fname,DX)+'.'+sRexpand(rp.pcdir^[IndexOf(focus)].fext,3);
- End;
- s:=TrueNameOf(focus,IndexOf(focus));
- if IndexOf(focus)>tdirsOf(focus) then stemp:=strlo(stemp);
- CurOn; SetCursor(400); stemp:=nospace(snscanf(CurXPos,CurYPos,stemp)); CurOff;
- if not scanf_esc then
-  begin
-   {$I-}
-   assign(ff,pcndOf(focus)+s);
-   rename(ff,pcndOf(focus)+stemp);
-   {$I+}
-   if ioresult<>0 then;
-   reMDF;
-   if stemp[length(stemp)]='.' then delete(stemp,length(stemp),1);
-   Case focus of
-    left: lp.pcnn:=stemp;
-    right: rp.pcnn:=stemp;
-   End;
-   reTrueCur;
-   reInside;
-   reInfo('ni');
-   rePDF;
-  end;
-End;
-
-
-
-
-{============================================================================}
-procedure hobRename;
-var
-   buf:array[1..19]of byte;
-   s,stemp:string;
-   tc,xc,yc:byte;
-   m:word;
-   f:file;
-begin
-if not itHobeta(pcndOf(focus)+TrueNameOf(focus,IndexOf(focus)),HobetaInfo) then exit;{}
-CancelSB;
-colour(pal.bkCurNT,pal.txtCurNT);
-
-stemp:=HobetaInfo.name+'.';
-if TRDOS3 then stemp:=stemp+hobetainfo.typ+chr(lo(hobetainfo.start))+chr(hi(hobetainfo.start))
-          else stemp:=stemp+'<'+hobetainfo.typ+'>';
-
-GetCurXYOf(focus,xc,yc);
-curon; SetCursor(400); stemp:=zxsnscanf(xc,yc,stemp,HobetaInfo.typ); curoff;
-if not scanf_esc then
- begin
-  for xc:=1 to 8 do buf[xc]:=byte(stemp[xc]);
-  if TRDOS3 then
-   begin
-    buf[9]:=byte(stemp[10]);
-    buf[10]:=byte(stemp[11]);
-    buf[11]:=byte(stemp[12]);
-   end
-  else
-   begin
-    buf[9]:=byte(stemp[11]);
-    buf[10]:=lo(hobetainfo.start);
-    buf[11]:=hi(hobetainfo.start);
-   end;
-
-  m:=HobetaInfo.length; buf[12]:=lo(m); buf[13]:=hi(m);
-  buf[14]:=0; buf[15]:=HobetaInfo.totalsec;
-  m:=0; for tc:=1 to 15 do m:=m+257*buf[tc]+(tc-1);
-  buf[16]:=lo(m); buf[17]:=hi(m);
-
-  {$I-}
-  assign(f,pcndOf(focus)+TrueNameOf(focus,IndexOf(focus))); FileMode:=2;
-  Reset(f,1);  Seek(f,0); BlockWrite(f,buf,17); Close(f);
-  {$I+}
-  if IOResult=0 then;
- end;
-rePDF;
-end;
 
 
 {============================================================================}
 Function  hobLoad(name:string):boolean;
 Var
    f:file; i1,i2:byte;
-Begin
+   Begin
 hobLoad:=false;
 if ItHobeta(name,HobetaInfo) then
  begin
@@ -674,7 +147,7 @@ buf[14]:=0; buf[15]:=HobetaInfo.totalsec;
 m:=0; for tc:=1 to 15 do m:=m+257*buf[tc]+(tc-1);
 buf[16]:=lo(m); buf[17]:=hi(m);
 
-stemp:=strlo(hob2pc(HobetaInfo.name));
+stemp:=LowerCase(hob2pc(HobetaInfo.name));
 if nospace(stemp)='' then stemp:='________';
 if TRDOS3 and altF5flag then
  begin
@@ -713,27 +186,157 @@ End;
 
 
 {============================================================================}
+Procedure pcRename;
+Var
+    s,stemp:string; ff:file; CurXPos, CurYPos:byte;
+     dx:byte;
+{== SCANF ===================================================================}
+function SNscanf(scanf_posx, scanf_posy:byte;scanf_str:string):string;
+var
+     scanf_kod:word;
+     scanf_x:byte;
+     scanf_str_old:string;
+label loop;
+begin
+scanf_esc:=false;
+scanf_str_old:=scanf_str;
+scanf_x:=1;
+loop:
+mprint(scanf_posx,scanf_posy,scanf_str);
+gotoxy(scanf_posx+scanf_x-1,scanf_posy);
+UpdateScreen(false);
+scanf_kod:=rKey;
+if (chr(lo(scanf_kod)) in[' '..')','-','0'..'9','@'..'[',']'..#254])and(scanf_x<=length(scanf_str)) then
+ begin
+  scanf_str[scanf_x]:=chr(lo(scanf_kod));
+  inc(scanf_x);
+  if scanf_x=DX+1 then inc(scanf_x);
+ end;
+if chr(lo(scanf_kod))='.' then scanf_x:=DX+2;
+
+if scanf_kod=_Right then begin inc(scanf_x); if scanf_x=DX+1 then inc(scanf_x); end;
+if scanf_kod=_Left then begin dec(scanf_x); if scanf_x=DX+1 then dec(scanf_x); end;
+if (scanf_kod=_Up) or (scanf_kod=_Down) then scanf_kod:=_Enter;
+
+if scanf_kod=_ESC then begin snscanf:=scanf_str_old; scanf_esc:=true; exit; end;
+if (scanf_kod=_Enter)or(scanf_kod=PadEnter) then begin snscanf:=scanf_str; exit; end;
+
+if scanf_x<1 then scanf_x:=1;
+if scanf_x>DX+4 then begin scanf_x:=DX+4; end;
+goto loop;
+end;
+{============================================================================}
+{============================================================================}
+
+Begin
+ CurXPos:=0; CurYPos:=0;
+ Case focus of
+  left: stemp:=lp.pcDir^[IndexOf(focus)].fname;
+  right: stemp:=rp.pcDir^[IndexOf(focus)].fname;
+ End;
+ if nospace(stemp)='..' then exit;
+ CancelSB;
+ GetCurXYOf(focus,CurXPos,CurYPos);
+ Case ColumnsOf(focus) of
+  1,3: DX:=8;
+  2:   Begin DX:=15; end;
+ End;
+
+ Colour(pal.bkCurNT,pal.txtCurNT);
+ Case focus of
+  left:  stemp:=sRexpand(lp.pcdir^[IndexOf(focus)].fname,DX)+'.'+sRexpand(lp.pcdir^[IndexOf(focus)].fext,3);
+  right: stemp:=sRexpand(rp.pcdir^[IndexOf(focus)].fname,DX)+'.'+sRexpand(rp.pcdir^[IndexOf(focus)].fext,3);
+ End;
+ s:=TrueNameOf(focus,IndexOf(focus));
+ if IndexOf(focus)>tdirsOf(focus) then stemp:=LowerCase(stemp);
+ CurOn; stemp:=nospace(snscanf(CurXPos,CurYPos,stemp)); CurOff;
+ if not scanf_esc then
+  begin
+   {$I-}
+   assign(ff,pcndOf(focus)+s);
+   rename(ff,pcndOf(focus)+stemp);
+   {$I+}
+   if ioresult<>0 then;
+   reMDF;
+   if stemp[length(stemp)]='.' then delete(stemp,length(stemp),1);
+   Case focus of
+    left: lp.pcnn:=stemp;
+    right: rp.pcnn:=stemp;
+   End;
+   reTrueCur;
+   reInside;
+   reInfo('ni');
+   rePDF;
+  end;
+End;
+
+
+
+
+{============================================================================}
+procedure hobRename;
+var
+   buf:array[1..19]of byte;
+    stemp:string;
+   tc,xc,yc:byte;
+   m:word;
+   f:file;
+begin
+if not itHobeta(pcndOf(focus)+TrueNameOf(focus,IndexOf(focus)),HobetaInfo) then exit;
+CancelSB;
+colour(pal.bkCurNT,pal.txtCurNT);
+
+stemp:=HobetaInfo.name+'.';
+if TRDOS3 then stemp:=stemp+hobetainfo.typ+chr(lo(hobetainfo.start))+chr(hi(hobetainfo.start))
+          else stemp:=stemp+'<'+hobetainfo.typ+'>';
+
+{$push}{$hints off}
+GetCurXYOf(focus,xc,yc);
+{$pop}
+curon; stemp:=zxsnscanf(xc,yc,stemp,HobetaInfo.typ); curoff;
+if not scanf_esc then
+ begin
+  for xc:=1 to 8 do buf[xc]:=byte(stemp[xc]);
+  if TRDOS3 then
+   begin
+    buf[9]:=byte(stemp[10]);
+    buf[10]:=byte(stemp[11]);
+    buf[11]:=byte(stemp[12]);
+   end
+  else
+   begin
+    buf[9]:=byte(stemp[11]);
+    buf[10]:=lo(hobetainfo.start);
+    buf[11]:=hi(hobetainfo.start);
+   end;
+
+  m:=HobetaInfo.length; buf[12]:=lo(m); buf[13]:=hi(m);
+  buf[14]:=0; buf[15]:=HobetaInfo.totalsec;
+  m:=0; for tc:=1 to 15 do m:=m+257*buf[tc]+(tc-1);
+  buf[16]:=lo(m); buf[17]:=hi(m);
+
+  {$I-}
+  assign(f,pcndOf(focus)+TrueNameOf(focus,IndexOf(focus))); FileMode:=2;
+  Reset(f,1);  Seek(f,0); BlockWrite(f,buf,17); Close(f);
+  {$I+}
+  if IOResult=0 then;
+ end;
+rePDF;
+end;
+
+
+{============================================================================}
 procedure MakeImages(var p:TPanel);
 Var i:byte;
 Begin
-  menu_Name[1]:='~`TRD~`  - Standart TR-DOS Image';
-  menu_Name[2]:='~`FDI~`  - TR-DOS Full Disk Image (UKV)';
-  menu_Name[3]:='~`FDD~`  - TR-DOS for Scorpion256 by MOA';
-  menu_Name[4]:='~`SCL~`  - Hobeta98 (AMD Copier)';
-  menu_Name[5]:='~`TAP~`  - Tape Image';
-  Menu_Name[6]:='~`FTiS~` - Format iS-DOS disk';
-  Menu_Name[7]:='~`LDiS~` - Load iS-DOS disk to file';
-  Menu_Name[8]:='~`FTTR~` - Format TR-DOS disk';
-  Menu_Name[9]:='~`LDTR~` - Load TR-DOS disk to file';
-  Menu_Name[10]:='~`WRTR~` - Save file to TR-DOS disk';
+  menu_Name[1]:='~`TRD~` - Standart TR-DOS Image';
+  menu_Name[2]:='~`FDI~` - TR-DOS Full Disk Image (UKV)';
+  menu_Name[3]:='~`FDD~` - TR-DOS for Scorpion256 by MOA';
+  menu_Name[4]:='~`SCL~` - Hobeta98 (AMD Copier)';
+  menu_Name[5]:='~`TAP~` - Tape Image';
 CancelSB;
-menu_Total:=9;
-if (isTRD(pcndOf(focus)+TrueNameOf(focus,IndexOf(focus))))or
-   (isFDI(p,pcndOf(focus)+TrueNameOf(focus,IndexOf(focus))))or
-   (isFDD(pcndOf(focus)+TrueNameOf(focus,IndexOf(focus))))
-   then menu_Total:=10;
-
-menu_f:=1; menu_title:=''; menu_visible:=10;
+menu_Total:=5;
+menu_f:=1; menu_title:=''; menu_visible:=5;
 w_twosided:=false;
 i:=ChooseItem;
 w_twosided:=true;
@@ -743,11 +346,6 @@ Case i of
  3: fddMakeImage(p,false);
  4: sclMakeImage(false);
  5: tapMakeImage;
- 6: Format_ISDOS;
- 7: Load_ISDOS;
- 8: Format_TRDOS;
- 9: Load_TRDOS;
- 10: Save_TRDOS;{}
 End;
 reMDF;
 p.truecur;
@@ -757,5 +355,454 @@ rePDF;
 End;
 
 
+{============================================================================}
+Procedure pc2pc(flag: word);
+const
+  CopyBuf = 49152;
+var
+  was: int64;
+  targetPath: string;
+  total: int64;
+  timerStart: TDateTime;
+  vert: array[1..4] of char;
+  cvert, fcvert: byte;
+  n: word;
+  sp: ^TPanel;
+
+procedure CopyMove_pc2pc(
+  cmflag: word; sPath, nm, tPath: string;
+  priory: byte; skip: boolean;
+  totalsize: int64; var UserOut: boolean);
+var
+  path, stemp: string;
+
+  function GetTimer(secs: longint): string;
+  var
+    th, tm, ts: longint;
+  begin
+    th := secs div 3600;
+    tm := (secs div 60) mod 60;
+    ts := secs mod 60;
+    GetTimer := LZ(word(th)) + ':'
+      + LZ(word(tm)) + ':' + LZ(word(ts));
+  end;
+
+  procedure copyfile(cfrom, cto: string);
+  type
+    mas = array[1..CopyBuf] of byte;
+  var
+    buf: ^mas;
+    ffr, fto: file;
+    numread, numwritten: word;
+    k: int64;
+    j, i: longint;
+    ke: TKeyEvent;
+    elapsed: longint;
+    fage: longint;
+  begin
+    numread := 0;
+    numwritten := 0;
+    if CheckDir(ExtractFileDir(cto)) <> 0 then
+      rv.CreateDir(
+        IncludeTrailingPathDelimiter(ExtractFileDir(cto)));
+    if (CheckDirFile(cto) = 0) and skip then exit;
+    if ExpandFileName(cfrom) = ExpandFileName(cto) then begin
+      ErrorMessage('Can''t copy file to itself');
+      userOut := true;
+      exit;
+    end;
+    if CheckDir(ExtractFileDir(cto)) <> 0 then begin
+      ErrorMessage('Error while checking directory');
+      userOut := true;
+      exit;
+    end;
+    CMPrint(pal.bkdLabelST, pal.txtdLabelST,
+      HalfMaxX - 20, HalfMaxY - 3, 'File');
+    CMPrint(pal.bkdLabelST, pal.txtdLabelST,
+      HalfMaxX - 20, HalfMaxY, 'Total');
+    CMPrint(pal.bkdLabelNT, pal.txtdLabelNT,
+      HalfMaxX - 15, HalfMaxY - 3,
+      Copy(ExtractFileName(cfrom), 1, 20)
+        + Space(20));
+    CMPrint(pal.bkdStatic, pal.txtdStatic,
+      HalfMaxX - 18, HalfMaxY - 2,
+      Fill(37, #177));
+    UpdateScreen(false);
+
+    if (cmflag = _F6) and
+       (UpCase(cfrom[1]) = UpCase(cto[1])) then begin
+      {$I-}
+      Assign(ffr, cfrom);
+      Assign(fto, cto);
+      if FileExists(cto) then begin
+        Erase(fto);
+        if IOResult <> 0 then ;
+      end;
+      System.Rename(ffr, cto);
+      {$I+}
+      if IOResult <> 0 then ;
+      k := FileLen(cto);
+      if k < 0 then k := 0;
+      Inc(was, k);
+      if totalsize > 0 then
+        i := Round((was / totalsize) * 100)
+      else
+        i := 100;
+      if i > 100 then i := 100;
+      j := 100;
+      CMPrint(pal.bkdStatic, pal.txtdStatic,
+        HalfMaxX - 20, HalfMaxY - 2, vert[fcvert]);
+      CMPrint(pal.bkdStatic, pal.txtdStatic,
+        HalfMaxX - 18, HalfMaxY - 2,
+        Fill(Round(j / 2.7), #$DB));
+      stemp := StrR(j) + '%';
+      CMPrint(pal.bkdStatic, pal.txtdStatic,
+        HalfMaxX + 20, HalfMaxY - 2,
+        stemp + Space(4 - Length(stemp)));
+      CMPrint(pal.bkdStatic, pal.txtdStatic,
+        HalfMaxX - 20, HalfMaxY + 1, vert[cvert]);
+      CMPrint(pal.bkdStatic, pal.txtdStatic,
+        HalfMaxX - 18, HalfMaxY + 1,
+        Fill(Round(i / 2.7), #$DB));
+      stemp := StrR(i) + '%';
+      CMPrint(pal.bkdStatic, pal.txtdStatic,
+        HalfMaxX + 20, HalfMaxY + 1,
+        stemp + Space(4 - Length(stemp)));
+      Inc(cvert);
+      if cvert > 4 then cvert := 1;
+      Inc(fcvert);
+      if fcvert > 4 then fcvert := 1;
+      UpdateScreen(false);
+      exit;
+    end;
+
+    {$I-}
+    fage := FileAge(cfrom);
+    Assign(ffr, cfrom);
+    FileMode := 0;
+    Reset(ffr, 1);
+    Assign(fto, cto);
+    FileMode := 2;
+    Rewrite(fto, 1);
+    GetMem(buf, CopyBuf);
+    fcvert := 1;
+    k := FileLen(cfrom);
+    if k < 0 then k := 0;
+    if FileSize(ffr) = 0 then begin
+      FreeMem(buf, CopyBuf);
+      Close(ffr);
+      Close(fto);
+      if fage <> -1 then
+        FileSetDate(cto, fage);
+      if IOResult <> 0 then ;
+      exit;
+    end;
+    repeat
+      ke := PollKeyEvent;
+      if ke <> 0 then begin
+        ke := GetKeyEvent;
+        if GetKeyEventChar(ke) = #27 then begin
+          stemp := 'Stop operation?';
+          if CQuestion(stemp, lang) then begin
+            userOut := true;
+            break;
+          end;
+        end;
+      end;
+
+      BlockRead(ffr, buf^, CopyBuf, numread);
+      BlockWrite(fto, buf^, numread, numwritten);
+      if IOResult <> 0 then begin
+        userOut := true;
+        break;
+      end;
+
+      Inc(was, numread);
+      if totalsize > 0 then
+        i := Round((was / totalsize) * 100)
+      else
+        i := 100;
+      if i > 100 then i := 100;
+      if k > 0 then
+        j := Round((FilePos(ffr) / k) * 100)
+      else
+        j := 100;
+      if j > 100 then j := 100;
+
+      elapsed := Round(
+        (Now - timerStart) * SecsPerDay);
+      CMPrint(pal.bkdStatic, pal.txtdStatic,
+        HalfMaxX + 15, HalfMaxY - 4,
+        GetTimer(elapsed));
+
+      if elapsed > 0 then
+        cmCentre(pal.bkdStatic, pal.txtdStatic,
+          HalfMaxY - 1,
+          '   (' + StrR(Round(
+            (was / elapsed) / 1024))
+          + ' kB/sec)  ');
+
+      CMPrint(pal.bkdStatic, pal.txtdStatic,
+        HalfMaxX - 20, HalfMaxY - 2,
+        vert[fcvert]);
+      CMPrint(pal.bkdStatic, pal.txtdStatic,
+        HalfMaxX - 18, HalfMaxY - 2,
+        Fill(Round(j / 2.7), #$DB));
+      stemp := StrR(j) + '%';
+      CMPrint(pal.bkdStatic, pal.txtdStatic,
+        HalfMaxX + 20, HalfMaxY - 2,
+        stemp + Space(4 - Length(stemp)));
+      CMPrint(pal.bkdStatic, pal.txtdStatic,
+        HalfMaxX - 20, HalfMaxY + 1,
+        vert[cvert]);
+      CMPrint(pal.bkdStatic, pal.txtdStatic,
+        HalfMaxX - 18, HalfMaxY + 1,
+        Fill(Round(i / 2.7), #$DB));
+      stemp := StrR(i) + '%';
+      CMPrint(pal.bkdStatic, pal.txtdStatic,
+        HalfMaxX + 20, HalfMaxY + 1,
+        stemp + Space(4 - Length(stemp)));
+      cmCentre(pal.bkdStatic, pal.txtdStatic,
+        HalfMaxY + 2,
+        ChangeChar(ExtNum(StrR(was)), ' ', ',')
+        + ' bytes copied');
+      Inc(cvert);
+      if cvert > 4 then cvert := 1;
+      Inc(fcvert);
+      if fcvert > 4 then fcvert := 1;
+      UpdateScreen(false);
+    until numread = 0;
+    FreeMem(buf, CopyBuf);
+    Close(ffr);
+    Close(fto);
+    if fage <> -1 then
+      FileSetDate(cto, fage);
+    {$I+}
+    if IOResult <> 0 then ;
+    if userOut then begin
+      {$I-}
+      Assign(fto, cto);
+      Erase(fto);
+      {$I+}
+      if IOResult <> 0 then ;
+    end;
+    if (cmflag = _F6) and (not userOut) then begin
+      {$I-}
+      Assign(ffr, cfrom);
+      Erase(ffr);
+      {$I+}
+      if IOResult <> 0 then ;
+    end;
+    if Refresh then reInfo('sf');
+  end;
+
+  procedure CopyFileScan(scanPath: string);
+  var
+    sr: TSearchRec;
+    s: string;
+  begin
+    if FindFirst(
+         IncludeTrailingPathDelimiter(scanPath) + '*',
+         faAnyFile, sr) = 0 then begin
+      repeat
+        {$push}{$warnings off}
+        if (sr.Attr and (faDirectory or faVolumeId)) = 0 then begin
+        {$pop}
+          if userOut then begin
+            FindClose(sr);
+            exit;
+          end;
+          s := IncludeTrailingPathDelimiter(scanPath)
+            + sr.Name;
+          Delete(s, 1, Length(string(sp^.pcnd)));
+          copyfile(
+            IncludeTrailingPathDelimiter(scanPath)
+              + sr.Name,
+            IncludeTrailingPathDelimiter(tPath)
+              + s);
+          if userOut then begin
+            FindClose(sr);
+            exit;
+          end;
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+  end;
+
+  procedure CopyDirScan(scanPath: string);
+  var
+    sr: TSearchRec;
+    s: string;
+  begin
+    if FindFirst(
+         IncludeTrailingPathDelimiter(scanPath) + '*',
+         faAnyFile, sr) = 0 then begin
+      repeat
+        if ((sr.Attr and faDirectory) = faDirectory)
+           and (sr.Name <> '.') and (sr.Name <> '..')
+        then begin
+          if userOut then begin
+            FindClose(sr);
+            exit;
+          end;
+          CopyDirScan(
+            IncludeTrailingPathDelimiter(scanPath)
+              + sr.Name);
+          if userOut then begin
+            FindClose(sr);
+            exit;
+          end;
+          CopyFileScan(
+            IncludeTrailingPathDelimiter(scanPath)
+              + sr.Name);
+          if userOut then begin
+            FindClose(sr);
+            exit;
+          end;
+          if cmflag = _F6 then begin
+            {$I-}
+            RmDir(IncludeTrailingPathDelimiter(
+              scanPath) + sr.Name);
+            {$I+}
+            if IOResult <> 0 then ;
+          end;
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+    s := scanPath;
+    Delete(s, 1, Length(string(sp^.pcnd)));
+    rv.CreateDir(
+      IncludeTrailingPathDelimiter(tPath) + s);
+  end;
+
+begin { CopyMove_pc2pc }
+  path := IncludeTrailingPathDelimiter(sPath) + nm;
+  if (Length(path) > 0) and (path[Length(path)] = '.')
+  then
+    Delete(path, Length(path), 1);
+  if Pos(path, tPath) <> 0 then begin
+    ErrorMessage('Directory '
+      + ExtractFileName(nm)
+      + '; attempt copy to itself');
+    exit;
+  end;
+  if priory = 0 then begin
+    if userOut then exit;
+    CopyDirScan(path);
+    if userOut then exit;
+    CopyFileScan(path);
+    if userOut then exit;
+    if cmflag = _F6 then begin
+      {$I-}
+      RmDir(path);
+      {$I+}
+      if IOResult <> 0 then ;
+    end;
+  end else begin
+    if userOut then exit;
+    copyfile(path,
+      IncludeTrailingPathDelimiter(tPath) + nm);
+    if userOut then exit;
+  end;
+end; { CopyMove_pc2pc }
+
+var
+  i: word;
+  userOutCopy: boolean;
+BEGIN { pc2pc }
+  if focus = Left then sp := @lp
+  else sp := @rp;
+
+  n := sp^.Insed;
+  targetPath := '';
+  if not WillCopyMove(flag, targetPath, willcm_skip) then exit;
+
+  userOutCopy := false;
+  Colour(pal.bkdRama, pal.txtdRama);
+  scPutWin(pal.bkdRama, pal.txtdRama,
+    HalfMaxX - 23, HalfMaxY - 5,
+    HalfMaxX + 24, HalfMaxY + 3);
+  if flag = _F5 then
+    cmCentre(pal.bkdRama, pal.txtdRama,
+      HalfMaxY - 5, ' Copy ')
+  else
+    cmCentre(pal.bkdRama, pal.txtdRama,
+      HalfMaxY - 5, ' Move ');
+
+  cmCentre(pal.bkdStatic, pal.txtdStatic,
+    HalfMaxY - 1, ' Scanning directories...');
+  UpdateScreen(false);
+  total := sp^.View(true);
+  cmCentre(pal.bkdStatic, pal.txtdStatic,
+    HalfMaxY - 1,
+    Space(25));
+  cmCentre(pal.bkdRama, pal.txtdRama,
+    HalfMaxY + 3,
+    ' Total '
+    + ChangeChar(ExtNum(StrR(total)), ' ', ',')
+    + ' bytes ');
+  CMPrint(pal.bkdStatic, pal.txtdStatic,
+    HalfMaxX - 18, HalfMaxY + 1,
+    Fill(37, #177));
+  UpdateScreen(false);
+
+  was := 0;
+  timerStart := Now;
+  vert[1] := '-';
+  vert[2] := '\';
+  vert[3] := '|';
+  vert[4] := '/';
+  cvert := 1;
+
+  if n = 0 then begin
+    CopyMove_pc2pc(flag, string(sp^.pcnd),
+      sp^.TrueName(sp^.Index), targetPath,
+      sp^.pcDir^[sp^.Index].priory,
+      willcm_skip, total, userOutCopy);
+  end;
+  if n > 0 then
+    for i := 1 to sp^.pctdirs + sp^.pctfiles do
+      if sp^.pcDir^[i].mark then begin
+        if userOutCopy then break;
+        CopyMove_pc2pc(flag, string(sp^.pcnd),
+          sp^.TrueName(i), targetPath,
+          sp^.pcDir^[i].priory,
+          willcm_skip, total, userOutCopy);
+        if userOutCopy then break;
+        sp^.pcDir^[i].mark := false;
+      end;
+
+  RestScr;
+  reMDF;
+  lp.TrueCur;
+  lp.Inside;
+  rp.TrueCur;
+  rp.Inside;
+  reInfo('cbdnsfi');
+  rePDF;
+END;
+
+
+{============================================================================}
+procedure pcDeleteEntry(const path: string);
+var
+  sr: TSearchRec;
+begin
+  if DirectoryExists(path) then begin
+    if SysUtils.FindFirst(
+      IncludeTrailingPathDelimiter(path) + '*', faAnyFile, sr) = 0 then begin
+      repeat
+        if (sr.Name <> '.') and (sr.Name <> '..') then
+          pcDeleteEntry(
+            IncludeTrailingPathDelimiter(path) + sr.Name);
+      until SysUtils.FindNext(sr) <> 0;
+      SysUtils.FindClose(sr);
+    end;
+    RemoveDir(path);
+  end else
+    DeleteFile(path);
+end;
 
 End.

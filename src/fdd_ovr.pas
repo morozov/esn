@@ -1,8 +1,8 @@
-{$O+,F+}
 Unit FDD_Ovr;
+{$mode objfpc}{$H+}
 Interface
 Uses
-     RV,sn_Obj, Vars, Palette, Main, TRD, Main_Ovr,PC,PC_Ovr,FDD,TRD_Ovr,SCL,SCL_Ovr;
+     RV,sn_Obj, Vars, Palette, Main, TRD, Main_Ovr,PC,FDD,TRD_Ovr,SCL;
 
 Procedure fddInfoPanel(w:byte);
 
@@ -19,6 +19,7 @@ procedure fddMakeImage(var p:TPanel; BootOnly:boolean);
 
 Implementation
 
+uses SysUtils, Video;
 
 {============================================================================}
 Procedure fddInfoPanel(w:byte);
@@ -42,23 +43,23 @@ HobetaInfo.totalsec:=p.trdDir^[ind].totalsec;
 
 fddLoad:=false;
 {$I-}
-GetMem(HobetaInfo.body,256*HobetaInfo.totalsec);
+GetMem(HobetaInfo.body,256*longint(HobetaInfo.totalsec));
 
 s:=p.trdDir^[ind].n1sec+1; t:=p.trdDir^[ind].n1tr; bufpos:=1;
-for i:=1 to p.trdDir^[ind].totalsec do
+for i:=1 to HobetaInfo.totalsec do
  Begin
   fddReadSector(p.fddfile,t,s);
   for k:=0 to 255 do begin HobetaInfo.body^[bufpos]:=fddSectorBuf[k]; inc(bufpos); end;
   inc(s); if s>16 then begin s:=1; inc(t); end;
  End;
 {$I+}
-if ioresult=0 then fddLoad:=true else FreeMem(HobetaInfo.body,256*HobetaInfo.totalsec);
-End;
+if ioresult=0 then fddLoad:=true else FreeMem(HobetaInfo.body,256*longint(HobetaInfo.totalsec));
+end;
 
 
 {============================================================================}
 Function fddSave(var p:TPanel):boolean;
-Var f:file; k,i,b:byte; buf:array[0..15]of byte; bufpos:word;
+Var k,i,b:byte; buf:array[0..15]of byte; bufpos:word;
 Begin
 fddSave:=false; bufpos:=1;
 {$I-}
@@ -105,7 +106,7 @@ k:=p.zxdisk.files-(p.zxdisk.files div 16)*16; if k=0 then k:=16; k:=(k-1)*16;
 for i:=0 to 15 do fddSectorBuf[k+i]:=buf[i];{}
 fddWriteSector(p.fddfile,0,b);
 
-FreeMem(HobetaInfo.body,256*HobetaInfo.totalsec);
+FreeMem(HobetaInfo.body,longint(HobetaInfo.totalsec)*256);
 {$I+}
 if ioresult=0 then fddSave:=true;
 End;
@@ -114,7 +115,8 @@ End;
 
 {============================================================================}
 function fddDel(var p:TPanel):boolean;
-var df,b,k,io:byte; buf:array[0..15]of byte; fs:file;
+var df,b,k,io:byte; buf:array[0..15]of byte;
+    i:integer;
 begin
 fddDel:=false;
   {$I-}
@@ -159,8 +161,9 @@ end;
 
 {============================================================================}
 function fddRename:boolean;
-var xc,yc,df,b,k,io:byte; buf:array[0..15]of byte; fs:file; s,stemp:string;
+var xc,yc,df,b,k,io:byte; buf:array[0..15]of byte; s,stemp:string;
     p:tPanel;
+    i:integer;
 begin
 Case focus of left:p:=lp; right:p:=rp; End;
 
@@ -170,8 +173,8 @@ if p.Index<=1 then exit;
 CancelSB;
 colour(pal.bkCurNT,pal.txtCurNT);
 stemp:=p.trddir^[p.Index].name+'.'+TRDOSe3(p,p.Index);
-s:=stemp; GetCurXYOf(focus,xc,yc);
-curon; SetCursor(400); stemp:=zxsnscanf(xc,yc,stemp,p.trddir^[p.Index].typ); curoff;
+s:=stemp; xc:=0; yc:=0; GetCurXYOf(focus,xc,yc);
+curon; stemp:=zxsnscanf(xc,yc,stemp,p.trddir^[p.Index].typ); curoff;
 if not scanf_esc then
 BEGIN
 
@@ -195,7 +198,7 @@ fddReadSector(p.fddfile,0,b);
     buf[15]:=p.trddir^[i].n1tr;
 
 k:=df-(df div 16)*16; if k=0 then k:=16; k:=(k-1)*16;
-for io:=0 to 15 do fddSectorBuf[k+io]:=buf[io];{}
+for io:=0 to 15 do fddSectorBuf[k+io]:=buf[io];
 fddWriteSector(p.fddfile,0,b);
 
 fddReadSector(p.fddfile,0,9);
@@ -213,9 +216,8 @@ end;
 
 {============================================================================}
 function fddMove(var p:Tpanel):boolean;
-type hbuft=array[1..2] of byte;
 var fr,t:word;
-    c,i,a,m,k,io:word; fs:file; buf:^hbuft; nr,nw:word; hbuf:array[0..15] of byte;
+    c,i,a,m,k:word;
     b:byte;
     stemp:string;
 begin
@@ -227,7 +229,7 @@ if not trdautomove then
 if not cquestion(stemp,lang) then exit;
 if checkdirfile(p.fddfile)<>0 then
  begin
-  errormessage('File '+strlo(getof(p.fddfile,_name))+'.fdd not found');
+  errormessage('File '+LowerCase(getof(p.fddfile,_name))+'.fdd not found');
   p.paneltype:=pcpanel;
   p.pcMDF(p.pcnd);
   p.truecur;
@@ -294,7 +296,8 @@ end;
 
 {============================================================================}
 function fddLabel:boolean;
-var s:string; fs:file of byte; b:byte; p:TPanel;
+var s:string; p:TPanel;
+    i:integer;
 label fin;
 begin
 fddLabel:=false; Case focus of left:p:=lp; right:p:=rp; End;
@@ -326,29 +329,27 @@ end;
 
 
 {============================================================================}
+{$push}{$hints off}{$notes off}
 procedure fddMakeImage(var p:TPanel; BootOnly:boolean);
 var name:string; stemp,tr:string;
     buf:array[1..8192] of byte;
     i,w,w1,w2:word;
     ff:file;
-    fb:file of byte;
-    ft:text;
-    s,b,h:byte;
+    s,h:byte;
     fpos,l:longint;
-    pp:TPanel;
 begin
  CancelSB;
 
 if BootOnly then else
 BEGIN
  colour(pal.bkdRama,pal.txtdRama);
- scputwin(pal.bkdRama,pal.txtdRama,27,halfmaxy-4,54,halfmaxy+2);
+ scputwin(pal.bkdRama,pal.txtdRama,halfmaxx-13,halfmaxy-4,halfmaxx+14,halfmaxy+2);
  cmcentre(pal.bkdRama,pal.txtdRama,halfmaxy-4,' New FDD-file ');
 
- cmprint(pal.bkdLabelST,pal.txtdLabelST,31,halfmaxy-2,'File name:');
- cmprint(pal.bkdLabelST,pal.txtdLabelST,31,halfmaxy-0,'Tracks on disk:');
- printself(pal.bkdInputNT,pal.txtdInputNT,42,halfmaxy-2,8);
- printself(pal.bkdInputNT,pal.txtdInputNT,47,halfmaxy-0,3);
+ cmprint(pal.bkdLabelST,pal.txtdLabelST,halfmaxx-9,halfmaxy-2,'File name:');
+ cmprint(pal.bkdLabelST,pal.txtdLabelST,halfmaxx-9,halfmaxy-0,'Tracks on disk:');
+ printself(pal.bkdInputNT,pal.txtdInputNT,halfmaxx+2,halfmaxy-2,8);
+ printself(pal.bkdInputNT,pal.txtdInputNT,halfmaxx+7,halfmaxy-0,3);
  colour(pal.bkdInputNT,pal.txtdInputNT);
  curon;
  mtscanf('','80',name,tr);
@@ -365,9 +366,9 @@ if scanf_esc then exit;
 if nospace(name)<>'' then
  begin
  {$I-}
-  scputwin(pal.bkdRama,pal.txtdRama,27,halfmaxy-4,54,halfmaxy+2);
-  cmprint(pal.bkdLabelST,pal.txtdLabelST,30,halfmaxy-2,'Formating...');
-  cmprint(7,0,30,halfmaxy-1,fill(23,#177));
+  scputwin(pal.bkdRama,pal.txtdRama,halfmaxx-13,halfmaxy-4,halfmaxx+14,halfmaxy+2);
+  cmprint(pal.bkdLabelST,pal.txtdLabelST,halfmaxx-10,halfmaxy-2,'Formating...');
+  cmprint(7,0,halfmaxx-10,halfmaxy-1,fill(23,#177));
 
   stemp:='File '+getof(name,_name)+'.fdd'+' alredy exist.'+#255+' Overwrite?';
   if checkdirfile(p.pcnd+getof(name,_name)+'.fdd')=0 then
@@ -387,8 +388,8 @@ if nospace(name)<>'' then
   fpos:=716;
   for i:=1 to 2*85 do
    Begin
-    buf[1]:=lo(longlo(fpos)); buf[2]:=hi(longlo(fpos));
-    buf[3]:=lo(longhi(fpos)); buf[4]:=hi(longhi(fpos));
+    buf[1]:=lo(word(fpos)); buf[2]:=hi(word(fpos));
+    buf[3]:=lo(word(fpos shr 16)); buf[4]:=hi(word(fpos shr 16));
     if i>2*vall(tr) then
      begin
       buf[1]:=0; buf[2]:=0; buf[3]:=0; buf[4]:=0;
@@ -411,8 +412,8 @@ if nospace(name)<>'' then
 
       buf[1]:=i-1; buf[2]:=0; buf[3]:=s; buf[4]:=1;
 
-      w1:=longlo(fpos); buf[5]:=lo(w1); buf[6]:=hi(w1);
-      w1:=longhi(fpos); buf[7]:=lo(w1); buf[8]:=hi(w1);
+      w1:=fpos and $FFFF; buf[5]:=lo(w1); buf[6]:=hi(w1);
+      w1:=(fpos shr 16) and $FFFF; buf[7]:=lo(w1); buf[8]:=hi(w1);
       if s>16 then
        begin
         buf[1]:=0; buf[2]:=0; buf[3]:=0; buf[4]:=0;
@@ -424,7 +425,7 @@ if nospace(name)<>'' then
     blockwrite(ff,buf,4096);
     inc(w);
     ProcessBar(0,round(100*i/(w2)),22,'');
-    cmprint(7,0,49,halfmaxy-0,strr(round(100*i/(w2))-1)+'%');
+    cmprint(7,0,halfmaxx+9,halfmaxy-0,strr(round(100*i/(w2))-1)+'%');
    End;
   close(ff);
 
@@ -440,8 +441,8 @@ if nospace(name)<>'' then
   fddSectorBuf[$e7]:=$10;
   fddSectorBuf[$f4]:=0;
 
-  name:=name+space(8-length(name));
-  for i:=0 to 7 do fddSectorBuf[$f5+i]:=ord(name[i+1]);
+  stemp:=name+space(8-length(name));
+  for i:=0 to 7 do fddSectorBuf[$f5+i]:=ord(stemp[i+1]);
   fddWriteSector(p.pcnd+getof(name,_name)+'.fdd',0,9);
   {$I+}
   i:=ioresult;
@@ -452,5 +453,6 @@ END;
 
 makeboot:=false;
 end;
+{$pop}
 
 End.

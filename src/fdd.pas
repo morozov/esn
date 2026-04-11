@@ -1,8 +1,8 @@
-{$O+,F+}
 Unit FDD;
+{$mode objfpc}{$H+}
 Interface
 Uses
-     RV,sn_Obj, Vars, Palette, Main, TRD, Main_Ovr, PC;
+     RV,sn_Obj, Vars, Palette, Main, TRD, Main_Ovr;
 
 Type
    tfdd=
@@ -29,6 +29,7 @@ procedure fddPDF(var p:TPanel; fr:integer);
 
 Implementation
 
+uses Video;
 
 {============================================================================}
 function  fddNameLine(var p:TPanel; a:word):string;
@@ -75,9 +76,12 @@ End;
 
 {============================================================================}
 procedure fddReadSector(fddfile:string; t,s:byte);
-var ff:file; buf:array[1..8] of byte; indx:longint; b:byte;
+var ff:file; buf:array[1..8] of byte; indx:longint;
     w1,w2:word;
 Begin
+{$push}{$hints off}{$notes off}
+FillChar(buf, SizeOf(buf), 0);
+{$pop}
 {$I-}
 assign(ff,fddfile); filemode:=0; reset(ff,1); seek(ff,36+t*4);
 blockread(ff,buf,4);
@@ -95,9 +99,12 @@ End;
 
 {============================================================================}
 procedure fddWriteSector(fddfile:string; t,s:byte);
-var ff:file; buf:array[1..8] of byte; indx:longint; b:byte;
+var ff:file; buf:array[1..8] of byte; indx:longint;
     w1,w2:word;
 Begin
+{$push}{$hints off}{$notes off}
+FillChar(buf, SizeOf(buf), 0);
+{$pop}
 {$I-}
 assign(ff,fddfile); filemode:=2;
 reset(ff,1); if ioresult<>0 then;
@@ -119,7 +126,7 @@ End;
 procedure fddMDF(var p:TPanel; path:string);
 var ff:file; buf:array[1..8] of byte; indx:longint;
 {----------------------------------------------------------------------------}
-procedure ReadSector(fddfile:string; t,s:byte);
+procedure ReadSector(t,s:byte);
 Begin
 {$I-}
 seek(ff,36+t*4);
@@ -136,7 +143,7 @@ End;
 var sec,n:byte; s:string; FoundFiles,ffile,k,i,trdinsed:integer;
 begin
 
-if (checkdirfile(path)<>0)or(not isFDD(path)){} then
+if (checkdirfile(path)<>0)or(not isFDD(path)) then
  begin
   p.PanelType:=pcPanel;
   p.pcMDF(p.pcnd);
@@ -151,7 +158,7 @@ p.trdins^[k].crc16:=crc16(p.trddir^[i].name+TRDOSe3(p,i)); end; trdinsed:=k;
 assign(ff,p.fddfile); filemode:=0; reset(ff,1);
 blockread(ff,fddSectorBuf,32); p.zxdisk.tracks:=fddSectorBuf[$1E];
 
-ReadSector(p.fddfile,0,9);
+ReadSector(0,9);
 
 p.zxDisk.files:=fddSectorBuf[$e4];
 p.zxDisk.n1freesec:=fddSectorBuf[$e1];
@@ -175,7 +182,7 @@ p.trddir^[1].mark:=false;
 ffile:=2; FoundFiles:=0;
 for sec:=1 to 8 do
  begin
-  ReadSector(p.fddfile,0,sec);
+  ReadSector(0,sec);
   for n:=1 to 16 do
    begin
     if Cat9 then
@@ -232,9 +239,9 @@ End;
 
 {============================================================================}
 procedure fddPDF(var p:TPanel; fr:integer);
-var px,py,py0,ph,paper,ink,pp,ii,dx,ddx:byte;
+var px,py,paper,ink,ii,dx,ddx:byte;
     i,n:integer;
-    s,name:string; e:string[3];
+    name:string; e:string[3];
 Begin
 
 if p.paneltype<>fddPanel then exit;
@@ -242,10 +249,15 @@ if p.paneltype<>fddPanel then exit;
 n:=p.fddtfiles;
 if n>fr-1+p.panelhi*p.Columns then n:=fr-1+p.panelhi*p.Columns;
 px:=p.posx+1; py:=p.putfrom;
-Case p.Columns of 1: dx:=13; 2: dx:=19; 3: dx:=13; End;
+Case p.Columns of
+  1: dx:=13;
+  2: dx:=p.PanelW div 2;
+  3: dx:=(p.PanelW+1) div 3;
+else dx:=(p.PanelW+1) div 3;
+End;
+ddx:=0;
 for i:=fr to n do
  begin
-  if (px=21)or(px=61) then ddx:=1 else ddx:=0;
   name:=p.trdDir^[i].name;
   if i=1
     then name:='<<'+space(dx+ddx-3)
@@ -256,7 +268,7 @@ for i:=fr to n do
   col(e,p.trdDir^[i].length,paper,ink);
   if (ord(p.trdDir^[i].name[1])=1)or(ord(p.trdDir^[i].name[1])=0) then begin paper:=pal.bkg4; ink:=pal.txtg4; end;
   if i=1 then begin paper:=pal.bkdir; ink:=pal.txtdir; end;
-  pp:=paper; ii:=ink;
+   ii:=ink;
   if p.trddir^[i].mark then begin paper:=pal.bkST; ink:=pal.txtST; end;
   if p.focused and(i=p.from+p.f-1) then begin paper:=pal.bkCurNT; ink:=pal.txtCurNT; end;
   if p.focused and(i=p.from+p.f-1)and(p.trddir^[i].mark) then begin paper:=pal.bkCurST; ink:=pal.txtCurST; end;
@@ -264,11 +276,9 @@ for i:=fr to n do
   if p.trddir^[i].mark then name[(dx+ddx-4)]:=#251;
   cmprint(paper,ink,px,py,name);
 
-  s:=space(25);
   if p.Columns=1 then
-   begin
-    cmprint(paper,ink,px+13,py,s); cmprint(paper,pal.TxtRama,px+12,py,'│');
-   end;
+    PaintRowSeps(p.PosX, p.PanelW, dx, py, paper, ink,
+      pal.TxtRama);
 
   if ii=paper then ii:=ink;
   PrintSelf(paper,ii,px+(dx+ddx-5),py,1);
@@ -277,18 +287,17 @@ for i:=fr to n do
   if py>p.panelhi+p.putfrom-1 then begin py:=p.putfrom; inc(px,dx); end;
  end;
 
-for i:=n+1 to p.panelhi*p.Columns do
+for i:=n+1 to fr-1+p.panelhi*p.Columns do
  begin
-  if (px=21)or(px=61) then ddx:=1 else ddx:=0;
   name:=space(dx+ddx-1);
   cmprint(pal.bkNT,pal.txtNT,px,py,name);
   if p.Columns=1 then
-   begin
-    cmprint(pal.bkNT,pal.txtNT,px+13,py,space(25)); cmprint(pal.bkRama,pal.TxtRama,px+12,py,'│');
-   end;
+    PaintRowSeps(p.PosX, p.PanelW, dx, py, pal.bkNT,
+      pal.txtNT, pal.TxtRama);
   inc(py);
   if py>p.panelhi+p.putfrom-1 then begin py:=p.putfrom; inc(px,dx); end;
  end;
+UpdateScreen(false);
 End;
 
 

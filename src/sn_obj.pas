@@ -1,7 +1,6 @@
 Unit sn_Obj;
+{$mode tp}
 Interface
-Uses
-     Dos;
 
 Type
     zxDirRec=
@@ -48,17 +47,21 @@ Type
          end;
     zxInsedP=array[1..1] of zxInsedRec;
 
+    TFileDateRec=
+      record
+       year,month,day,hour,min,sec:word;
+      end;
 
      pcDirRec=
       record
-       fname:string[8];
-       fext:string[3];
-       flength:longint;
+       fname:string;
+       fext:string;
+       flength:int64;
        mark:boolean;
-       fdt:datetime;
+       fdt:TFileDateRec;
        fattr:word;
        priory:byte;
-       description:string[1];
+       fullname:string;
       end;
      pcDirP=array[1..1]of pcDirRec;
 
@@ -87,7 +90,7 @@ Type
      TPanel=
       object
        Place                    :byte;
-       PanelLong, PanelHi,
+       PanelLong, PanelHi, PanelW,
        Columns                  :byte;
        InfoLines                :byte;
        PutFrom, PosX, PosY      :byte;
@@ -165,7 +168,7 @@ Type
        Procedure Build(parts:string);
 
        procedure pcAdd(r:pcdirrec; isitdir:boolean; ind:integer);
-       procedure pcMDF(path:pathstr);
+       procedure pcMDF(path:string);
        procedure GetCurXY(var x,y:byte);
        procedure pcPDF(fr:integer);
 
@@ -201,47 +204,51 @@ Type
        Procedure fCopy;
        Procedure fMove;
        Procedure Rename;
-       Function  View(sys:boolean):longint;{}
+       Function  View(sys:boolean):int64;{}
        Procedure Edit;{}
+       Procedure MkDir;
+       Procedure LocalFind;
        Procedure Navigate;
       end;
 
 Var
      rp,lp:TPanel;
 
+function BuildHorizSep(panelW, columns: integer): string;
+procedure ClampPanel(var f, from: longint;
+                     panelHi, cols, total: longint);
+
 Implementation
 Uses
-     Crt, RV, Mouse, Clock,
-     Vars, Palette, sn_Mem, Main, Main_Ovr, Sorting, {Utils, {}snViewer,
-     PC,PC_Ovr,TRD,TRD_Ovr,FDI,FDI_Ovr,SCL,SCL_Ovr,TAP,TAP_Ovr,
-     FDD,FDD_Ovr,ZXZIP, {UserMenu,{} sn_KBD, {sn_Setup, {}init, FLP,FLP_OVR;
+     rv, vars, palette, Main_Ovr,
+     main, sorting, sn_kbd, snviewer,
+     trd, trd_ovr, scl_ovr, scl, tap_ovr, tap,
+     fdi, fdi_ovr, fdd, fdd_ovr, zxzip, pc, pc_ovr,
+     Video, SysUtils;
+
+
+{============================================================================}
+{$push}{$hints off}
+Procedure TPanel.flpMDFs(flpDriveName:char); Begin End;
+{$pop}
 
 
 
 {============================================================================}
-Procedure TPanel.flpMDFs(flpDriveName:char);
-Begin
- if Place=left  then flpMDF(lp,flpDrive);
- if Place=right then flpMDF(rp,flpDrive);
-End;
-
-
-
-{============================================================================}
-Procedure TPanel.flpPDFs(fr:integer);
-Begin
- if Place=left  then flpPDF(lp,fr);
- if Place=right then flpPDF(rp,fr);
-End;
+{$push}{$hints off}
+Procedure TPanel.flpPDFs(fr:integer); Begin End;
+{$pop}
 
 
 
 {============================================================================}
 Procedure TPanel.zxzMDFs(zxzFileName:string);
+{$push}{$hints off}
 Begin
  if Place=left  then zxzMDF(lp,zxzfile);
  if Place=right then zxzMDF(rp,zxzfile);
 End;
+{$pop}
 
 
 
@@ -256,10 +263,12 @@ End;
 
 {============================================================================}
 Procedure TPanel.fddMDFs(fddFileName:string);
+{$push}{$hints off}
 Begin
  if Place=left  then fddMDF(lp,fddfile);
  if Place=right then fddMDF(rp,fddfile);
 End;
+{$pop}
 
 
 
@@ -274,10 +283,12 @@ End;
 
 {============================================================================}
 Procedure TPanel.tapMDFs(tapFileName:string);
+{$push}{$hints off}
 Begin
  if Place=left  then tapMDF(lp,tapfile);
  if Place=right then tapMDF(rp,tapfile);
 End;
+{$pop}
 
 
 
@@ -292,10 +303,12 @@ End;
 
 {============================================================================}
 Procedure TPanel.sclMDFs(sclFileName:string);
+{$push}{$hints off}
 Begin
  if Place=left  then sclMDF(lp,lp.sclfile);
  if Place=right then sclMDF(rp,rp.sclfile);
 End;
+{$pop}
 
 
 
@@ -310,10 +323,12 @@ End;
 
 {============================================================================}
 Procedure TPanel.trdMDFs(trdFileName:string);
+{$push}{$hints off}
 Begin
  if Place=left  then trdMDF(lp,trdfile);
  if Place=right then trdMDF(rp,trdfile);
 End;
+{$pop}
 
 
 
@@ -328,10 +343,12 @@ End;
 
 {============================================================================}
 Procedure TPanel.fdiMDFs(fdiFileName:string);
+{$push}{$hints off}
 Begin
  if Place=left  then fdiMDF(lp,fdifile);
  if Place=right then fdiMDF(rp,fdifile);
 End;
+{$pop}
 
 
 
@@ -346,8 +363,6 @@ End;
 
 {============================================================================}
 Procedure TPanel.PanelSetup;
-Var
-    i:byte;
 Begin
 PanelLong:=gmaxy-1;
 if CmdLine then dec(PanelLong);
@@ -355,7 +370,55 @@ if CmdLine then dec(PanelLong);
 PanelHi:=gmaxy-4-InfoLines;
 if NameLine then Begin dec(PanelHi); PutFrom:=3; End else PutFrom:=2;
 if CmdLine then dec(PanelHi);
+if Place=Right then begin PosX:=GmaxX div 2+1; PanelW:=GmaxX-GmaxX div 2-2; end
+               else PanelW:=GmaxX div 2-2;
 End;
+
+
+function Fill(n: integer; ch: char): string;
+var
+  s: string;
+  i: integer;
+begin
+  s := '';
+  for i := 1 to n do s := s + ch;
+  Fill := s;
+end;
+
+function BuildHorizSep(panelW, columns: integer): string;
+var
+  cw, dh: integer;
+begin
+  cw := (panelW + 1) div 3;
+  dh := panelW div 2;
+  case columns of
+    1: BuildHorizSep :=
+         #186 + Fill(cw - 1, #196) + #193 +
+         Fill(panelW - cw, #196) + #186;
+    2: BuildHorizSep :=
+         #186 + Fill(dh - 1, #196) + #193 +
+         Fill(panelW - dh, #196) + #186;
+    3: BuildHorizSep :=
+         #186 + Fill(cw - 1, #196) + #193 +
+         Fill(cw - 1, #196) + #193 +
+         Fill(panelW - 2 * cw, #196) + #186;
+  else
+    BuildHorizSep := #186 + Fill(panelW, #196) + #186;
+  end;
+end;
+
+procedure ClampPanel(var f, from: longint;
+                     panelHi, cols, total: longint);
+begin
+  if f > panelHi * cols then f := panelHi * cols;
+  if (total > 0) and (f > total) then f := total;
+  if f < 1 then f := 1;
+  if from + f - 1 > total then begin
+    from := total - f + 1;
+    if from < 1 then from := 1;
+  end;
+end;
+
 
 
 
@@ -364,6 +427,7 @@ End;
 Procedure TPanel.Build(parts:string);
 Var
     s:string;
+    i,cw:integer;
 Begin
 PanelSetup;{}
 if Columns<1 then Columns:=1;
@@ -371,26 +435,29 @@ if Columns>3 then Columns:=3;
 
 if pos('0',parts)<>0 then if PanelType<>noPanel then
  begin
-  s:='╔══════════════════════════════════════╗';
-  if (posx<>1)and clocked then s:='╔═════════════════════════════';
+  s:=#201+Fill(PanelW,#205)+#187;
+  if (posx<>1)and clocked then
+    s:=#201+Fill(PanelW-9,#205);
   cmprint(pal.BkRama,pal.TxtRama,posx,1, s);
-  for i:=1 to PanelLong-2 do cmprint(pal.BkRama,pal.TxtRama,posx,1+i, '║                                      ║');
-  cmprint(pal.BkRama,pal.TxtRama,posx,PanelLong, '╚══════════════════════════════════════╝');
+  for i:=1 to PanelLong-2 do
+    cmprint(pal.BkRama,pal.TxtRama,posx,1+i,
+      #186+Space(PanelW)+#186);
+  cmprint(pal.BkRama,pal.TxtRama,posx,PanelLong,
+    #200+Fill(PanelW,#205)+#188);
  end;
 
 if pos('1',parts)<>0 then if (PanelType>=1)and(PanelType<=10) then
  begin
+  cw:=(PanelW+1) div 3;
   for i:=1 to PanelLong-InfoLines-3 do
    begin
-          cmprint(pal.BkRama,pal.TxtRama,posx+13,1+i,'│');
-          cmprint(pal.BkRama,pal.TxtRama,posx+26,1+i,'│');
+          cmprint(pal.BkRama,pal.TxtRama,
+            posx+cw,1+i,#179);
+          cmprint(pal.BkRama,pal.TxtRama,
+            posx+2*cw,1+i,#179);
    end;
 
-  case Columns of
-   1:  s:='║────────────┴─────────────────────────║';
-   2:  s:='║──────────────────┴───────────────────║';
-   3:  s:='║────────────┴────────────┴────────────║';
-  end;
+  s:=BuildHorizSep(PanelW, Columns);
   cmprint(pal.BkRama,pal.TxtRama,posx,PanelLong-InfoLines-1,s);
  end;
 
@@ -398,25 +465,27 @@ if pos('2',parts)<>0 then if (PanelType>=1)and(PanelType<=10) then
  begin
   if NameLine then
    begin
+    cw:=(PanelW+1) div 3;
     s:='    Name    ';
          cmprint(pal.BkNameLine,pal.TxtNameLine,posx+1,2,s);
-         cmprint(pal.BkNameLine,pal.TxtNameLine,posx+1+13,2,s);
-         cmprint(pal.BkNameLine,pal.TxtNameLine,posx+1+13+13,2,s);
+         cmprint(pal.BkNameLine,pal.TxtNameLine,posx+1+cw,2,s);
+         cmprint(pal.BkNameLine,pal.TxtNameLine,posx+1+2*cw,2,s);
    end;
  end;
 
+if pos('0',parts)<>0 then DrawClock;
+UpdateScreen(false);
 End;
 
 
 {============================================================================}
 procedure TPanel.pcAdd(r:pcdirrec; isitdir:boolean; ind:integer);
-var
-   m:integer;
 begin
 pcdir^[ind].fname  :=r.fname;
 pcdir^[ind].fext   :=r.fext;
 pcdir^[ind].fdt    :=r.fdt;
 pcdir^[ind].fattr  :=r.fattr;
+pcdir^[ind].fullname:=r.fullname;
 pcdir^[ind].mark   :=false;
 if isitdir then
  begin
@@ -425,7 +494,7 @@ if isitdir then
 else
  begin
   pcdir^[ind].flength:=r.flength;  pcdir^[ind].priory:=10;
-  r.fext:=nospace(strlo(r.fext)); if r.fext='' then r.fext:='.';
+  r.fext:=nospace(LowerCase(r.fext)); if r.fext='' then r.fext:='.';
   if pos(';'+r.fext+';',pr1)<>0 then pcdir^[ind].priory:=1;
   if pos(';'+r.fext+';',pr2)<>0 then pcdir^[ind].priory:=2;
   if pos(';'+r.fext+';',pr3)<>0 then pcdir^[ind].priory:=3;
@@ -441,90 +510,153 @@ end;
 
 
 {============================================================================}
-procedure TPanel.pcMDF(path:pathstr);
+procedure TPanel.pcMDF(path: string);
 var
-   rec:searchrec; dt:datetime;
-   strtemp:string; fattrm,ie,i,m,j,readed:integer;
-   fa:file; fnew:pcdirrec; nd:string; pcinsed:word;
-Label beg;
+  sr: TSearchRec;
+  fnew: pcDirRec;
+  i, j, pcinsed: integer;
+  dt: TDateTime;
+  y, mo, d, h, mi, s, ms2: word;
+  savedMarks: array[1..MaxFiles] of word;  { CRC16 of fname+'.'+fext }
+  nd: string;
 begin
-beg:
-j:=0; nd:=pcnd;
-for i:=1 to pctdirs+pctfiles do if pcdir^[i].mark then
- begin inc(j); pcins^[j].crc16:=crc16(pcdir^[i].fname+'.'+pcdir^[i].fext); end;
-pcinsed:=j;
+  {$push}{$hints off}{$notes off}
+  FillChar(fnew, SizeOf(fnew), 0);
+  {$pop}
+  nd := pcnd;
+  j := 0;
+  for i := 1 to pctdirs + pctfiles do begin
+    if pcDir^[i].mark then begin
+      Inc(j);
+      savedMarks[j] := CRC16(string(pcDir^[i].fullname));
+    end;
+  end;
+  pcinsed := j;
 
-path:=checkpath(path);
-if (path[length(path)]='\')and(length(path)>3) then delete(path,length(path),1);
-{$I-} chdir(Path); {$I+}
-if ioresult<>0 then Begin Path:='C:'; goto beg; end;
-
-pcnd:=curentdir; if pcnd[length(pcnd)]<>'\' then pcnd:=pcnd+'\';
+  path := CheckPath(path);
+  if (Length(path) > 1) and (path[Length(path)] = PathDelim) and
+     (path[Length(path) - 1] <> ':') then
+    Delete(path, Length(path), 1);
+  if not SetCurrentDir(path) then begin
+    path := GetCurrentDir;
+  end;
+  pcnd := GetCurrentDir;
+  if (Length(pcnd) > 0) and (pcnd[Length(pcnd)] <> PathDelim) then
+    pcnd := pcnd + PathDelim;
 GetTreeC(pcnd);
-oldpctdirs:=pctdirs; oldpctfiles:=pctfiles;
-pctdirs:=0; pctfiles:=0;
 
-findfirst('*.*',$3F,rec);
-while doserror=0 do
- begin
-  if (rec.name='.') then findnext(rec);
-  unpacktime(rec.time,dt);
-  fnew.fname:=getof(rec.name,_name);
-  fnew.fext:=copy(getof(rec.name,_ext),2,3);
-  if rec.name='..' then begin fnew.fname:=' ..'; fnew.fext:=''; end;
-  fnew.fext:=fnew.fext+space(3-length(fnew.fext));
-  fnew.flength:=rec.size;
-  fnew.fdt:=dt;
-  fnew.fattr:=rec.attr;
-  fnew.mark:=false;
-
-  if (rec.attr and directory = directory) then
-  if HideHidden then
-   begin
-    if (rec.attr and hidden <> hidden) then
-    begin inc(pctdirs); pcAdd(fnew,true,pctdirs+pctfiles); end;
-   end
-  else
-   begin
-    begin inc(pctdirs); pcAdd(fnew,true,pctdirs+pctfiles); end;
+  oldpctdirs  := pctdirs;
+  oldpctfiles := pctfiles;
+  pctdirs     := 0;
+  pctfiles    := 0;  if TreeC > 1 then begin
+    {$push}{$notes off}
+    FillChar(fnew, SizeOf(fnew), 0);
+    {$pop}
+    fnew.fname    := ' ..';
+    fnew.fext     := '';
+    fnew.fullname := '..';
+    fnew.flength  := -1;
+    Inc(pctdirs);
+    pcAdd(fnew, true, 1);
+  end;  {$push}{$warnings off}{$hints off}{$notes off}
+  FillChar(fnew, SizeOf(fnew), 0);
+  if SysUtils.FindFirst(
+       IncludeTrailingPathDelimiter(pcnd) + '*',
+       faAnyFile, sr) = 0 then begin
+    repeat
+      if sr.Name = '.' then begin
+        if SysUtils.FindNext(sr) <> 0 then break;
+        continue;
+      end;
+      if sr.Name = '..' then begin        if TreeC > 1 then begin
+          dt := FileDateToDateTime(sr.Time);
+          DecodeDate(dt, y, mo, d);
+          DecodeTime(dt, h, mi, s, ms2);
+          pcDir^[1].fdt.year  := y;
+          pcDir^[1].fdt.month := mo;
+          pcDir^[1].fdt.day   := d;
+          pcDir^[1].fdt.hour  := h;
+          pcDir^[1].fdt.min   := mi;
+          pcDir^[1].fdt.sec   := s;
+        end;
+        if SysUtils.FindNext(sr) <> 0 then break;
+        continue;
+      end;
+  {$push}{$hints off}{$notes off}
+  FillChar(fnew, SizeOf(fnew), 0);
+  {$pop}
+      dt := FileDateToDateTime(sr.Time);
+      DecodeDate(dt, y, mo, d);
+      DecodeTime(dt, h, mi, s, ms2);
+      fnew.fdt.year  := y;
+      fnew.fdt.month := mo;
+      fnew.fdt.day   := d;
+      fnew.fdt.hour  := h;
+      fnew.fdt.min   := mi;
+      fnew.fdt.sec   := s;
+      if sr.Name = '..' then begin
+        fnew.fname    := ' ..';
+        fnew.fext     := '';
+        fnew.fullname := '..';
+      end else begin
+        fnew.fname    := ChangeFileExt(sr.Name, '');
+        fnew.fext     := Copy(ExtractFileExt(sr.Name), 2, MaxInt);
+        fnew.fullname := sr.Name;
+      end;
+      fnew.flength  := sr.Size;
+      fnew.fattr    := sr.Attr;
+      fnew.mark     := false;
+      if (sr.Attr and faDirectory) <> 0 then begin
+        if HideHidden and (sr.Name <> '..') then begin
+          if (sr.Attr and faHidden) = 0 then begin
+            Inc(pctdirs);
+            pcAdd(fnew, true, pctdirs + pctfiles);
+          end;
+        end else begin
+          Inc(pctdirs);
+          pcAdd(fnew, true, pctdirs + pctfiles);
+        end;
+      end;
+      if (sr.Attr and (faDirectory or faVolumeId)) = 0 then begin
+        if HideHidden then begin
+          if (sr.Attr and faHidden) = 0 then begin
+            Inc(pctfiles);
+            pcAdd(fnew, false, pctdirs + pctfiles);
+          end;
+        end else begin
+          Inc(pctfiles);
+          pcAdd(fnew, false, pctdirs + pctfiles);
+   end;
    end;
 
-  if (rec.attr and (directory or volumeid)=0) then
-  if HideHidden then
-   begin
-    if (rec.attr and hidden <> hidden) then
-    begin inc(pctfiles); pcAdd(fnew,false,pctdirs+pctfiles); end;
-   end
-  else
-   begin
-    begin inc(pctfiles); pcAdd(fnew,false,pctdirs+pctfiles); end;
+      if (sr.Name = '..') and (TreeC = 1) then begin
+        Dec(pctdirs);
+        if pctdirs < 0 then pctdirs := 0;
    end;
 
-  if (rec.name='..')and(treec=1) then dec(pctdirs);{}
-  if pctdirs<0 then pctdirs:=0;
-  if pctfiles<0 then pctfiles:=0;
-
-  if pctdirs+pctfiles>(MaxFiles-10) then
-   begin
-    errormessage('More than '+strr(MaxFiles)+' files');
+      if pctdirs + pctfiles > MaxFiles - 10 then
     break;
-   end;
-  findnext(rec);
+
+      if SysUtils.FindNext(sr) <> 0 then
+    break;
+    until false;
+    SysUtils.FindClose(sr);
  end;
 
-for i:=pctdirs+pctfiles+1 to pctdirs+pctfiles+panelhi*Columns do
- begin
-  pcdir^[i].fname:='        ';
-  pcdir^[i].fext:='   ';
+  for i := pctdirs + pctfiles + 1 to
+            pctdirs + pctfiles + PanelHi * Columns do begin
+    pcDir^[i].fname := '';
+    pcDir^[i].fext  := '';
  end;
 
 globalsort(left);
-globalsort(right);
-
-if path[length(path)]<>'\' then path:=path+'\';
-if path=nd then for i:=1 to pcinsed do for j:=1 to pctdirs+pctfiles do
-if pcins^[i].crc16=crc16(pcdir^[j].fname+'.'+pcdir^[j].fext) then pcdir^[j].mark:=true;
+  GlobalSort(Right);  if pcnd = nd then
+    for i := 1 to pcinsed do
+      for j := 1 to pctdirs + pctfiles do
+        if savedMarks[i] = CRC16(string(pcDir^[j].fullname)) then
+          pcDir^[j].mark := true;
 End;
+{$pop}
 
 
 
@@ -542,16 +674,18 @@ Begin
 n:=tdirs+tfiles;
 if n>from-1+panelhi*Columns then n:=from-1+panelhi*Columns;
 px:=posx+1; py:=putfrom;
-Case Columns of 1: dx:=13; 2: dx:=19; 3: dx:=13; End;
+Case Columns of 1: dx:=PanelW; 2: dx:=PanelW div 2; 3: dx:=(PanelW+1) div 3; End;
 for i:=from to n do
  begin
-  if i=Index then
+  if i=integer(Index) then
    begin
     x:=px; y:=py; Exit;
    end;
   inc(py);
   if py>panelhi+putfrom-1 then begin py:=putfrom; inc(px,dx); end;
  end;
+x:=PosX+1;
+y:=PutFrom;
 End;
 
 
@@ -559,9 +693,9 @@ End;
 
 {============================================================================}
 procedure TPanel.pcPDF(fr:integer);
-var px,py,py0,ph,paper,ink,pp,ii,iii,dx,ddx:byte;
+var px,py,paper,ink,ii,iii,dx,ddx:byte;
     i,n:integer;
-    s,name:string; e:string[3];
+    name,e:string;
 begin
 
 if paneltype<>pcPanel then exit;{}
@@ -569,62 +703,59 @@ if paneltype<>pcPanel then exit;{}
 n:=pctdirs+pctfiles;
 if n>fr-1+panelhi*Columns then n:=fr-1+panelhi*Columns;
 px:=posx+1; py:=putfrom;
-Case Columns of 1: dx:=13; 2: dx:=19; 3: dx:=13; End;
+Case Columns of 1: dx:=13; 2: dx:=PanelW div 2; 3: dx:=(PanelW+1) div 3; End;
 for i:=fr to n do
  begin
-  if (px=21)or(px=61) then ddx:=1 else ddx:=0;
-  name:=pcDir^[i].fname; if name[1]=' ' then delete(name,1,1);
-  name:=name+space((dx+ddx-5)-length(name))+' '+pcDir^[i].fext;
-  if i>pctdirs then name:=strlo(name);
+  ddx:=0;
+  name:=PcColumnEntry(string(pcDir^[i].fname),string(pcDir^[i].fext),dx,ddx);
   paper:=pal.bkNT; ink:=pal.txtNT;
-  if i<=pctdirs then begin paper:=pal.bkDir; ink:=pal.txtDir; ii:=ink; end
+  if i<=pctdirs then begin paper:=pal.bkDir; ink:=pal.txtDir; end
   else
    begin
-    e:=nospace(copy(name,(dx+ddx-3),3)); if e='' then e:='.';
+    e:=nospace(copy(name,(dx+integer(ddx)-3),3)); if e='' then e:='.';
     col(e,pcDir^[i].flength,paper,ink);
    end;
-  pp:=paper; ii:=ink; iii:=ink;
+  ii:=ink; iii:=ink;
   if pcdir^[i].mark then begin paper:=pal.bkST; ink:=pal.txtST; end;
   if focused and(i=from+f-1) then begin paper:=pal.bkCurNT; ink:=pal.txtCurNT; end;
   if focused and(i=from+f-1)and(pcdir^[i].mark) then begin paper:=pal.bkCurST; ink:=pal.txtCurST; end;
-  if ((pcdir^[i].fattr and SysFile) <> 0) then name[1]:=upcase(name[1]);
+  {$push}{$warnings off}
+  if ((pcdir^[i].fattr and faSysFile) <> 0) then name[1]:=upcase(name[1]);
   e:=' ';
-  if ((pcdir^[i].fattr and ReadOnly)<> 0) then e:=#$B0;
-  if ((pcdir^[i].fattr and Hidden)  <> 0) then e:=#$B1;
-  if ((pcdir^[i].fattr and SysFile) <> 0) then e:=#$B2;
-  if pcdir^[i].mark then e:=#251;
-  name[(dx+ddx-4)]:=e[1];
+  if ((pcdir^[i].fattr and faReadOnly)<> 0) then e:=#$B0;
+  if ((pcdir^[i].fattr and faHidden)  <> 0) then e:=#$B1;
+  if ((pcdir^[i].fattr and faSysFile) <> 0) then e:=#$B2;
+  {$pop}
+  if pcdir^[i].mark then e:=chr(251);
+  if (dx+integer(ddx)-4>=1)and(dx+integer(ddx)-4<=Length(name)) then
+    name[dx+integer(ddx)-4]:=e[1];
   cmprint(paper,ink,px,py,name);
 
-  s:=space(25);
   if Columns=1 then
-   begin
-    cmprint(paper,ink,px+13,py,s); cmprint(paper,pal.TxtRama,px+12,py,'│');
-   end;
+    PaintRowSeps(PosX, PanelW, dx, py, paper, ink, pal.TxtRama);
 
   if ii=paper then ii:=ink;
   if focused and(i=from+f-1) then ii:=pal.txtCurNT;
   if focused and(i=from+f-1)and(pcdir^[i].mark) then
     begin ii:=iii; if ii=pal.bkCurST then ii:=pal.txtCurST; end;
-  PrintSelf(paper,ii,px+(dx+ddx-5),py,1);
+  PrintSelf(paper,ii,px+byte(dx+integer(ddx)-5),py,1);
 
   inc(py);
   if py>panelhi+putfrom-1 then begin py:=putfrom; inc(px,dx); end;
  end;
 
-for i:=n+1 to panelhi*Columns do
+for i:=n+1 to fr-1+panelhi*Columns do
  begin
-  if (px=21)or(px=61) then ddx:=1 else ddx:=0;
-  name:=space(dx+ddx-1);
+  ddx:=0;
+  name:=space(dx+integer(ddx)-1);
   cmprint(pal.bkNT,pal.txtNT,px,py,name);
   if Columns=1 then
-   begin
-    cmprint(pal.bkNT,pal.txtNT,px+13,py,space(25)); cmprint(pal.bkRama,pal.TxtRama,px+12,py,'│');
-   end;
+    PaintRowSeps(PosX, PanelW, dx, py, pal.bkNT, pal.txtNT, pal.TxtRama);
   inc(py);
   if py>panelhi+putfrom-1 then begin py:=putfrom; inc(px,dx); end;
  end;
 
+UpdateScreen(false);
 end;
 
 
@@ -641,7 +772,6 @@ Begin
   tapPanel: tapMDFs(tapfile);
   fddPanel: fddMDFs(fddfile);
   zxzPanel: zxzMDFs(zxzfile);
-  flpPanel: flpMDFs(flpDrive);
  end;
 End;
 
@@ -658,7 +788,6 @@ Begin
   tapPanel: tapPDFs(tapfrom);
   fddPanel: fddPDFs(fddfrom);
   zxzPanel: zxzPDFs(zxzfrom);
-  flpPanel: flpPDFs(flpfrom);
  end;
 End;
 
@@ -667,35 +796,36 @@ End;
 {============================================================================}
 Procedure TPanel.Info(parts:string);
 Var
-    s:string[127]; r:string[40]; itemp,a,b,p,x,y,d:byte; m,n:word; i,k:integer;
-    nm,stemp:string[50]; ml,byt,byt2:longint; rbyt:real;
+    s, nm, stemp: string;
+    r:string; p,x,y,d:byte; m,n:word; i:integer;
+    ml,byt2:longint; byt:int64;
+    freeBytes:int64;
 Begin
 
 
                         {== Текущий каталог ==}
-if (pos('c',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(PanelType<=12) then
+if (pos('c',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(PanelType<=12) then
  Begin
   Case PanelType of
    pcPanel: if TreeC=1 then s:=' '+pcnd+' ' else s:=' '+copy(pcnd,1,length(pcnd)-1)+' ';
    infPanel: s:=' Information ';
-   trdPanel: s:={' TRD:'+}' '+nospaceLR(zxDisk.DiskLabel)+' ';
-   fdiPanel: s:={' FDI:'+}' '+nospaceLR(zxDisk.DiskLabel)+' ';
+   trdPanel: s:=' '+nospaceLR(zxDisk.DiskLabel)+' ';
+   fdiPanel: s:=' '+nospaceLR(zxDisk.DiskLabel)+' ';
    sclPanel: s:=' Hobeta98 ';
    tapPanel: s:=' Tape ';
-   fddPanel: s:={' FDD:'+}' '+nospaceLR(zxDisk.DiskLabel)+' ';
+   fddPanel: s:=' '+nospaceLR(zxDisk.DiskLabel)+' ';
    zxzPanel: s:=' '+nospaceLR(zxDisk.DiskLabel)+' ';
-   flpPanel: s:={' TRD:'+}' '+nospaceLR(zxDisk.DiskLabel)+' ';
   End;
   if length(s)>29 then s:=copy(s,1,4)+'...'+copy(s,length(s)-22,23);
   if focused then begin p:=pal.bkNDactive; i:=pal.txtNDactive; end else begin p:=pal.bkNDpassive; i:=pal.txtNDpassive; end;
   {if TRDOS3 then cmprint(BkRama,TxtRama,lp.posx+2,lp.posy,'T3');{}
-  x:=length(s)div 2; if length(s)>x*2 then inc(x); x:=posx+20-x;
-  r:='══════════════════════════════════════';
+  x:=length(s)div 2; if length(s)>x*2 then inc(x); x:=posx+PanelW div 2+1-x;
+  r:=Fill(PanelW,#205);
   if posx<>left then if clocked then
    begin
-    r:='═════════════════════════════';
-    if x+length(s)>71 then
-    begin d:=x+length(s)-71; s:=copy(s,1,4)+'...'+copy(s,8+d,30); end;
+    r:=Fill(PanelW-9,#205);
+    if x+length(s)>posx+PanelW-8 then
+    begin d:=x+length(s)-(posx+PanelW-8); s:=copy(s,1,4)+'...'+copy(s,8+d,30); end;
    end;
   cmprint(pal.BkRama,pal.TxtRama,posx+1,posy,r);
   cmprint(p,i,x,1,s);
@@ -704,109 +834,88 @@ if (pos('c',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
    trdPanel: cmprint(pal.BkRama,pal.TxtRama,posx+5,posy,'TRD');
    fdiPanel: cmprint(pal.BkRama,pal.TxtRama,posx+5,posy,'FDI');
    fddPanel: cmprint(pal.BkRama,pal.TxtRama,posx+5,posy,'FDD');
-   flpPanel: cmprint(pal.BkRama,pal.TxtRama,posx+5,posy,'FLP '+flpDrive);
   End;
 
-  if TRDOS3 then cmprint(pal.BkRama,pal.TxtRama,posx+2,1,'T3') else cmprint(pal.BkRama,pal.TxtRama,posx+2,1,'══');
+  if TRDOS3 then cmprint(pal.BkRama,pal.TxtRama,posx+2,1,'T3') else cmprint(pal.BkRama,pal.TxtRama,posx+2,1,#205#205);
+  DrawClock;
+  UpdateScreen(false);
  End;
 
 
                         {=== Бегунок прокрутки ==}
-if (pos('b',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(PanelType<=10) then
+if (pos('b',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(PanelType<=10) then
  Begin
   if (tdirs+tfiles-1)<=0 then m:=1 else m:=tdirs+tfiles-1;
-  k:=((from+f-2)*(PanelHi-2))div(m);
-  for a:=1 to PanelHi+1 do
+  n:=((from+f-2)*(PanelHi-2))div(m);
+  for x:=1 to PanelHi+1 do
    begin
     p:=pal.bkRama; i:=pal.txtRama;
-    r:='║';
+    r:=#186;
     if focused then
      begin
-      r:='▒';
-      if a=1 then         begin p:=pal.bkBP; i:=pal.txtBP; r:=''; end;
-      if a=PanelHi+1 then begin p:=pal.bkBP; i:=pal.txtBP; r:=''; end;
-      if a=k+2 then begin p:=pal.bkBP; i:=pal.txtBP; r:='■'; end;
+      r:=#177;
+      if x=1 then         begin p:=pal.bkBP; i:=pal.txtBP; r:=#30; end;
+      if x=PanelHi+1 then begin p:=pal.bkBP; i:=pal.txtBP; r:=#31; end;
+      if x=n+2 then begin p:=pal.bkBP; i:=pal.txtBP; r:=#254; end;
      end;
-    cmprint(p,i,posx+39,posy+a,r);
+    cmprint(p,i,posx+PanelW+1,posy+x,r);
    end;
  End;
 
 
-if (pos('d',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(PanelType<=10) then
+if (pos('d',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(PanelType<=10) then
  Begin
-  s:='';
-  whatflopp(a,b);
-  if a<>0 then s:=s+'A';
-  if b<>0 then s:=s+'B';
-  s:=s+getalldrivers;
-  if DiskLine then cmprint(pal.bkDiskLineR,pal.txtDiskLineR,posx,panellong,'╚[ ')
-              else cmprint(pal.bkDiskLineR,pal.txtDiskLineR,posx,panellong,'╚═══');
-  d:=posx+3;
-  if DiskLine then
-  for x:=1 to length(s) do
-   begin
-    p:=pal.bkDiskLineNT; i:=pal.txtDiskLineNT;
-    if s[x]=pcnd[1] then begin p:=pal.bkDiskLineST; i:=pal.txtDiskLineST; end;
-    cmprint(p,i,d,panellong,s[x]);
-    p:=pal.bkDiskLineNT; i:=pal.txtDiskLineNT;
-    inc(d);
-    if length(s)<17 then begin cmprint(p,i,d,panellong,' '); inc(d); end;
-   end;
-  if d>40 then a:=d-40 else a:=d;
-  if DiskLine then cmprint(pal.bkDiskLineR,pal.txtDiskLineR,d-1,PanelLong,' ]');
-
-  if not DiskLine then a:=4;
-  cmprint(pal.bkRama,pal.txtRama,d+1,PanelLong,fill(39-a,'═'));
-  cmprint(pal.bkRama,pal.txtRama,posx+39,PanelLong,'╝');
+  cmprint(pal.bkRama,pal.txtRama,posx+1,PanelLong,Fill(PanelW,#205));
+  cmprint(pal.bkRama,pal.txtRama,posx+PanelW+1,PanelLong,#188);
  End;
 
 
                     {========== CURSOR NAME =========}
-if (pos('n',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(PanelType<=10) then
+if (pos('n',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(PanelType<=10) then
  Begin
   Case PanelType of
    pcPanel:
       BEGIN
-       m:=pcfrom+pcf-1; nm:=space(38);
+       m:=pcfrom+pcf-1; nm:=space(PanelW);
        if (m>0)and(pctdirs+pctfiles>0) then
         if place=left then nm:=pcNameLine(lp,m) else nm:=pcNameLine(rp,m);
        m:=0; for n:=1 to pctdirs+pctfiles do if pcdir^[n].mark then inc(m);
        if (infolines<=1)and(m<>0) then else
        cmprint(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
-       cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,'║');
-       cmPrint(pal.bkRama,pal.txtRama,posx+39,PutFrom+PanelHi+1,'║');
+       cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,#186);
+       cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,#186);
       END;
    trdPanel:
       BEGIN
        if (infolines<=1)and(Insed<>0) then else
         begin
-         nm:='<<'+space(36);
+         nm:='<<'+space(PanelW-2);
          if Index>1 then if place=left then nm:=trdNameLine(lp,Index) else nm:=trdNameLine(rp,Index);
          cmprint(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
-         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,'║');
-         cmPrint(pal.bkRama,pal.txtRama,posx+39,PutFrom+PanelHi+1,'║');
+         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,#186);
+         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,#186);
         end;
       END;
    fdiPanel:
       BEGIN
        if (infolines<=1)and(Insed<>0) then else
         begin
-         nm:='<<'+space(36);
+         nm:='<<'+space(PanelW-2);
          if Index>1 then if place=left then nm:=fdiNameLine(lp,Index) else nm:=fdiNameLine(rp,Index);
          cmprint(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
-         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,'║');
-         cmPrint(pal.bkRama,pal.txtRama,posx+39,PutFrom+PanelHi+1,'║');
+         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,#186);
+         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,#186);
         end;
       END;
    fddPanel:
       BEGIN
        if (infolines<=1)and(Insed<>0) then else
         begin
-         nm:='<<'+space(36);
+         nm:='<<'+space(PanelW-2);
          if Index>1 then if place=left then nm:=fddNameLine(lp,Index) else nm:=fddNameLine(rp,Index);
          cmprint(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
-         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,'║');
-         cmPrint(pal.bkRama,pal.txtRama,posx+39,PutFrom+PanelHi+1,'║');
+         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,#186);
+         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,#186);
         end;
       END;
    tapPanel:
@@ -815,7 +924,7 @@ if (pos('n',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
         begin
          nm:='<<';
          if Index>1 then if place=left then nm:=tapNameLine(lp,Index) else nm:=tapNameLine(rp,Index);
-         nm:=nm+space(38-length(nm));
+         nm:=nm+space(PanelW-length(nm));
          p:=pal.bkcurline; i:=pal.txtcurline; x:=posx+1; y:=putfrom+panelhi+1;
          cmprint(p,i,x,y,nm);{}
         end;
@@ -824,11 +933,11 @@ if (pos('n',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
       BEGIN
        if (infolines<=1)and(Insed<>0) then else
         begin
-         nm:='<<'+space(36);
+         nm:='<<'+space(PanelW-2);
          if Index>1 then if place=left then nm:=sclNameLine(lp,Index) else nm:=sclNameLine(rp,Index);
          cmprint(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
-         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,'║');
-         cmPrint(pal.bkRama,pal.txtRama,posx+39,PutFrom+PanelHi+1,'║');
+         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,#186);
+         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,#186);
         end;
       END;
    zxzPanel:
@@ -837,11 +946,11 @@ if (pos('n',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
         begin
          if place=left then nm:=zxzNameLine(lp,Index) else nm:=zxzNameLine(rp,Index);
          cmprint(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
-         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,'║');
-         cmPrint(pal.bkRama,pal.txtRama,posx+39,PutFrom+PanelHi+1,'║');
+         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,#186);
+         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,#186);
         end;
 
-       stemp:=space(38);
+       stemp:=space(PanelW);
        if Index>1 then
         begin
          m:=trdDir^[Index].zxzPackSize;
@@ -857,37 +966,30 @@ if (pos('n',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
           end;
          ml:=byt;
         end;
+       if byt2<>0 then begin
        byt:=byt*100;
        byt:=byt div byt2;
+       end else
+        byt:=0;
 
        stemp:='~`Packed:  ~`'+changechar(extnum(strr(ml)),' ',',')+
                                space(17-length(changechar(extnum(strr(ml)),' ',',')))+
                                '~`Ratio:  ~`'+strr(100-byt)+'%';
-       i:=19-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
-       nm:=stemp; nm:=nm+space(abs(38-CClen(nm))); if CClen(nm)>38 then delete(nm,39+8,10);
+       i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
+       nm:=stemp; nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
        {}
        x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
        if infolines>1 then
-        StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);{}
-       cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+39,y,'║');
-      END;
-   flpPanel:
-      BEGIN
-       if (infolines<=1)and(Insed<>0) then else
-        begin
-         nm:='<<'+space(36);
-         if Index>1 then if place=left then nm:=flpNameLine(lp,Index) else nm:=flpNameLine(rp,Index);
-         cmprint(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
-         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,'║');
-         cmPrint(pal.bkRama,pal.txtRama,posx+39,PutFrom+PanelHi+1,'║');
+        StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);
+       cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
         end;
       END;
-  End;
+  UpdateScreen(false);
  End;
 
 
                        {=========== SELECTED =============}
-if (pos('s',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(PanelType<=10) then
+if (pos('s',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(PanelType<=10) then
  Begin
   Case PanelType of
    pcPanel:
@@ -898,14 +1000,14 @@ if (pos('s',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
        begin inc(m); if pcdir^[n].flength>=0 then inc(byt,pcdir^[n].flength); end;
       stemp:='No files selected';
       if m>0 then stemp:='~`'+changechar(extnum(strr(byt)),' ',',')+'~` bytes selected in ~`'+strr(m)
-                        +'~` file'+ewfiles(m,lang);
-      i:=19-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
-      nm:=space(i)+stemp; nm:=nm+space(abs(38-CClen(nm)));
-      if CClen(nm)>38 then delete(nm,39+8,10);
+                        +'~` file'+ewfiles(m);
+      i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
+      nm:=space(i)+stemp; nm:=nm+space(abs(PanelW-CClen(nm)));
+      if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
       x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
       if (m=0)and(infolines=1) then else
       StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);
-        cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+39,y,'║');
+        cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
      END;
   trdPanel:
      BEGIN
@@ -916,13 +1018,13 @@ if (pos('s',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
       if infolines<=1 then dec(y);
       stemp:='No files selected';
       if m>0 then stemp:='~`'+changechar(extnum(strr(byt)),' ',',')+
-                                          '~` block'+eb(byt,lang)+' selected in ~`'+strr(m)+'~` file'+ewfiles(m,lang);
-      i:=19-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
-      nm:=space(i)+stemp; nm:=nm+space(abs(38-CClen(nm))); if CClen(nm)>38 then delete(nm,39+8,10);
+                                          '~` block'+eb(byt)+' selected in ~`'+strr(m)+'~` file'+ewfiles(m);
+      i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
+      nm:=space(i)+stemp; nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
       x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
       if (m=0)and(infolines=1) then else
       StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+39,y,'║');
+        cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
      END;
   fdiPanel:
      BEGIN
@@ -933,13 +1035,13 @@ if (pos('s',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
       if infolines<=1 then dec(y);
       stemp:='No files selected';
       if m>0 then stemp:='~`'+changechar(extnum(strr(byt)),' ',',')+
-                                          '~` block'+eb(byt,lang)+' selected in ~`'+strr(m)+'~` file'+ewfiles(m,lang);
-      i:=19-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
-      nm:=space(i)+stemp; nm:=nm+space(abs(38-CClen(nm))); if CClen(nm)>38 then delete(nm,39+8,10);
+                                          '~` block'+eb(byt)+' selected in ~`'+strr(m)+'~` file'+ewfiles(m);
+      i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
+      nm:=space(i)+stemp; nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
       x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
       if (m=0)and(infolines=1) then else
       StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+39,y,'║');
+        cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
      END;
   fddPanel:
      BEGIN
@@ -950,13 +1052,13 @@ if (pos('s',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
       if infolines<=1 then dec(y);
       stemp:='No files selected';
       if m>0 then stemp:='~`'+changechar(extnum(strr(byt)),' ',',')+
-                                          '~` block'+eb(byt,lang)+' selected in ~`'+strr(m)+'~` file'+ewfiles(m,lang);
-      i:=19-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
-      nm:=space(i)+stemp; nm:=nm+space(abs(38-CClen(nm))); if CClen(nm)>38 then delete(nm,39+8,10);
+                                          '~` block'+eb(byt)+' selected in ~`'+strr(m)+'~` file'+ewfiles(m);
+      i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
+      nm:=space(i)+stemp; nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
       x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
       if (m=0)and(infolines=1) then else
       StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+39,y,'║');
+        cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
      END;
   tapPanel:
      BEGIN
@@ -970,15 +1072,15 @@ if (pos('s',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
       if (lp.PanelType=tapPanel)and(rp.PanelType=tapPanel) then
       stemp:='No items selected';
       if m>0 then stemp:='~`'+changechar(extnum(strr(byt)),' ',',')+
-                                          '~` bytes selected in ~`'+strr(m)+'~` file'+ewfiles(m,lang);
+                                          '~` bytes selected in ~`'+strr(m)+'~` file'+ewfiles(m);
       if (lp.PanelType=tapPanel)and(rp.PanelType=tapPanel) then
       if m>0 then stemp:='~`'+changechar(extnum(strr(byt)),' ',',')+
                                           '~` bytes selected in ~`'+strr(m)+'~` item'+ewitems(m,lang);
-      i:=19-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
-      nm:=space(i)+stemp; nm:=nm+space(abs(38-CClen(nm))); if CClen(nm)>38 then delete(nm,39+8,10);
+      i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
+      nm:=space(i)+stemp; nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
       if (m=0)and(infolines=1) then else
       StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+39,y,'║');
+        cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
      END;
   sclPanel:
      BEGIN
@@ -989,13 +1091,13 @@ if (pos('s',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
       if infolines<=1 then dec(y);
       stemp:='No files selected';
       if m>0 then stemp:='~`'+changechar(extnum(strr(byt)),' ',',')+
-                                          '~` block'+eb(byt,lang)+' selected in ~`'+strr(m)+'~` file'+ewfiles(m,lang);
-      i:=19-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
-      nm:=space(i)+stemp; nm:=nm+space(abs(38-CClen(nm))); if CClen(nm)>38 then delete(nm,39+8,10);
+                                          '~` block'+eb(byt)+' selected in ~`'+strr(m)+'~` file'+ewfiles(m);
+      i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
+      nm:=space(i)+stemp; nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
       x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
       if (m=0)and(infolines=1) then else
       StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+39,y,'║');
+        cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
      END;
   zxzPanel:
      BEGIN
@@ -1005,10 +1107,10 @@ if (pos('s',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
       if infolines<=1 then dec(y);
       stemp:='No files selected';
       if m>0 then stemp:='~`'+changechar(extnum(strr(byt)),' ',',')+
-                                          '~` block'+eb(byt,lang)+' selected in ~`'+strr(m)+'~` file'+ewfiles(m,lang);
+                                          '~` block'+eb(byt)+' selected in ~`'+strr(m)+'~` file'+ewfiles(m);
 
-      i:=19-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
-      nm:=space(i)+stemp; nm:=nm+space(abs(38-CClen(nm))); if CClen(nm)>38 then delete(nm,39+8,10);
+      i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
+      nm:=space(i)+stemp; nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
       x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
       if (m=0)and(infolines=1) then else
       Case InfoLines of
@@ -1016,63 +1118,44 @@ if (pos('s',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
        2: y:=putfrom+panelhi+1;
        3: y:=putfrom+panelhi+3;
       End;
-      StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);{}
-      cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+39,y,'║');
-     END;
-  flpPanel:
-     BEGIN
-      m:=0; byt:=0;
-      for i:=2 to flptfiles do if trddir^[i].mark then
-        begin inc(m); inc(byt,trddir^[i].totalsec); end;
-      x:=posx+1; y:=putfrom+panelhi+2;
-      if infolines<=1 then dec(y);
-      stemp:='No files selected';
-      if m>0 then stemp:='~`'+changechar(extnum(strr(byt)),' ',',')+
-                                          '~` block'+eb(byt,lang)+' selected in ~`'+strr(m)+'~` file'+ewfiles(m,lang);
-      i:=19-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
-      nm:=space(i)+stemp; nm:=nm+space(abs(38-CClen(nm))); if CClen(nm)>38 then delete(nm,39+8,10);
-      x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
-      if (m=0)and(infolines=1) then else
-      StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+39,y,'║');
+      StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);
+      cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
      END;
   End;
+  UpdateScreen(false);
  End;
 
                        {=========== FREE =============}
-if (pos('f',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(PanelType<=10) then
+if (pos('f',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(PanelType<=10) then
  Begin
   Case PanelType of
    pcPanel:
      BEGIN
       if infolines>2 then
        begin
-        byt:=diskfree(ord(pcnd[1])-64); nm:=extnum(strr(byt));
-        if byt>999999999 then nm:=extnum(strr(byt div 1000000))+'G';
-        stemp:=changechar(nm,' ',',');
-        nm:='~`'+stemp+'~` bytes free on drive ~`';
-        stemp:=nm+pcnd[1]+':~`';
-        i:=19-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
+        freeBytes:=DiskFree(0); nm:=FormatFreeBytes(freeBytes);
+        stemp:='~`'+nm+'~` bytes free';
+        i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
         nm:=space(i)+stemp;
-        nm:=nm+space(abs(38-CClen(nm))); if CClen(nm)>38 then delete(nm,39+8,10);
+        nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
         x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
         StatusLineColor(pal.bkFreeLineNT,pal.txtFreeLineNT,pal.bkFreeLineST,pal.txtFreeLineST,x,y+1,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+39,y+1,'║');
+        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y+1,#186);
        end;
      END;
-  trdPanel,fdiPanel,fddPanel,flpPanel:
+  trdPanel,fdiPanel,fddPanel:
      BEGIN
       if infolines>2 then
        begin
         byt:=zxdisk.free;
         stemp:=strr(byt);
-        nm:='~`'+stemp+'~` block'+eb(byt,lang)+' free~`';
+        nm:='~`'+stemp+'~` block'+eb(byt)+' free~`';
         stemp:=nm+'~`';
-        i:=19-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
-        nm:=space(i)+stemp; nm:=nm+space(abs(38-CClen(nm))); if CClen(nm)>38 then delete(nm,39+8,10);
+        i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
+        nm:=space(i)+stemp; nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
         x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
         StatusLineColor(pal.bkFreeLineNT,pal.txtFreeLineNT,pal.bkFreeLineST,pal.txtFreeLineST,x,y+1,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+39,y+1,'║');
+        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y+1,#186);
        end;
      END;
   sclPanel:
@@ -1080,12 +1163,12 @@ if (pos('f',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
       if infolines>2 then
        begin
         stemp:=strr(scltfiles-1);
-        nm:='Total ~`'+stemp+'~` file'+eb(vall(stemp),eng)+'~`';
+        nm:='Total ~`'+stemp+'~` file'+eb(vall(stemp))+'~`';
         stemp:=nm+'~`';
-        i:=19-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
-        nm:=space(i)+stemp; nm:=nm+space(abs(38-CClen(nm))); if CClen(nm)>38 then delete(nm,39+8,10);
+        i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
+        nm:=space(i)+stemp; nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
         StatusLineColor(pal.bkFreeLineNT,pal.txtFreeLineNT,pal.bkFreeLineST,pal.txtFreeLineST,x,y+1,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+39,y+1,'║');
+        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y+1,#186);
        end;
      END;
   tapPanel:
@@ -1096,21 +1179,22 @@ if (pos('f',strlo(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(Pan
         for i:=2 to taptfiles do if trddir^[i].tapflag=0 then inc(m);
         stemp:=strr(byt-m);
         if (lp.PanelType=tapPanel)and(rp.PanelType=tapPanel) then stemp:=strr(byt);
-        nm:='Total ~`'+stemp+'~` file'+eb(vall(stemp),eng)+'~`';
+        nm:='Total ~`'+stemp+'~` file'+eb(vall(stemp))+'~`';
         if (lp.PanelType=tapPanel)and(rp.PanelType=tapPanel) then
-        nm:='Total ~`'+stemp+'~` item'+eb(vall(stemp),eng)+'~`';
+        nm:='Total ~`'+stemp+'~` item'+eb(vall(stemp))+'~`';
         stemp:=nm+'~`';
-        i:=19-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
-        nm:=space(i)+stemp; nm:=nm+space(abs(38-CClen(nm))); if CClen(nm)>38 then delete(nm,39+8,10);
+        i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
+        nm:=space(i)+stemp; nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
         StatusLineColor(pal.bkFreeLineNT,pal.txtFreeLineNT,pal.bkFreeLineST,pal.txtFreeLineST,x,y+1,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+39,y+1,'║');
+        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y+1,#186);
        end;
      END;
   End;
+  UpdateScreen(false);
  End;
 
 
-if (pos('i',strlo(parts))<>0)or(pos('A',parts)<>0) then
+if (pos('i',LowerCase(parts))<>0)or(pos('A',parts)<>0) then
  Begin
   Case lp.PanelType of
    pcPanel:  if rp.PanelType=infPanel then pcInfoPanel(left);
@@ -1132,6 +1216,7 @@ if (pos('i',strlo(parts))<>0)or(pos('A',parts)<>0) then
    zxzPanel: if lp.PanelType=infPanel then trdInfoPanel(right);
    flpPanel: if lp.PanelType=infPanel then trdInfoPanel(right);
   End;
+    UpdateScreen(false);
  End;
 
 End;
@@ -1141,7 +1226,7 @@ End;
 {============================================================================}
 Function  TPanel.GetTreeC(path:string):byte;
 Begin
-TreeC:=length(path)-length(without(path,'\'));
+TreeC:=length(path)-length(without(path,PathDelim));
 GetTreeC:=TreeC;
 End;
 
@@ -1181,10 +1266,6 @@ Case PanelType of
  zxzPanel:
    BEGIN
     for i:=1 to zxztfiles do if trdDir^[i].mark then inc(m);
-   END;
- flpPanel:
-   BEGIN
-    for i:=1 to flptfiles do if trdDir^[i].mark then inc(m);
    END;
 End;
 Insed:=m;
@@ -1334,11 +1415,26 @@ Function TPanel.TrueName(ind:word):string;
 Var
     s:string;
 Begin
-  if nospace(pcDir^[ind].fext)=''
-    then s:=pcDir^[ind].fname
-    else s:=pcDir^[ind].fname+'.'+pcDir^[ind].fext;
-  if ind>pctdirs then s:=strlo(s) else s:=strhi(s);
-TrueName:=s;
+  case PanelType of
+    trdPanel, sclPanel: begin
+      s := Trim(string(trdDir^[ind].name));
+      if trdDir^[ind].typ <> ' ' then
+        s := s + '.' + trdDir^[ind].typ;
+    end;
+    tapPanel: begin
+      s := Trim(string(trdDir^[ind].name));
+      if trdDir^[ind].tapflag = 0 then
+        case trdDir^[ind].taptyp of
+          0: s := s + ' [P]';
+          1: s := s + ' [N]';
+          2: s := s + ' [C]';
+          3: s := s + ' [B]';
+        end;
+    end;
+  else
+    s := string(pcDir^[ind].fullname);
+  end;
+  TrueName := s;
 End;
 
 
@@ -1350,213 +1446,182 @@ End;
 {============================================================================}
 Procedure TPanel.TrueCur;
 Var
-    fnd:boolean; st:string; i:integer;
+  fnd: boolean;
+  st: string;
+  i: integer;
 Begin
-fnd:=false;
+  fnd := false;
  Case panelType of
-
-  pcPanel:
-   BEGIN
-    for i:=1 to pctdirs+pctfiles do
-     begin
-      if nospace(pcdir^[i].fext)=''
-        then st:=strlo(pcdir^[i].fname)
-        else st:=strlo(pcdir^[i].fname+'.'+pcdir^[i].fext);
-      if nospaceLR(st)=nospaceLR(strlo(pcnn)) then begin fnd:=true; break; end;
+    pcPanel: begin
+      for i := 1 to pctdirs + pctfiles do begin
+        if string(pcDir^[i].fullname) <> '' then
+          st := LowerCase(string(pcDir^[i].fullname))
+        else begin
+          st := string(pcDir^[i].fname);
+          if (Length(st) > 0) and (st[1] = ' ') then Delete(st, 1, 1);
+          if Trim(string(pcDir^[i].fext)) <> '' then
+            st := LowerCase(st + '.' + string(pcDir^[i].fext))
+          else
+            st := LowerCase(st);
      end;
-
-    if fnd then
-     begin
-      pcf:=1; pcfrom:=1;
-      while pcfrom+pcf-1<i do
-       begin
-        inc(pcf);
-        if pcf>panelhi*columns then begin pcf:=panelhi*columns; inc(pcfrom); end;
+        if st = LowerCase(Trim(string(pcnn))) then begin
+          fnd := true;
+          break;
        end;
      end;
-
-    while pcfrom+pcf-1 > pctdirs+pctfiles do
-     begin
-      dec(pcfrom);
-      if pcfrom<1 then begin pcfrom:=1; dec(pcf); end;
+      if fnd then begin
+        pcf := 1; pcfrom := 1;
+        while pcfrom + pcf - 1 < i do begin
+          Inc(pcf);
+          if pcf > PanelHi * Columns then begin
+            pcf := PanelHi * Columns;
+            Inc(pcfrom);
+       end;
      end;
-    if pcf<1 then pcf:=1;
+       end;
+      while pcfrom + pcf - 1 > pctdirs + pctfiles do begin
+        Dec(pcfrom);
+        if pcfrom < 1 then begin pcfrom := 1; Dec(pcf); end;
+     end;
+      if pcf < 1 then pcf := 1;
+    end;
+    trdPanel: begin
+      if trdfrom + trdf - 1 <> 1 then begin
+        for i := 1 to trdtfiles do begin
+          st := string(trdDir^[i].name) + '.' + trdDir^[i].typ;
+          if st = trdnn then begin fnd := true; break; end;
+       end;
+        if fnd then begin
+          trdf := 1; trdfrom := 1;
+          while trdfrom + trdf - 1 < i do begin
+            Inc(trdf);
+            if trdf > PanelHi * Columns then begin
+              trdf := PanelHi * Columns; Inc(trdfrom);
+         end;
    END;
-
-  trdPanel:
-   BEGIN
-    if trdfrom+trdf-1<>1 then
-     begin
-      for i:=1 to trdtfiles do
-       begin
-        st:=trddir^[i].name+'.'+trddir^[i].typ;
-        if st=trdnn then begin fnd:=true; break; end;
        end;
-
-      if fnd then
-       begin
-        trdf:=1; trdfrom:=1;
-        while trdfrom+trdf-1<i do
-         begin
-          inc(trdf);
-          if trdf>panelhi*Columns then begin trdf:=panelhi*Columns; inc(trdfrom); end;
+        while trdfrom + trdf - 1 > trdtfiles do begin
+          Dec(trdfrom);
+          if trdfrom < 1 then begin trdfrom := 1; Dec(trdf); end;
+       end;
+        if trdf < 1 then trdf := 1;
+     end;
+       end;
+    fdiPanel: begin
+      if fdifrom + fdif - 1 <> 1 then begin
+        for i := 1 to fditfiles do begin
+          st := string(trdDir^[i].name) + '.' +
+            trdDir^[i].typ;
+          if st = fdinn then begin
+            fnd := true; break;
+     end;
+   END;
+        if fnd then begin
+          fdif := 1; fdifrom := 1;
+          while fdifrom + fdif - 1 < i do begin
+            Inc(fdif);
+            if fdif > PanelHi * Columns then begin
+              fdif := PanelHi * Columns;
+              Inc(fdifrom);
          end;
        end;
-
-      while trdfrom+trdf-1 > trdtfiles do
-       begin
-        dec(trdfrom);
-        if trdfrom<1 then begin trdfrom:=1; dec(trdf); end;
        end;
-      if trdf<1 then trdf:=1;
+        while fdifrom + fdif - 1 > fditfiles do begin
+          Dec(fdifrom);
+          if fdifrom < 1 then begin
+            fdifrom := 1; Dec(fdif);
      end;
    END;
-
-  fdiPanel:
-   BEGIN
-    if fdifrom+fdif-1<>1 then
-     begin
-      for i:=1 to fditfiles do
-       begin
-        st:=trddir^[i].name+'.'+trddir^[i].typ;
-        if st=fdinn then begin fnd:=true; break; end;
-       end;
-
-      if fnd then
-       begin
-        fdif:=1; fdifrom:=1;
-        while fdifrom+fdif-1<i do
-         begin
-          inc(fdif);
-          if fdif>panelhi*Columns then begin fdif:=panelhi*Columns; inc(fdifrom); end;
+        if fdif < 1 then fdif := 1;
          end;
        end;
-
-      while fdifrom+fdif-1 > fditfiles do
-       begin
-        dec(fdifrom);
-        if fdifrom<1 then begin fdifrom:=1; dec(fdif); end;
+    sclPanel: begin
+      if sclfrom + sclf - 1 <> 1 then begin
+        for i := 1 to scltfiles do begin
+          st := string(trdDir^[i].name) + '.' + trdDir^[i].typ;
+          if st = sclnn then begin fnd := true; break; end;
        end;
-      if fdif<1 then fdif:=1;
+        if fnd then begin
+          sclf := 1; sclfrom := 1;
+          while sclfrom + sclf - 1 < i do begin
+            Inc(sclf);
+            if sclf > PanelHi * Columns then begin
+              sclf := PanelHi * Columns; Inc(sclfrom);
+         end;
+   END;
+       end;
+        while sclfrom + sclf - 1 > scltfiles do begin
+          Dec(sclfrom);
+          if sclfrom < 1 then begin sclfrom := 1; Dec(sclf); end;
+       end;
+        if sclf < 1 then sclf := 1;
+     end;
+       end;
+    fddPanel: begin
+      if fddfrom + fddf - 1 <> 1 then begin
+        for i := 1 to fddtfiles do begin
+          st := string(trdDir^[i].name) + '.' +
+            trdDir^[i].typ;
+          if st = fddnn then begin
+            fnd := true; break;
      end;
    END;
-
-  sclPanel:
-   BEGIN
-    if sclfrom+sclf-1<>1 then
-     begin
-      for i:=1 to scltfiles do
-       begin
-        st:=trddir^[i].name+'.'+trddir^[i].typ;
-        if st=sclnn then begin fnd:=true; break; end;
-       end;
-
-      if fnd then
-       begin
-        sclf:=1; sclfrom:=1;
-        while sclfrom+sclf-1<i do
-         begin
-          inc(sclf);
-          if sclf>panelhi*Columns then begin sclf:=panelhi*Columns; inc(sclfrom); end;
+        if fnd then begin
+          fddf := 1; fddfrom := 1;
+          while fddfrom + fddf - 1 < i do begin
+            Inc(fddf);
+            if fddf > PanelHi * Columns then begin
+              fddf := PanelHi * Columns;
+              Inc(fddfrom);
          end;
        end;
-
-      while sclfrom+sclf-1 > scltfiles do
-       begin
-        dec(sclfrom);
-        if sclfrom<1 then begin sclfrom:=1; dec(sclf); end;
        end;
-      if sclf<1 then sclf:=1;
+        while fddfrom + fddf - 1 > fddtfiles do begin
+          Dec(fddfrom);
+          if fddfrom < 1 then begin
+            fddfrom := 1; Dec(fddf);
      end;
    END;
-
-  fddPanel:
-   BEGIN
-    if fddfrom+fddf-1<>1 then
-     begin
-      for i:=1 to fddtfiles do
-       begin
-        st:=trddir^[i].name+'.'+trddir^[i].typ;
-        if st=fddnn then begin fnd:=true; break; end;
+        if fddf < 1 then fddf := 1;
        end;
-
-      if fnd then
-       begin
-        fddf:=1; fddfrom:=1;
-        while fddfrom+fddf-1<i do
-         begin
-          inc(fddf);
-          if fddf>panelhi*Columns then begin fddf:=panelhi*Columns; inc(fddfrom); end;
+    end;
+    zxzPanel: begin
+      if zxzfrom + zxzf - 1 <> 1 then begin
+        for i := 1 to zxztfiles do begin
+          st := string(trdDir^[i].name) + '.' +
+            trdDir^[i].typ;
+          if st = zxznn then begin
+            fnd := true; break;
+          end;
+        end;
+        if fnd then begin
+          zxzf := 1; zxzfrom := 1;
+          while zxzfrom + zxzf - 1 < i do begin
+            Inc(zxzf);
+            if zxzf > PanelHi * Columns then begin
+              zxzf := PanelHi * Columns;
+              Inc(zxzfrom);
          end;
        end;
-
-      while fddfrom+fddf-1 > fddtfiles do
-       begin
-        dec(fddfrom);
-        if fddfrom<1 then begin fddfrom:=1; dec(fddf); end;
        end;
-      if fddf<1 then fddf:=1;
+        while zxzfrom + zxzf - 1 > zxztfiles do begin
+          Dec(zxzfrom);
+          if zxzfrom < 1 then begin
+            zxzfrom := 1; Dec(zxzf);
      end;
-   END;
-
-  zxzPanel:
-   BEGIN
-    if zxzfrom+zxzf-1<>1 then
-     begin
-      for i:=1 to zxztfiles do
-       begin
-        st:=trddir^[i].name+'.'+trddir^[i].typ;
-        if st=zxznn then begin fnd:=true; break; end;
        end;
-
-      if fnd then
-       begin
-        zxzf:=1; zxzfrom:=1;
-        while zxzfrom+zxzf-1<i do
-         begin
-          inc(zxzf);
-          if zxzf>panelhi*Columns then begin zxzf:=panelhi*Columns; inc(zxzfrom); end;
+        if zxzf < 1 then zxzf := 1;
          end;
        end;
-
-      while zxzfrom+zxzf-1 > zxztfiles do
-       begin
-        dec(zxzfrom);
-        if zxzfrom<1 then begin zxzfrom:=1; dec(zxzf); end;
+    tapPanel: begin
+      if tapfrom + tapf - 1 <> 1 then begin
+        while tapfrom + tapf - 1 > taptfiles do begin
+          Dec(tapfrom);
+          if tapfrom < 1 then begin tapfrom := 1; Dec(tapf); end;
+        end;
+        if tapf < 1 then tapf := 1;
        end;
-      if zxzf<1 then zxzf:=1;
      end;
-   END;
-
-  flpPanel:
-   BEGIN
-    if flpfrom+flpf-1<>1 then
-     begin
-      for i:=1 to flptfiles do
-       begin
-        st:=trddir^[i].name+'.'+trddir^[i].typ;
-        if st=flpnn then begin fnd:=true; break; end;
-       end;
-
-      if fnd then
-       begin
-        flpf:=1; flpfrom:=1;
-        while flpfrom+flpf-1<i do
-         begin
-          inc(flpf);
-          if flpf>panelhi*Columns then begin flpf:=panelhi*Columns; inc(flpfrom); end;
-         end;
-       end;
-
-      while flpfrom+flpf-1 > flptfiles do
-       begin
-        dec(flpfrom);
-        if flpfrom<1 then begin flpfrom:=1; dec(flpf); end;
-       end;
-      if flpf<1 then flpf:=1;
-     end;
-   END;
-
 
  End;
 End;
@@ -1564,159 +1629,172 @@ End;
 {============================================================================}
 Procedure TPanel.Enter;
 Var
-    stemp:string; i:word; a,b,c:byte;
+  fullPath, ext, stemp: string;
+  i: word;
 Begin
 Case PanelType of
- pcPanel:
-   BEGIN
-
-    if isZXZIP(pcnd+TrueName(Index)) then
-     begin
-      PanelType:=zxzPanel;
-      zxzFile:=pcnd+TrueName(Index);
-      zxzMDFs(zxzfile);
-      zxzfrom:=1; zxzf:=1; Inside;
-      reInfo('cbdnsfi');
-      zxzPDFs(zxzfrom);
+    pcPanel: begin
+      if pcDir^[Index].flength < 0 then begin
+        fullPath := string(pcDir^[Index].fullname);
+        if fullPath = '' then begin
+          fullPath := string(pcDir^[Index].fname);
+          if (Length(fullPath) > 0) and (fullPath[1] = ' ') then
+            Delete(fullPath, 1, 1);
+        end;        if fullPath = '..' then begin
+          CtrlPgUp;
       Exit;
      end;
+        fullPath := IncludeTrailingPathDelimiter(pcnd) + fullPath;
+        inc(treec); pcfrom := 1; pcf := 1;
+        pcMDF(fullPath);
+        Inside;
+        Info('csi');
+        pcPDF(pcfrom);
+        exit;
+      end;
+      fullPath := pcnd + TrueName(Index);
 
-    if (Index>tdirs)and(itHobeta(pcnd+pcnn,hobetainfo)) then
-     begin
-      scputwin(pal.bkdRama,pal.txtdRama,16,halfmaxy-4,65,halfmaxy-3+6);
-      cmcentre(pal.bkdRama,pal.txtdRama,halfmaxy-4,#205' Information ');
-      StatusLineColor(pal.bkdLabelST,pal.txtdLabelST,pal.bkdLabelNT,pal.txtdLabelNT,19,halfmaxy-2,
-        'Name       Type     Start      Length Blocks');
+      if (Index > tdirs) and
+         itHobeta(fullPath, hobetainfo) then begin
+        scputwin(pal.bkdRama, pal.txtdRama,
+          HalfMaxX - 24, HalfMaxY - 4,
+          HalfMaxX + 25, HalfMaxY - 3 + 6);
+        cmcentre(pal.bkdRama, pal.txtdRama,
+          HalfMaxY - 4, #205' Information ');
+        StatusLineColor(
+          pal.bkdLabelST, pal.txtdLabelST,
+          pal.bkdLabelNT, pal.txtdLabelNT,
+          HalfMaxX - 21, HalfMaxY - 2,
+          'Name       Type     Start'
+          + '      Length Blocks');
 
-      stemp:='~`'+hobetainfo.name+'   ';
-      if TRDOS3 then stemp:=stemp+hobetainfo.typ+chr(lo(hobetainfo.start))+chr(hi(hobetainfo.start))
-                else stemp:=stemp+'<'+hobetainfo.typ+'>';
-      stemp:=stemp+
-             space(11-length(changechar(extnum(strr(hobetainfo.start)),' ',',')))+
-             changechar(extnum(strr(hobetainfo.start)),' ',',')+
-             space(11-length(changechar(extnum(strr(hobetainfo.length)),' ',',')))+
-             changechar(extnum(strr(hobetainfo.length)),' ',',')+
-             '  ('+strr(hobetainfo.totalsec)+')~`';
-      StatusLineColor(pal.bkdLabelST,pal.txtdLabelST,pal.bkdLabelNT,pal.txtdLabelNT,19,halfmaxy-1,
-             stemp);
+        stemp := '~`' + hobetainfo.name + '   ';
+        if TRDOS3 then
+          stemp := stemp + hobetainfo.typ
+            + chr(lo(hobetainfo.start))
+            + chr(hi(hobetainfo.start))
+        else
+          stemp := stemp + '<' + hobetainfo.typ + '>';
+        stemp := stemp
+          + space(11 - length(
+              changechar(extnum(strr(hobetainfo.start)),
+                ' ', ',')))
+          + changechar(extnum(strr(hobetainfo.start)),
+              ' ', ',')
+          + space(11 - length(
+              changechar(extnum(strr(hobetainfo.length)),
+                ' ', ',')))
+          + changechar(extnum(strr(hobetainfo.length)),
+              ' ', ',')
+          + '  (' + strr(hobetainfo.totalsec) + ')~`';
+        StatusLineColor(
+          pal.bkdLabelST, pal.txtdLabelST,
+          pal.bkdLabelNT, pal.txtdLabelNT,
+          HalfMaxX - 21, HalfMaxY - 1, stemp);
 
-      colour(pal.bkdLabelNT,pal.txtdLabelNT);
-      cbutton(pal.bkdButtonA,pal.txtdButtonA,pal.bkdButtonShadow,pal.txtdButtonShadow,36,halfmaxy+1,'    OK    ',true);
+        colour(pal.bkdLabelNT, pal.txtdLabelNT);
+        cbutton(pal.bkdButtonA, pal.txtdButtonA,
+          pal.bkdButtonShadow, pal.txtdButtonShadow,
+          HalfMaxX - 4, HalfMaxY + 1, '    OK    ', true);
 
       rpause;
       restscr;
      end;
 
 
-    if (Index>tdirs)and(isTRD(pcnd+TrueName(Index))) then
-     begin
-      PanelType:=trdPanel;
-      trdFile:=pcnd+TrueName(Index);
-      trdMDFs(trdfile);{}
-      trdfrom:=1; trdf:=1; Inside;
+      ext := LowerCase(ExtractFileExt(TrueName(Index)));
+      if ext = '.trd' then begin
+        PanelType := trdPanel;
+        trdFile   := fullPath;
+        trdMDFs(trdFile);
+        trdfrom := 1; trdf := 1;
+        Inside;
+        Build('012');
       reInfo('cbdnsfi');
-      trdPDFs(trdfrom);{}
+        trdPDFs(trdfrom);
       Exit;
      end;
 
-    if place=left then
-     BEGIN
-      if (Index>tdirs)and(isFDI(lp,pcnd+TrueName(Index))) then
-       begin
-        PanelType:=fdiPanel;
-        fdiFile:=pcnd+TrueName(Index);
+      if ext = '.scl' then begin
+        PanelType := sclPanel;
+        sclFile   := fullPath;
+        sclMDFs(sclFile);
+        sclfrom := 1; sclf := 1;
+        Inside;
+        Build('012');
+        reInfo('cbdnsfi');
+        sclPDFs(sclfrom);
+        exit;
+      end;
+
+      if ext = '.tap' then begin
+        PanelType := tapPanel;
+        tapFile   := fullPath;
+        tapMDFs(tapFile);
+        tapfrom := 1; tapf := 1;
+        Inside;
+        Build('012');
+        reInfo('cbdnsfi');
+        tapPDFs(tapfrom);
+        exit;
+      end;
+
+      if place = left then begin
+        if (ext = '.fdi') and isFDI(lp, fullPath) then begin
+          PanelType := fdiPanel;
+          fdiFile   := fullPath;
         fdiMDFs(fdifile);
-        fdifrom:=1; fdif:=1; Inside;
+          fdifrom := 1; fdif := 1;
+          Inside;
+          Build('012');
         reInfo('cbdnsfi');
         fdiPDFs(fdifrom);
         Exit;
        end;
-     END
-    ELSE
-     BEGIN
-      if (Index>tdirs)and(isFDI(rp,pcnd+TrueName(Index))) then
-       begin
-        PanelType:=fdiPanel;
-        fdiFile:=pcnd+TrueName(Index);
+      end else begin
+        if (ext = '.fdi') and isFDI(rp, fullPath) then begin
+          PanelType := fdiPanel;
+          fdiFile   := fullPath;
         fdiMDFs(fdifile);
-        fdifrom:=1; fdif:=1; Inside;
+          fdifrom := 1; fdif := 1;
+          Inside;
+          Build('012');
         reInfo('cbdnsfi');
         fdiPDFs(fdifrom);
         Exit;
        end;
      END;
 
-
-    if (Index>tdirs)and(isTAP(pcnd+TrueName(Index))) then
-     Begin
-      PanelType:=tapPanel;
-      tapFile:=pcnd+TrueName(Index);
-      tapMDFs(tapfile);
-      tapfrom:=1; tapf:=1; Inside;
-      reInfo('cbdnsfi');
-      tapPDFs(tapfrom);
-      Exit;
-     End;
-
-
-    if (Index>tdirs)and(isSCL(pcnd+TrueName(Index))) then
-     Begin
-      PanelType:=sclPanel;
-      sclFile:=pcnd+TrueName(Index);
-      sclMDFs(sclfile);
-      sclfrom:=1; sclf:=1; Inside;
-      reInfo('cbdnsfi');
-      sclPDFs(sclfrom);
-      Exit;
-     End;
-
-
-    if (Index>tdirs)and(isFDD(pcnd+TrueName(Index))) then
-     Begin
-      PanelType:=fddPanel;
-      fddFile:=pcnd+TrueName(Index);
+      if ext = '.fdd' then begin
+        PanelType := fddPanel;
+        fddFile   := fullPath;
       fddMDFs(fddfile);
-      fddfrom:=1; fddf:=1; Inside;
+        fddfrom := 1; fddf := 1;
+        Inside;
+        Build('012');
       reInfo('cbdnsfi');
       fddPDFs(fddfrom);
       Exit;
      End;
 
-    if Index<=tdirs then
-     begin
-      if NoSpace(pcnn)='..' then
-       begin
-        Dec(TreeC);
-        stemp:=ReverseStr(pcnd);
-        pcnn:=copy(ReverseStr(Copy(stemp,2,pos('\',Copy(stemp,2,15)))),2,15);
-        stemp:=reversestr(pcnd);
-        stemp:=reversestr(copy(stemp,2,pos('\',copy(stemp,2,15))-1));
-        stemp:=copy(pcnd,1,length(pcnd)-length(stemp)-1);
-        if stemp[length(stemp)]<>'\' then stemp:=stemp+'\';
-        pcMDF(stemp);
-        TrueCur;
-       end
-      else
-       begin
-        inc(treec); pcfrom:=1; pcf:=1;
-        stemp:=pcnd+pcnn+'\';
-        pcMDF(stemp);
-       end;
+      if ext = '.zxz' then begin
+        PanelType := zxzPanel;
+        zxzFile   := fullPath;
+        zxzMDFs(zxzFile);
+        zxzfrom := 1; zxzf := 1;
       Inside;
-      Info('csi');{}
-      pcPDF(pcfrom);{}
-     end
-    else
-     begin
+        Build('012');
+      reInfo('cbdnsfi');
+      zxzPDFs(zxzfrom);
+        exit;
      end;
    END;
- trdPanel,fdiPanel,sclPanel,tapPanel,fddPanel,zxzPanel,flpPanel:
-   BEGIN
+    trdPanel, fdiPanel, sclPanel, tapPanel,
+    fddPanel, zxzPanel, flpPanel: begin
 
-    if Index=1 then
-     begin
+      if Index = 1 then begin
 
-      trdfile:=''; fdifile:=''; sclfile:=''; tapfile:=''; fddfile:='';{}
+        trdfile:=''; fdifile:=''; sclfile:=''; tapfile:=''; fddfile:='';
 
       for i:=1 to 257 do Begin trdIns^[i].crc16:=0; trdDir^[i].name[1]:=#0; end;
       if PanelType=tapPanel then CheckTapInsed;
@@ -1724,8 +1802,9 @@ Case PanelType of
       MDF;
       TrueCur;
       Inside;
-      reInfo('A');{}
-      rePDF;{}
+        Build('012');
+        reInfo('A');
+        rePDF;
       Exit;
      end;
    END;
@@ -1745,13 +1824,11 @@ Case PanelType of
    BEGIN
     if TreeC>1 then
      Begin
-      Dec(TreeC);
-      stemp:=ReverseStr(pcnd);
-      pcnn:=copy(ReverseStr(Copy(stemp,2,pos('\',Copy(stemp,2,15)))),2,15);
-      stemp:=reversestr(pcnd);
-      stemp:=reversestr(copy(stemp,2,pos('\',copy(stemp,2,15))-1));
-      stemp:=copy(pcnd,1,length(pcnd)-length(stemp)-1);
-      if stemp[length(stemp)]<>'\' then stemp:=stemp+'\';
+      Dec(TreeC);      stemp:=ExcludeTrailingPathDelimiter(pcnd);
+      pcnn:=ExtractFileName(stemp);
+      stemp:=ExtractFilePath(stemp);
+      if (Length(stemp)>0)and(stemp[Length(stemp)]<>PathDelim) then
+        stemp:=stemp+PathDelim;
       pcMDF(stemp);
       TrueCur;
       Inside;
@@ -1767,8 +1844,9 @@ Case PanelType of
       reMDF;
       TrueCur;
       Inside;
-      reInfo('cbdnsfi');{}
-      rePDF;{}
+      Build('012');
+      reInfo('cbdnsfi');
+      rePDF;
    END;
 End;
 End;
@@ -1788,21 +1866,14 @@ Case PanelType of
      begin
       if NoSpace(pcnn)='..' then
        begin
-        Dec(TreeC);
-        stemp:=ReverseStr(pcnd);
-        pcnn:=copy(ReverseStr(Copy(stemp,2,pos('\',Copy(stemp,2,15)))),2,15);
-        stemp:=reversestr(pcnd);
-        stemp:=reversestr(copy(stemp,2,pos('\',copy(stemp,2,15))-1));
-        stemp:=copy(pcnd,1,length(pcnd)-length(stemp)-1);
-        if stemp[length(stemp)]<>'\' then stemp:=stemp+'\';
-        pcMDF(stemp);
-        TrueCur;
+        CtrlPgUp;
+       Exit;
        end
       else
        begin
         inc(treec); pcfrom:=1; pcf:=1;
-        pcnd:=pcnd+pcnn+'\';
-        pcMDF(pcnd);
+        stemp:=pcnd+pcnn+PathDelim;
+        pcMDF(stemp);
        end;
      end;
     Inside;
@@ -1816,145 +1887,16 @@ End;
 
 
 {============================================================================}
-Procedure TPanel.AltF1F2(ps:byte);
-Var
-     t:word; stemp:string; sr:searchrec;
-Label fin;
-Begin
- CurOff; CancelSB;
- w_twosided:=false;
- if ps=left then stemp:=ChooseDrive(ps,DiskMenuType,lang,lp.pcnd)
-            else stemp:=ChooseDrive(ps,DiskMenuType,lang,rp.pcnd);
- w_twosided:=true;
-
- if stemp<>'0' then
-  begin
-  if ((UpCase(stemp[1])='A')or(UpCase(stemp[1])='B')) then
-  BEGIN
-   if isFLP(stemp[1]) then
-    Begin
-     if ps=left then
-      begin
-       if (lp.pcnd[1]='A')or(lp.pcnd[1]='B') then
-        Begin
-         ChDir('C:'); lp.pcnd:=CurentDir;
-         if lp.pcnd[length(lp.pcnd)]<>'\' then lp.pcnd:=lp.pcnd+'\';
-        End;
-       if (lp.PanelType=noPanel)or(lp.PanelType=infPanel) then begin lp.PanelType:=flpPanel; lp.Build('012'); end;
-       lp.PanelType:=flpPanel;
-       lp.flpDrive:=UpCase(stemp[1]);
-       lp.flpMDFs(lp.flpDrive);
-       lp.flpfrom:=1; lp.flpf:=1; lp.Inside;
-       reInfo('cbdnsfi');
-       lp.flpPDFs(lp.flpfrom);
-       Exit;
-      end
-     else
-      begin
-       if (rp.pcnd[1]='A')or(rp.pcnd[1]='B') then
-        Begin
-         ChDir('C:'); rp.pcnd:=CurentDir;
-         if rp.pcnd[length(rp.pcnd)]<>'\' then rp.pcnd:=rp.pcnd+'\';
-        End;
-       if (rp.PanelType=noPanel)or(rp.PanelType=infPanel) then begin rp.PanelType:=flpPanel; rp.Build('012'); end;
-       rp.PanelType:=flpPanel;
-       rp.flpDrive:=UpCase(stemp[1]);
-       rp.flpMDFs(rp.flpDrive);
-       rp.flpfrom:=1; rp.flpf:=1; rp.Inside;
-       reInfo('cbdnsfi');
-       rp.flpPDFs(rp.flpfrom);
-       Exit;
-      end;
-    End else EXIT{};
-  END;
-{}
-
-   if CheckDrv(stemp[1])=0 then
-     begin
-      Case ps of
-       Left:
-         BEGIN
-          if lp.PanelType<>pcPanel then
-           Begin
-            lp.PanelType:=pcPanel;
-            lp.Build('012');
-           End;
-          {$I-} ChDir(stemp+':'); {$I+}
-          if ioresult<>0 then
-           begin
-            errormessage('Drive '+stemp+': not ready');
-           end
-          else
-           begin
-            lp.pcnd:=curentdir;
-            if lp.pcnd[length(lp.pcnd)]<>'\' then lp.pcnd:=lp.pcnd+'\';
-            lp.pcf:=1; lp.pcfrom:=1; lp.TreeC:=1;
-            for t:=1 to MaxFiles do begin lp.pcdir^[t].mark:=false; end;
-            lp.pcMDF(lp.pcnd);
-            lp.Inside;
-            lp.Info('cbdnsfi');
-            lp.pcPDF(lp.pcfrom);
-           end;
-         END;
-       Right:
-         BEGIN
-          if rp.PanelType<>pcPanel then
-           begin
-            rp.PanelType:=pcPanel;
-            rp.Build('012');
-           end;
-          {$I-} ChDir(stemp+':'); {$I+}
-          if ioresult<>0 then
-           begin
-            errormessage('Drive '+stemp+': not ready');
-           end
-          else
-           begin
-            rp.pcnd:=curentdir;
-            if rp.pcnd[length(rp.pcnd)]<>'\' then rp.pcnd:=rp.pcnd+'\';
-            rp.pcf:=1; rp.pcfrom:=1; rp.TreeC:=1;
-            for t:=1 to MaxFiles do begin rp.pcdir^[t].mark:=false; end;
-            rp.pcMDF(rp.pcnd);
-            rp.Inside;
-            rp.Info('cbdnsfi');
-            rp.pcPDF(rp.pcfrom);
-           end;
-         END;
-      End;
-     end
-    else
-     begin
-      errormessage('Drive '+stemp+': not ready');
-     end;
-  end;
-
-fin:
-End;
+{$push}{$hints off}
+procedure TPanel.AltF1F2(ps: byte); begin end;
+{$pop}
 
 
 
 {============================================================================}
-Procedure TPanel.CtrlLeftRightDoIt(stemp:char);
-Var
-    btemp:byte; t:word;
-begin
-  {$I-} ChDir(stemp+':'); {$I+}
-  if ioresult<>0 then
-   begin
-    errormessage('Drive '+stemp+': not ready');
-   end
-  else
-   begin
-    pcnd:=curentdir;
-    if pcnd[length(pcnd)]<>'\' then pcnd:=pcnd+'\';
-    pcf:=1; pcfrom:=1; TreeC:=1;
-    for t:=1 to MaxFiles do begin pcdir^[t].mark:=false; end;
-    pcMDF(pcnd);
-    Inside;
-    Info('cbdnsfi');
-    pcPDF(pcfrom);
-   end;
-end;
+{$push}{$hints off}
+procedure TPanel.CtrlLeftRightDoIt(stemp: char); begin end;
+{$pop}
 
 
 {============================================================================}
@@ -2038,7 +1980,7 @@ End;
 {============================================================================}
 Procedure TPanel.Plus(ctrled:boolean);
 Var
-    a,b,i:word; s,stemp:string[12];
+    a,b,i:word; s,stemp:string;
 Begin
 Case PanelType of
  pcPanel:
@@ -2099,20 +2041,19 @@ End;
 {============================================================================}
 Procedure TPanel.Minus(ctrled:boolean);
 Var
-    a,b,i:word; s,stemp:string[12];
+    a,b,i:word; stemp:string;
 Begin
 Case PanelType of
  pcPanel:
    BEGIN
     if Ctrled then
-     begin a:=1; b:=pctdirs; s:='*.*'; end
+      begin a:=1; b:=pctdirs; end
     else
      begin
       a:=pctdirs+1; b:=pctdirs+pctfiles;
       stemp:=' Cancel ';
       minusmask:=nospace(GetWildMask(stemp,minusmask));
       if scanf_esc then exit;
-      s:=plusmask;
      end;
     for i:=a to b do if pcDir^[i].fname<>' ..' then
      Begin
@@ -2192,10 +2133,6 @@ Case PanelType of
    BEGIN
     for i:=1 to zxztfiles do if trdDir^[i].mark then begin fnd:=true; break; end;
    END;
- flpPanel:
-   BEGIN
-    for i:=1 to flptfiles do if trdDir^[i].mark then begin fnd:=true; break; end;
-   END;
 End;
 if fnd then FirstMarked:=i else FirstMarked:=0;
 End;
@@ -2207,9 +2144,170 @@ End;
 
 {============================================================================}
 Procedure TPanel.Del;
+var
+  n: word;
+  nm, s: string;
+  i: integer;
+  fm: word;
 Begin
-if PanelType=pcPanel then pcF8 else if place=left then snEraser(lp) else snEraser(rp);
+  if PanelType = pcPanel then begin
+    n := Insed;
+    if n = 0 then begin
+      if Trim(TrueName(Index)) = '..' then exit;
 End;
+
+    if n = 0 then begin
+      nm := TrueName(Index);
+      if Index <= pctdirs then
+        s := 'Do you wish to delete' + #255
+           + 'directory ' + nm + ' ?'
+      else
+        s := 'Do you wish to delete' + #255
+           + 'file "' + nm + '" ?';
+    end else
+      s := 'Do you wish to delete' + #255
+         + 'this files ?';
+
+    CancelSB;
+    if not CQuestion(s, Eng) then exit;
+
+    if n = 0 then
+      pcDir^[Index].mark := true;
+
+    for i := 1 to pctdirs + pctfiles do begin
+      if not pcDir^[i].mark then continue;
+      pcDeleteEntry(
+        IncludeTrailingPathDelimiter(string(pcnd)) +
+        string(pcDir^[i].fullname));
+    end;
+    if Place = Left then begin
+      lp.pcMDF(lp.pcnd);
+      if rp.PanelType = pcPanel then
+        rp.pcMDF(rp.pcnd);
+    end else begin
+      rp.pcMDF(rp.pcnd);
+      if lp.PanelType = pcPanel then
+        lp.pcMDF(lp.pcnd);
+    end;
+
+    reTrueCur;
+    reInside;
+    reInfo('cbdnsfi');
+    rePDF;
+    exit;
+  end;
+
+  if PanelType = zxzPanel then exit;
+
+  n := Insed;
+  if (n = 0) and (Index <= 1) then exit;
+  if (n = 0) and
+     ((Ord(trdDir^[Index].name[1]) = 1) or
+      (Ord(trdDir^[Index].name[1]) = 0)) then exit;
+
+  if n = 0 then
+    s := trdDir^[Index].name + '.' + TRDOSe3(Self, Index);
+  if n = 1 then begin
+    fm := FirstMarked;
+    s := trdDir^[fm].name + '.' + TRDOSe3(Self, fm);
+  end;
+
+  if PanelType = tapPanel then begin
+    if (n = 0) and (PanelTypeOf(oFocus) <> tapPanel) and
+       (trdDir^[Index].tapflag = 0) then exit;
+    if n = 0 then begin
+      if PanelTypeOf(oFocus) = tapPanel then begin
+        if trdDir^[Index].tapflag = 0 then
+          s := trdDir^[Index].name
+        else
+          s := 'codes';
+      end else begin
+        if Index > 2 then begin
+          if trdDir^[Index - 1].tapflag <> 0 then
+            s := 'less'
+          else
+            s := trdDir^[Index - 1].name;
+        end else
+          s := 'less';
+      end;
+    end;
+    if n = 1 then begin
+      fm := FirstMarked;
+      if PanelTypeOf(oFocus) = tapPanel then begin
+        if trdDir^[fm].tapflag = 0 then
+          s := trdDir^[fm].name
+        else
+          s := 'codes';
+      end else begin
+        if fm > 2 then begin
+          if trdDir^[fm - 1].tapflag <> 0 then
+            s := 'less'
+          else
+            s := trdDir^[fm - 1].name;
+        end else
+          s := 'less';
+      end;
+    end;
+    if PanelTypeOf(oFocus) = tapPanel then begin
+      s := 'Do you wish to delete' + #255
+         + 'item "' + s + '" ?';
+      if n > 1 then
+        s := 'Do you wish to delete' + #255
+           + 'this items ?';
+    end else begin
+      s := 'Do you wish to delete' + #255
+         + 'file "' + s + '" ?';
+      if n > 1 then
+        s := 'Do you wish to delete' + #255
+           + 'this files ?';
+    end;
+  end else begin
+    s := 'Do you wish to delete' + #255
+       + 'file "' + s + '" ?';
+    if n > 1 then
+      s := 'Do you wish to delete' + #255
+         + 'this files ?';
+  end;
+
+  CancelSB;
+  if not CQuestion(s, Eng) then exit;
+
+  if n = 0 then
+    trdDir^[Index].mark := true;
+
+  case PanelType of
+    trdPanel: begin
+      if Place = Left  then trdDel(lp)
+      else                  trdDel(rp);
+    end;
+    sclPanel: begin
+      if Place = Left  then sclDel(lp)
+      else                  sclDel(rp);
+    end;
+    tapPanel: begin
+      if Place = Left  then tapDel(lp)
+      else                  tapDel(rp);
+    end;
+    fdiPanel: begin
+      if Place = Left  then fdiDel(lp)
+      else                  fdiDel(rp);
+    end;
+    fddPanel: begin
+      if Place = Left  then fddDel(lp)
+      else                  fddDel(rp);
+    end;
+  end;
+
+  reMDF;
+  lp.TrueCur; lp.InSide;
+  rp.TrueCur; rp.InSide;
+  reInfo('cbdnsfi');
+  rePDF;
+end;
+
+
+{============================================================================}
+{$push}{$hints off}{$notes off}
 
 
 
@@ -2222,6 +2320,12 @@ if (PanelTypeOf(Focus)=pcPanel)and(PanelTypeOf(oFocus)=pcPanel)
  then pc2pc(_F5)
  else snCopier(_F5,PanelTypeOf(Focus),PanelTypeOf(oFocus));
 End;
+{$pop}
+
+
+
+{============================================================================}
+{$push}{$hints off}{$notes off}
 
 
 
@@ -2237,7 +2341,7 @@ Case PanelType of
    BEGIN
     Case PanelTypeOf(oFocus) of
      pcPanel: pc2pc(_F6);
-     trdPanel,fdiPanel,fddPanel,tapPanel,sclPanel,flpPanel:
+     trdPanel,fdiPanel,fddPanel,tapPanel,sclPanel:
       begin
        snCopier(_F6,PanelTypeOf(Focus),PanelTypeOf(oFocus));
       end;
@@ -2248,10 +2352,14 @@ Case PanelType of
  fddPanel: fddRename;
  tapPanel: tapRename;
  sclPanel: sclRename;
- flpPanel: flpRename(flpDrive);
 End;
 
 End;
+{$pop}
+
+
+
+{$push}{$hints off}
 
 
 
@@ -2259,10 +2367,6 @@ End;
 
 {============================================================================}
 Procedure TPanel.Rename;
-Var
-    i:word; n,s:string;
-    skip:boolean;
-    TargetPath:string;
 Begin
 Case PanelType of
  pcPanel: pcRename;
@@ -2271,79 +2375,223 @@ Case PanelType of
  fddPanel: fddRename;
  tapPanel: tapRename;
  sclPanel: sclRename;
- flpPanel: flpRename(flpDrive);
 End;
 
 End;
+{$pop}
 
 
 
 
 
 {============================================================================}
-Function TPanel.View(sys:boolean):longint;
-Var
-    i:word; total,size:longint; UserOut:boolean; path:string;
-Begin
-UserOut:=false; total:=0;
-if PanelType=pcPanel then
- BEGIN
-  {
-  if not sys then
-   begin
-    if Index>TDirs then
-     begin
-
-      if InternalView or AltF3Pressed then
-       begin
-        intView(pcnd+TrueName(Index));
-        GlobalReDraw;
-       end
-       else
-      pcViewFile(pcnd+TrueName(Index));
-      Exit;
-     end;
-   end;
-  {}
-  if Insed=0 then
-   begin
-    path:=TrueName(Index);
-    if nospace(path)='..' then path:=pcnd else path:=pcnd+path;
-    if DirSize(path,pcDir^[Index].priory,size,UserOut,sys) then
-      if sys then inc(total,size) else pcDir^[Index].flength:=size;
-   end;
-  for i:=1 to pctdirs+pctfiles do if pcDir^[i].mark then
-   begin
-    if sys then if UserOut then break;
-      if DirSize(pcnd+TrueName(i),pcDir^[i].priory,size,UserOut,sys) then
-      if sys then inc(total,size) else pcDir^[i].flength:=size;
-   end;
-  View:=total;
-  reInfo('s');
- END
-else
- BEGIN
-{  if place=left then zxViewFile(lp) else zxViewFile(rp);{}
- END;
-End;
-
-
-
-
-{============================================================================}
-
 Procedure TPanel.Edit;
 Begin
 Case PanelType of
  trdPanel,fdiPanel,fddPanel,flpPanel:
-   BEGIN
+ BEGIN
     if place=left then zxEditParam(lp,Index) else zxEditParam(rp,Index);
    END;
  zxzPanel:
    BEGIN
-    if place=left then zxzExtract(lp,rp) else zxzExtract(rp,lp);
+     if place=left then zxzExtract(lp) else zxzExtract(rp);
    END;
 End;
+End;
+
+
+
+{============================================================================}
+procedure TPanel.MkDir;
+var
+  d: string;
+  cy: byte;
+       begin
+  if PanelType <> pcPanel then exit;
+  CurOff;
+  cy := HalfMaxY;
+  Colour(pal.bkdRama, pal.txtdRama);
+  scPutWin(pal.bkdRama, pal.txtdRama,
+    HalfMaxX - 23, cy - 3, HalfMaxX + 24, cy);
+  cmCentre(pal.bkdRama, pal.txtdRama, cy - 3, ' Make directory ');
+  CMPrint(pal.bkdLabelST, pal.txtdLabelST,
+    HalfMaxX - 20, cy - 2, 'Directory name');
+  CMPrint(pal.bkdInputNT, pal.txtdInputNT,
+    HalfMaxX - 21, cy - 1, Space(44));
+  Colour(pal.bkdInputNT, pal.txtdInputNT);
+  CurOn;
+  d := scanf(HalfMaxX - 20, cy - 1, '', 42, 42, 1);
+  CurOff;
+  RestScr;
+  if scanf_esc or (Trim(d) = '') then exit;
+  if (Pos(':', d) = 0) and
+     ((Length(d) = 0) or (d[1] <> PathDelim)) then
+    d := IncludeTrailingPathDelimiter(string(pcnd)) + d;
+  if not ForceDirectories(d) then exit;
+  pcnn := GetOf(d, _name);
+  reMDF;
+  TrueCur;
+  Inside;
+  reInfo('cdsfi');
+rePDF;
+     end;
+
+
+{============================================================================}
+function TPanel.View(sys: boolean): int64;
+var
+  i: word;
+  total, size: int64;
+  UserOut: boolean;
+  path: string;
+ begin
+  UserOut := false;
+  total := 0;
+  size := 0;
+  if PanelType = pcPanel then begin
+  if not sys then
+      if Index > pctdirs then begin
+        if InternalView or AltF3Pressed then begin
+          path := IncludeTrailingPathDelimiter(string(pcnd))
+            + TrueName(Index);
+          IntView(path);
+          GlobalRedraw;
+   end;
+        View := 0;
+        exit;
+   end;
+    if Insed = 0 then begin
+      path := TrueName(Index);
+      if nospace(path) = '..' then
+        path := string(pcnd)
+       else
+        path := IncludeTrailingPathDelimiter(string(pcnd))
+          + path;
+      if DirSize(path, pcDir^[Index].priory,
+                 size, UserOut, sys) then
+        if sys then
+          Inc(total, size)
+        else
+          pcDir^[Index].flength := size;
+    end;
+    for i := 1 to pctdirs + pctfiles do
+      if pcDir^[i].mark then begin
+        if sys then
+          if UserOut then break;
+        if DirSize(
+             IncludeTrailingPathDelimiter(string(pcnd))
+               + TrueName(i),
+             pcDir^[i].priory, size,
+             UserOut, sys) then
+          if sys then
+            Inc(total, size)
+          else
+            pcDir^[i].flength := size;
+   end;
+    View := total;
+  reInfo('s');
+  end else begin
+    View := 0;
+     end;
+   end;
+
+
+
+
+
+{============================================================================}
+procedure TPanel.LocalFind;
+var
+    a,kb:word;
+    fname,t,s:string;
+    i:byte;
+    fnd:boolean;
+label loop,fin;
+Begin
+ CancelSB;
+ w_shadow:=false;
+ scPutWin(pal.bkdRama,pal.txtdRama,posx+9,gmaxy-3,posx+32,gmaxy-1);
+ cmprint(pal.bkdLabelST,pal.txtdLabelST,posx+11,gmaxy-2,'Find:');
+ printself(pal.bkdInputNT,pal.txtdInputNT,posx+18,gmaxy-2,13);
+ colour(pal.bkdInputNT,pal.txtdInputNT);
+ s:='';
+
+loop:
+ cmprint(pal.bkdInputNT,pal.txtdInputNT,posx+18,gmaxy-2,s+space(13-length(s)));
+ gotoXY(posx+18+length(nospace(s)),gmaxy-2);
+ CurOn;
+ UpdateScreen(false);
+
+ kb:=rKey;
+ if (kb=_ESC)or(kb=_ENTER)or(kb=_Tab) then goto fin;
+
+ if kb=_HOME then
+  begin   from:=1; f:=1;
+   Outside; Inside; rePDF; s:='';
+  end;
+
+ if chr(lo(kb)) in [#8] then begin
+   delete(s,length(s),1);
+   from:=1; f:=1;
+   Outside; Inside;
+   if length(s)>0 then begin
+     for a:=1 to tdirs+tfiles do begin
+       if PanelType=pcPanel
+         then fname:=TrueName(a)
+         else fname:=nospaceLR(trdDir^[a].name)+
+                     '.'+TRDOSe3(Self,a);
+       if length(fname)<length(s) then continue;
+       t:=fill(length(fname),'?');
+       for i:=1 to length(s) do t[i]:=s[i];
+       if wild(fname,t,false) then begin
+         inc(f,abs(integer(a)-Index));
+         if f>PanelHi*Columns then begin
+           inc(from,(f-PanelHi*Columns));
+           f:=PanelHi*Columns;
+         end;
+         Outside; Inside;
+         break;
+       end;
+     end;
+   end;
+   rePDF;
+ end;
+
+ if (chr(lo(kb)) in [#32..#254])and(length(s)<13) then
+            begin
+
+   s:=s+chr(lo(kb));
+   for a:=Index to tdirs+tfiles do
+    begin
+     if PanelType=pcPanel
+       then fname:=TrueName(a)
+       else fname:=nospaceLR(trdDir^[a].name)+'.'+TRDOSe3(Self,a);
+
+     if length(fname)<length(s) then continue;
+     t:=fill(length(fname),'?');
+     for i:=1 to length(s) do t[i]:=s[i];
+     fnd:=false;
+     if wild(fname,t,false) then
+      begin       inc(f,abs(integer(a)-Index));
+       if f>PanelHi*Columns then
+        begin
+         inc(from,(f-PanelHi*Columns));
+         f:=PanelHi*Columns;
+            end;
+       Outside; Inside;
+       rePDF;
+       fnd:=true;
+       break;
+      end;
+    end;
+   if not fnd then delete(s,length(s),1);
+  end;
+goto loop;
+
+fin:
+ w_shadow:=true;
+ CurOff;
+ RestScr;
 End;
 
 
@@ -2351,65 +2599,20 @@ End;
 {============================================================================}
 Procedure TPanel.Navigate;
 Var
-    kk,kb:word; k:char; n:byte; stemp:string[20]; s:string;
-Label LOOP, Cont, Cont2;
+  kb: word;
+  n: integer;
+  s: string;
 Begin
 reInfo('cbdnsfi');
 rePDF;
-LOOP:
-
+  while true do begin
 Inside;
-cStatusBar(pal.bkSBarNT,pal.txtSBarNT,pal.bkSBarST,pal.txtSBarST,0,sBar[lang,PanelType]);
+    cStatusBar(Pal.BkSBarNT, Pal.TxtSBarNT,
+               Pal.BkSBarST, Pal.TxtSBarST,
+               0, sBar[Lang, PanelType]);
+    UpdateScreen(false);
 
-
-{
-if ((vall(copy(curdate,7,4))>1999)and(vall(copy(curdate,4,2))>3))or
-   (vall(copy(curdate,7,4))>2000) then
- begin
-  errormessage('Trial period was finished');
-  snDone(false);
- end;
-{}
-
-
-
-{PutCmdLine;
-{if Moused then MouseOn; {showcur;{}
-
-{
-Repeat
-if Ctrl then
-            begin
-             cmprint(clcolour div 16,clcolour-(clcolour div 16)*16,72,1,
-             copy(curdate,1,6)+copy(curdate,9,2));
-            end;
-if LShift or RShift then
-            begin
-             cmprint(clcolour div 16,clcolour-(clcolour div 16)*16,72,1,
-             changechar(extnum(strr(memavail)),' ',',')+' ');
-            end;
-Until KeyPressed;
-{}
-{
-repeat
-if mem[$40:$18]=128 then
- Begin
-  asm
-   mov ah,5
-   mov cx,_Ins
-   int 16h
-  end;
-  delay(125);
-  break;
- End;
-until keypressed;
-{}
-Cont:
-kb:=KeyCode;{}
-
-Cont2:
-{case kb of{}
-{if kb=_AltZ then    begin message('lp: '+lp.sclfile); message('rp: '+ rp.sclfile); end;{}
+    kb := rKey;
 
 if (kb=kbd.sn_kb1_TAB)or(kb=kbd.sn_kb2_TAB) then
                     begin snKernelExitCode:=9; Exit; end;
@@ -2425,19 +2628,14 @@ if (kb=kbd.sn_kb1_PACK)or(kb=kbd.sn_kb2_PACK) then
                     if place=left then AltPPressed(lp) else AltPPressed(rp);
 if (kb=kbd.sn_kb1_HHAR)or(kb=kbd.sn_kb2_HHAR) then
                     if place=left then AltRPressed(lp) else AltRPressed(rp);
-{}
+
 if (kb=kbd.sn_kb1_TRDOS3)or(kb=kbd.sn_kb2_TRDOS3) then
                     Begin TRDOS3:=not TRDOS3; rePDF; reInfo('c'); End;
-{}
-if kb= _AltM then   errormessage('Free avail memory: '+strr(memavail));
-if (kb=kbd.sn_kb1_ABOUT)or(kb=kbd.sn_kb2_ABOUT) then     About;
-{
-if (kb=kbd.sn_kb1_APACK)or(kb=kbd.sn_kb2_APACK) then
-                    if place=left then snPacker(lp) else snPacker(rp);
-if (kb=kbd.sn_kb1_AUNPACK)or(kb=kbd.sn_kb2_AUNPACK) then
-                    if place=left then if isZXZIP(pcnd+pcnn) then zxzExtract(lp,rp) else
-                                  else if isZXZIP(pcnd+pcnn) then zxzExtract(rp,lp);
-{}
+
+    if kb= _AltM then errormessage('Free avail memory: '
+      + strr(GetFPCHeapStatus.CurrHeapFree));
+    if (kb=kbd.sn_kb1_ABOUT)or(kb=kbd.sn_kb2_ABOUT) then About;
+
 if (kb=kbd.sn_kb1_VIDEO1)or(kb=kbd.sn_kb2_VIDEO1) then
                     AltF10Pressed;
 if (kb=kbd.sn_kb1_LPANEL)or(kb=kbd.sn_kb2_LPANEL) then
@@ -2445,21 +2643,28 @@ if (kb=kbd.sn_kb1_LPANEL)or(kb=kbd.sn_kb2_LPANEL) then
 if (kb=kbd.sn_kb1_RPANEL)or(kb=kbd.sn_kb2_RPANEL) then
                     AltF1F2(right);
 if kb= _CtrlHome then AltF1F2(focus);
-if kb= _CtrlBkSlash then
-          Begin
-           if PanelType=pcPanel then
-            BEGIN
-             if TreeC>1 then pcnn:=copy(pcnd,4,pos('\',copy(pcnd,4,255))-1);
-             pcnd:=copy(pcnd,1,3); reMDF;
+    if kb= _CtrlBkSlash then begin
+      if PanelType = pcPanel then begin
+        if treec > 1 then begin
+          s := Copy(pcnd, 2, 255);
+          n := Pos(PathDelim, s);
+          if n > 0 then
+            pcnn := Copy(s, 1, n - 1)
+          else
+            pcnn := s;
+        end else
+          pcnn := '';
+        pcnd := ExtractFileDrive(string(pcnd)) + PathDelim;
+        reMDF;
              TrueCur; Inside; reInfo('cdsfi');
             END;
           End;
 
 if (kb=kbd.sn_kb1_INSERT)or(kb=kbd.sn_kb2_INSERT) then
                     Insert;{}
-if kb=  PadStar then Star(false);
-if kb=  PadPlus then Plus(false);
-if kb=  PadMinus then Minus(false);
+if (kb=PadStar)or(kb=$002A) then Star(false);
+if (kb=PadPlus)or(kb=$002B) then Plus(false);
+if (kb=PadMinus)or(kb=$002D) then Minus(false);
 if kb=  CtrlPadStar then Star(true);
 if kb=  CtrlPadPlus then Plus(true);
 if kb=  CtrlPadMinus then Minus(true);
@@ -2473,7 +2678,7 @@ if (kb=kbd.sn_kb1_SBYLEN)or(kb=kbd.sn_kb2_SBYLEN) then
 if (kb=kbd.sn_kb1_SBYNON)or(kb=kbd.sn_kb2_SBYNON) then
                      Begin SortType:=NonType; reMDF; GlobalSort(255); TrueCur; Inside; rePDF; End;
 if (kb=kbd.sn_kb1_INFO)or(kb=kbd.sn_kb2_INFO) then
-                     begin CtrlLPressed;{ Exit;{} end;
+                     CtrlLPressed;
 
 if (kb=kbd.sn_kb1_REREAD)or(kb=kbd.sn_kb2_REREAD) then
                      begin
@@ -2493,11 +2698,10 @@ if kb= _AltF6 then   Rename;
 if kb= _ShF6 then    hobRename;
 if kb= _F7 then      Begin
            Case PanelType of
-            pcPanel: begin pcF7Pressed(pcnd,posx); end;
-            trdPanel: case focus of left:trdMove(lp); right:trdMove(rp); end;
-            fdiPanel: case focus of left:fdiMove(lp); right:fdiMove(rp); end;
-            fddPanel: case focus of left:fddMove(lp); right:fddMove(rp); end;
-            flpPanel: case focus of left:flpMove(lp,lp.flpDrive); right:flpMove(rp,rp.flpDrive); end;
+              pcPanel:  MkDir;
+              trdPanel: trdMove(Self);
+              fdiPanel: fdiMove(Self);
+              fddPanel: fddMove(Self);
            End;
           End;
 
@@ -2511,82 +2715,63 @@ if kb= _Del then     begin if Del_F8 then Del; end;
 
 if kb= _F9 then      Begin
            Case PanelType of
-            pcPanel:  if place=left then MakeImages(lp) else MakeImages(rp);
+              pcPanel:  MakeImages(Self);
             trdPanel: trdLabel;
             fdiPanel: fdiLabel;
             fddPanel: fddLabel;
-            flpPanel: flpLabel(flpDrive);
-           End;
           End;
-if kb= _Up then
-          Begin
-           {HideCur;{}
-           dec(f);
           End;
-if kb= _Down then
-          Begin
-           {HideCur;{}
-           inc(f);
-          End;
-if kb= _Left then
-          Begin
-           {HideCur;{}
-           dec(f,PanelHi);
-          End;
-if kb= _Right then
-          Begin
-           {HideCur;{}
-           inc(f,PanelHi);
-          End;
-if kb=  _PgUp then
-          Begin
-           {HideCur;{}
-           dec(f,PanelHi*Columns-1);
-          End;
-if kb=  _PgDn then
-          Begin
-           {HideCur;{}
-           inc(f,PanelHi*Columns-1);
-          End;
-if kb=  _Home then
-          Begin
-           {HideCur;{}
-           from:=1; f:=1;
-          End;
-if kb=  _End then
-          Begin
-           {HideCur;{}
+
+if kb= _Up then Dec(f);
+if kb= _Down then Inc(f);
+if kb= _Left then Dec(f,PanelHi);
+if kb= _Right then Inc(f,PanelHi);
+if kb= _PgUp then Dec(f,PanelHi*Columns-1);
+if kb= _PgDn then Inc(f,PanelHi*Columns-1);
+if kb= _Home then begin from:=1; f:=1; end;
+if kb= _End then begin
+              f:=Columns*PanelHi;
            from:=tdirs+tfiles-Columns*PanelHi+1;
           End;
 
-if kb=  _Enter then{  if LShift or RShift then ShiftEnter else{} Enter;
+if kb= _Enter then Enter;
 
 
-if kb=  _CtrlPgUp then CtrlPgUp;
-if kb=  _CtrlPgDn then CtrlPgDn;
-if kb=  _Space then  Begin Insert; kb:=0; End;
+if kb= _CtrlPgUp then CtrlPgUp;
+if kb= _BkSp     then CtrlPgUp;
+if kb= _CtrlPgDn then CtrlPgDn;
+if kb= _Space then begin Insert; kb:=0; end;
 
+    if (kb=kbd.sn_kb1_PCOLUMNS) or
+       (kb=kbd.sn_kb2_PCOLUMNS) then begin
+      if Columns >= 3 then Columns := 1
+      else Inc(Columns);
+      Outside;
+      Build('012d');
+      Inside;
+      rePDF;
+    end;
 
-if tdirs+tfiles>Columns*PanelHi then n:=Columns*PanelHi else n:=tdirs+tfiles;
-if f>n then begin inc(from,f-n); f:=n; end;
-if f<1 then begin dec(from,1-f); f:=1; end;
-if from>tdirs+tfiles-Columns*PanelHi+1 then from:=tdirs+tfiles-Columns*PanelHi+1;
-if from<1 then from:=1;
+    if tdirs + tfiles > Columns * PanelHi then
+      n := Columns * PanelHi
+    else
+      n := tdirs + tfiles;
+    if n < 1 then n := 1;
+    if f > n then begin Inc(from, f - n); f := n; end;
+    if f < 1 then begin Dec(from, 1 - f); f := 1; end;
+    if from > tdirs + tfiles - Columns * PanelHi + 1 then
+      from := tdirs + tfiles - Columns * PanelHi + 1;
+    if from < 1 then from := 1;
 
 Outside;
 Info('bn');
 PDF;
-
-if Moused then MouseOff;{}
-GoTo LOOP;
+  end;
 End;
 
 
-
-
-
 Begin
-lp.posx:=1; rp.posx:=41;
+lp.posx:=1; rp.posx:=GmaxX div 2+1;
 lp.posy:=1; rp.posy:=1;
 
 lp.Columns:=3; rp.Columns:=3;
@@ -2602,6 +2787,32 @@ rp.focused:=false;
 
 lp.f:=1; lp.from:=1;
 rp.f:=1; rp.from:=1;
+
+lp.pcf:=1; lp.pcfrom:=1;
+rp.pcf:=1; rp.pcfrom:=1;
+
+lp.Place:=left;
+rp.Place:=right;
+End.Begin
+lp.posx:=1; rp.posx:=GmaxX div 2+1;
+lp.posy:=1; rp.posy:=1;
+
+lp.Columns:=3; rp.Columns:=3;
+lp.InfoLines:=3; rp.InfoLines:=3;
+
+lp.NameLine:=true; rp.NameLine:=true;
+
+lp.PanelType:=pcPanel; rp.PanelType:=pcPanel;
+lp.SortType:=extType; rp.SortType:=extType;
+
+lp.focused:=false;
+rp.focused:=false;
+
+lp.f:=1; lp.from:=1;
+rp.f:=1; rp.from:=1;
+
+lp.pcf:=1; lp.pcfrom:=1;
+rp.pcf:=1; rp.pcfrom:=1;
 
 lp.Place:=left;
 rp.Place:=right;

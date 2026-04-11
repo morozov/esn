@@ -1,9 +1,9 @@
-{$O+,F+}
+{$mode objfpc}{$H+}
 Unit TRD_Ovr;
 Interface
 Uses
-     Dos,Crt,RV,sn_Obj, Vars, Main, Main_Ovr,
-     PC,PC_Ovr,TRD;
+     SysUtils,RV,sn_Obj, Vars, Main,
+     PC,TRD;
 function  trdLoad(var p:TPanel; ind:word):boolean;
 function  trdSave(var p:TPanel):boolean;
 function  trdDel(var p:TPanel):boolean;
@@ -20,24 +20,58 @@ procedure AltRPressed(var p:TPanel);
 
 
 Procedure snCopier(flag:word; SourcePanel,DestPanel:byte);
-Procedure snEraser(var p:TPanel);
-{Procedure snPacker(var p:TPanel);{}
 
-{Procedure zxViewFile(var p:TPanel);{}
+Procedure zxEditParam(var p:TPanel; ind:word);
 
-Procedure zxEditParam(p:TPanel; ind:integer);
+function  trdMakeImageFile(path: string; tracks: byte): boolean;
+
+function  trdWriteLabel(const path: string;
+  const lbl: string): boolean;
 
 
 
 Implementation
 
-Uses palette,
-FDI_Ovr, SCL, SCL_Ovr, FDD_Ovr, FDD, TAP_Ovr, ZXZIP, FLP_Ovr, FLP, trdos,
-mouse, ZXVIEW, snViewer;
+Uses palette, Main_Ovr, Video, Keyboard,
+SCL, SCL_Ovr, FDD, FDD_Ovr, FDI, FDI_Ovr, TAP, TAP_Ovr, ZXZIP, pc_ovr;
 
-Var
-     noHobCopyBlockSize:byte;
-     noHobCopyBlockSizeSet:boolean;
+function strlo(s: string): string;
+begin strlo := LowerCase(s); end;
+
+function vall(s: string): longint;
+begin vall := StrToIntDef(Trim(s), 0); end;
+
+function nospace(s: string): string;
+begin nospace := Trim(s); end;
+
+function nospaceLR(s: string): string;
+begin nospaceLR := Trim(s); end;
+
+function fill(len: byte; symb: char): string;
+begin fill := StringOfChar(symb, len); end;
+
+function readkey: char;
+var kb: word;
+begin
+  kb := rKey;
+  if (kb and $FF) <> 0 then readkey := chr(kb and $FF)
+  else readkey := #0;
+end;
+
+function strhi(s: string): string;
+begin strhi := UpperCase(s); end;
+
+function DnCase(c: char): char;
+begin DnCase := LowerCase(c); end;
+
+function LZZ(w: word): string;
+var s: string;
+begin
+  Str(w:0, s);
+  if Length(s) = 1 then s := '0' + s;
+  if Length(s) = 2 then s := '0' + s;
+  LZZ := s;
+end;
 
 
 {============================================================================}
@@ -170,7 +204,7 @@ begin
 scanf_esc:=false;
 scanf_str_old:=scanf_str;
 scanf_x:=1;
-{scanf_str:=scanf_str+space(12-length(scanf_str));{}
+// scanf_str:=scanf_str+space(12-length(scanf_str));
 loop:
 mprint(scanf_posx,scanf_posy,scanf_str);
 gotoxy(scanf_posx+scanf_x-1,scanf_posy);
@@ -235,8 +269,9 @@ CancelSB;
 colour(pal.bkCurNT,pal.txtCurNT);
 stemp:=p.trddir^[p.Index].name+'.'+TRDOSe3(p,p.Index);
 s:=stemp;
+xc:=0; yc:=0;
 GetCurXYOf(focus,xc,yc);
-curon; SetCursor(400); stemp:=zxsnscanf(xc,yc,stemp,p.trddir^[p.Index].typ); curoff;
+curon; stemp:=zxsnscanf(xc,yc,stemp,p.trddir^[p.Index].typ); curoff;
 if not scanf_esc then
  begin
   {$I-}
@@ -278,6 +313,7 @@ var fr,t:word;
     stemp:string;
 begin
 trdMove:=false;
+nr:=0; nw:=0;
 if p.zxdisk.delfiles=0 then exit;
 CancelSB;
 stemp:='Do you wish to move'#255'this disk ?';
@@ -372,7 +408,7 @@ end;
 
 {============================================================================}
 function trdLabel:boolean;
-var s:string; fs:file of byte; b:byte; p:TPanel;
+var s:string; fs:file of byte; b:byte; i:integer; p:TPanel;
 label fin;
 begin
 trdLabel:=false; Case focus of left:p:=lp; right:p:=rp; End;
@@ -408,22 +444,21 @@ procedure mtscanf(scanf_str,scanf_str2:string; var scanf_str_out,scanf_str2_out:
 var
      scanf_kod:char;
      scanf_x, scanf_x2:byte;
-     scanf_total,scanf_total2, scanf_visible,scanf_visible2:byte;
-     scanf_str_old:string;
+     scanf_total,scanf_total2, scanf_visible:byte;
 label loop,loop2;
 begin
 scanf_esc:=false;
 scanf_total:=8; scanf_total2:=3;
-scanf_visible:=8; scanf_visible2:=3;
+scanf_visible:=8;
 scanf_str:=scanf_str+space(scanf_total-length(scanf_str));{}
 scanf_str2:=scanf_str2+space(scanf_total2-length(scanf_str2));{}
 scanf_x:=1; scanf_x2:=1;
 if scanf_visible>length(scanf_str) then scanf_visible:=length(scanf_str);
 
 loop:
-mprint(42,halfmaxy-2,scanf_str);
-mprint(47,halfmaxy-0,scanf_str2);
-gotoxy(42+scanf_x-1,halfmaxy-2);
+mprint(halfmaxx+2,halfmaxy-2,scanf_str);
+mprint(halfmaxx+7,halfmaxy-0,scanf_str2);
+gotoxy(halfmaxx+2+scanf_x-1,halfmaxy-2);
 scanf_kod:=readkey;
 if scanf_kod=#27 then begin scanf_esc:=true; exit; end;
 if scanf_kod=#13 then
@@ -444,7 +479,7 @@ if scanf_kod=#13 then
    end;
  end;
 
-if ((scanf_kod)>=' ')and((scanf_kod)<='я')and(scanf_x<=length(scanf_str)) then
+if ((scanf_kod)>=' ')and((scanf_kod)<=#255)and(scanf_x<=length(scanf_str)) then
  begin
   scanf_str:=copy(scanf_str,1,scanf_x-1)+scanf_kod+copy(scanf_str,scanf_x,length(scanf_str));
   scanf_str:=copy(scanf_str,1,length(scanf_str)-1);
@@ -463,9 +498,9 @@ if scanf_kod=#8 then
 if scanf_kod=#9 then
  begin
 loop2:
-  mprint(42,halfmaxy-2,scanf_str);
-  mprint(47,halfmaxy-0,scanf_str2);
-  gotoxy(47+scanf_x2-1,halfmaxy-0);
+  mprint(halfmaxx+2,halfmaxy-2,scanf_str);
+  mprint(halfmaxx+7,halfmaxy-0,scanf_str2);
+  gotoxy(halfmaxx+7+scanf_x2-1,halfmaxy-0);
   scanf_kod:=readkey;
   if scanf_kod=#9 then goto loop;
   if scanf_kod=#13 then
@@ -545,24 +580,23 @@ var name:string; stemp,tr:string;
     i:word;
     ff:file;
     fb:file of byte;
-    ft:text;
     b:byte;
-    pp:TPanel;
 begin
+ name:=''; tr:='';
  CancelSB;
 
 if BootOnly then else
 BEGIN
  colour(pal.bkdRama,pal.txtdRama);
- scputwin(pal.bkdRama,pal.txtdRama,27,halfmaxy-4,54,halfmaxy+2);
+ scputwin(pal.bkdRama,pal.txtdRama,halfmaxx-13,halfmaxy-4,halfmaxx+14,halfmaxy+2);
  if makeboot
   then cmcentre(pal.bkdRama,pal.txtdRama,halfmaxy-4,' New TRD-file + boot ')
   else cmcentre(pal.bkdRama,pal.txtdRama,halfmaxy-4,' New TRD-file ');
 
- cmprint(pal.bkdLabelST,pal.txtdLabelST,31,halfmaxy-2,'File name:');
- cmprint(pal.bkdLabelST,pal.txtdLabelST,31,halfmaxy-0,'Tracks on disk:');
- printself(pal.bkdInputNT,pal.txtdInputNT,42,halfmaxy-2,8);
- printself(pal.bkdInputNT,pal.txtdInputNT,47,halfmaxy-0,3);
+ cmprint(pal.bkdLabelST,pal.txtdLabelST,halfmaxx-9,halfmaxy-2,'File name:');
+ cmprint(pal.bkdLabelST,pal.txtdLabelST,halfmaxx-9,halfmaxy-0,'Tracks on disk:');
+ printself(pal.bkdInputNT,pal.txtdInputNT,halfmaxx+2,halfmaxy-2,8);
+ printself(pal.bkdInputNT,pal.txtdInputNT,halfmaxx+7,halfmaxy-0,3);
  colour(pal.bkdInputNT,pal.txtdInputNT);
  curon;
  mtscanf('','80',name,tr);
@@ -579,9 +613,9 @@ if scanf_esc then exit;
 if nospace(name)<>'' then
  begin
  {$I-}
-  scputwin(pal.bkdRama,pal.txtdRama,27,halfmaxy-4,54,halfmaxy+2);
-  cmprint(pal.bkdLabelST,pal.txtdLabelST,30,halfmaxy-2,'Formating...');
-  cmprint(7,0,30,halfmaxy-1,fill(23,#177));
+  scputwin(pal.bkdRama,pal.txtdRama,halfmaxx-13,halfmaxy-4,halfmaxx+14,halfmaxy+2);
+  cmprint(pal.bkdLabelST,pal.txtdLabelST,halfmaxx-10,halfmaxy-2,'Formating...');
+  cmprint(7,0,halfmaxx-10,halfmaxy-1,fill(23,#177));
 
   stemp:='File '+getof(name,_name)+'.trd'+' alredy exist.'+#255+' Overwrite?';
   if checkdirfile(p.pcnd+getof(name,_name)+'.trd')=0 then
@@ -594,8 +628,7 @@ if nospace(name)<>'' then
   for i:=1 to vall(tr) do
    begin
     blockwrite(ff,buf,sizeof(buf));
-    ProcessBar(0,round(100*i/vall(tr)),22,'');
-    cmprint(7,0,49,halfmaxy-0,strr(round(100*i/vall(tr))-1)+'%');
+    cmprint(7,0,halfmaxx+9,halfmaxy-0,strr(round(100*i/vall(tr))-1)+'%');
    end;
   close(ff);
 
@@ -637,7 +670,7 @@ var
     nw,m:word;
     rest:integer;
     stemp:string;
-    l:longint; b1,b:byte;
+    b1,b:byte;
 
 begin
 if istrd(p.pcnd+p.pcnn) then
@@ -740,12 +773,11 @@ procedure AltRPressed(var p:TPanel);
 type
     tbuf=array[1..1] of byte;
 var
-    a,b,i:integer; ss,t:string;
+    b:integer; ss,t:string;
     buf:^tbuf;
     ff:file;
     hbuf:array[1..17] of byte;
     nr,nw:word;
-    h:byte;
 begin
 case p.paneltype of
  pcPanel:
@@ -854,7 +886,7 @@ case p.paneltype of
 
          blockwrite(ff,hbuf,17,nw);{}
          blockwrite(ff,buf^,256*hbuf[15],nw);
-{         seek(ff,256*hbuf[15]-1+17); h:=0; blockwrite(ff,h,1,nw);{}
+//       seek(ff,256*hbuf[15]-1+17); h:=0; blockwrite(ff,h,1,nw);
          close(ff);
          freemem(buf,256*hbuf[15]);
 {$I+}
@@ -872,13 +904,17 @@ end;
 end;
 
 
+
 {============================================================================}
 Var  UserOut:boolean;
      AllSectors:word;
+     noHobCopyBlockSizeSet:boolean;
+     noHobCopyBlockSize:byte;
 
 
 {============================================================================}
-function noHobCopy(flag,i:word; sp,dp:TPanel):boolean;
+function noHobCopy(flag,i:word;
+  var sp,dp:TPanel):boolean;
 var totalsec:word; s:string;
 {----------------------------------------------------------------------------}
 function pscanf2(scanf_posx, scanf_posy:byte;
@@ -886,69 +922,91 @@ function pscanf2(scanf_posx, scanf_posy:byte;
                scanf_total, scanf_visible,
                scanf_cur:byte):string;
 var
-     scanf_kod:char;
+     scanf_kod:word;
+     scanf_ch:char;
+     scanf_sc:byte;
      scanf_x, scanf_from:byte;
      scanf_str_old:string;
-label loop,loop2;
+label loop;
 begin
 scanf_esc:=false;
 scanf_str_old:=scanf_str;
 scanf_str:=scanf_str+space(scanf_total-length(scanf_str));
 scanf_x:=scanf_cur;
 scanf_from:=1;
-if scanf_visible>length(scanf_str) then scanf_visible:=length(scanf_str);
+if scanf_visible>length(scanf_str) then
+  scanf_visible:=length(scanf_str);
 
 loop:
-mprint(scanf_posx,scanf_posy,copy(scanf_str,scanf_from,scanf_visible));
+mprint(scanf_posx,scanf_posy,
+  copy(scanf_str,scanf_from,scanf_visible));
 gotoxy(scanf_posx+scanf_x-scanf_from,scanf_posy);
-scanf_kod:=readkey;
-if scanf_kod=#27 then begin pscanf2:=scanf_str_old; scanf_esc:=true; exit; end;
-if scanf_kod=#13 then
+scanf_kod:=rKey;
+scanf_ch:=chr(lo(scanf_kod));
+scanf_sc:=hi(scanf_kod);
+if scanf_ch=#27 then begin
+  pscanf2:=scanf_str_old; scanf_esc:=true; exit;
+end;
+if scanf_ch=#13 then
  begin
-  if vall(nospace(scanf_str))>255 then Begin scanf_str:='255 '; scanf_x:=4; goto loop; End;
-  if vall(nospace(scanf_str))<1 then   Begin scanf_str:='1   '; scanf_x:=2; goto loop; End;
-
+  if vall(nospace(scanf_str))>255 then begin
+    scanf_str:='255 '; scanf_x:=4; goto loop;
+  end;
+  if vall(nospace(scanf_str))<1 then begin
+    scanf_str:='1   '; scanf_x:=2; goto loop;
+  end;
   pscanf2:=scanf_str;
   exit;
  end;
 
-if ((scanf_kod)>=' ')and((scanf_kod)<='я')and(scanf_x<=length(scanf_str)) then
+if (scanf_ch>=' ')and(scanf_ch<=#126)
+  and(scanf_x<=length(scanf_str)) then
  begin
-  scanf_str[scanf_x]:=scanf_kod;
+  scanf_str[scanf_x]:=scanf_ch;
   inc(scanf_x);
   if scanf_x-scanf_from>scanf_visible then inc(scanf_from);
-  if scanf_x>length(scanf_str)+1 then scanf_x:=length(scanf_str)+1;
+  if scanf_x>length(scanf_str)+1 then
+    scanf_x:=length(scanf_str)+1;
  end;
 
-if scanf_kod=#8 then
+if scanf_ch=#8 then
  begin
-  scanf_str:=copy(scanf_str,1,scanf_x-2)+copy(scanf_str,scanf_x,length(scanf_str));
+  scanf_str:=copy(scanf_str,1,scanf_x-2)
+    +copy(scanf_str,scanf_x,length(scanf_str));
   dec(scanf_x);
   if scanf_x<scanf_from then dec(scanf_from);
-  if scanf_x<1 then scanf_x:=1 else scanf_str:=scanf_str+' ';
+  if scanf_x<1 then scanf_x:=1
+  else scanf_str:=scanf_str+' ';
   if scanf_from<1 then scanf_from:=1;
   if scanf_x<1 then scanf_x:=1;
  end;
-{}
-if scanf_kod=#25 then
+
+if scanf_ch=#25 then
  begin
   scanf_str:=space(scanf_total);
   scanf_from:=1;
   scanf_x:=1;
  end;
 
-if scanf_kod=#0 then
+{ Extended keys: lo=0 or lo=$E0 }
+if (scanf_ch=#0)or(scanf_ch=#$E0) then
  begin
-  scanf_kod:=readkey;
-  if scanf_kod=#71 then begin scanf_from:=1; scanf_x:=1; end;
-  if scanf_kod=#79 then begin scanf_from:=scanf_total-scanf_visible+1; scanf_x:=length(nospaceLR(scanf_str))+1; end;
-  if scanf_kod=#83 then scanf_str:=copy(scanf_str,1,scanf_x-1)+copy(scanf_str,scanf_x+1,length(scanf_str))+' ';{}
-  if scanf_kod=#77 then
+  if scanf_sc=$47 then begin
+    scanf_from:=1; scanf_x:=1;
+  end;
+  if scanf_sc=$4F then begin
+    scanf_from:=scanf_total-scanf_visible+1;
+    scanf_x:=length(nospaceLR(scanf_str))+1;
+  end;
+  if scanf_sc=$53 then
+    scanf_str:=copy(scanf_str,1,scanf_x-1)
+      +copy(scanf_str,scanf_x+1,length(scanf_str))+' ';
+  if scanf_sc=$4D then
    begin
     inc(scanf_x);
     if scanf_x-scanf_from>scanf_visible then inc(scanf_from);
    end;
-  if scanf_kod=#75 then
+  if scanf_sc=$4B then
    begin
     dec(scanf_x);
     if scanf_x<scanf_from then dec(scanf_from);
@@ -956,8 +1014,11 @@ if scanf_kod=#0 then
 
   if scanf_from<1 then scanf_from:=1;
   if scanf_x<1 then scanf_x:=1;
-  if scanf_x>length(scanf_str)+1 then begin scanf_x:=length(scanf_str)+1; dec(scanf_from); end;
-  if scanf_posx+scanf_x>gmaxx then scanf_x:=gmaxx-scanf_posx;
+  if scanf_x>length(scanf_str)+1 then begin
+    scanf_x:=length(scanf_str)+1; dec(scanf_from);
+  end;
+  if scanf_posx+scanf_x>GmaxX then
+    scanf_x:=GmaxX-scanf_posx;
  end;
 
 goto loop;
@@ -966,27 +1027,42 @@ end;
 Var
     wtf:word; tff,ts1f:byte; l:longint; k,w:word;
     f:file;
+    nm:string;
 Begin
 noHobCopy:=false;
-if itHobeta(pcndOf(focus)+TrueNameOf(focus,i),HobetaInfo) then exit;
-if i<=sp.pctdirs then exit;
+nm:=IncludeTrailingPathDelimiter(string(sp.pcnd))
+  +string(sp.pcDir^[i].fullname);
+if itHobeta(nm,HobetaInfo) then exit;
+if sp.pcDir^[i].flength<0 then exit;
 
 if not noHobCopyBlockSizeSet then
 Begin
 CancelSB; colour(pal.bkdRama,pal.txtdRama);
-scputwin(pal.bkdRama,pal.txtdRama,23,halfmaxy-5,57,halfmaxy-3+6);
-cmcentre(pal.bkdRama,pal.txtdRama,halfmaxy-5,' Confirmation ');
-StatusLineColor(pal.bkdLabelST,pal.txtdLabelST,pal.bkdLabelNT,pal.txtdLabelNT,27,halfmaxy-3,
+scputwin(pal.bkdRama,pal.txtdRama,
+  halfmaxx-17,halfmaxy-5,halfmaxx+17,halfmaxy+2);
+cmcentre(pal.bkdRama,pal.txtdRama,
+  halfmaxy-5,' Confirmation ');
+StatusLineColor(pal.bkdLabelST,pal.txtdLabelST,
+  pal.bkdLabelNT,pal.txtdLabelNT,
+  halfmaxx-13,halfmaxy-3,
                                  'Copy not Hobeta file');
-s:=(TrueNameOf(focus,i));
-StatusLineColor(pal.bkdLabelST,pal.txtdLabelST,pal.bkdLabelNT,pal.txtdLabelNT,40-(length(s)div 2),halfmaxy-2,
+s:=string(sp.pcDir^[i].fullname);
+StatusLineColor(pal.bkdLabelST,pal.txtdLabelST,
+  pal.bkdLabelNT,pal.txtdLabelNT,
+  halfmaxx-(length(s)div 2),halfmaxy-2,
                 ''+s+'');
-StatusLineColor(pal.bkdLabelST,pal.txtdLabelST,pal.bkdLabelNT,pal.txtdLabelNT,27,halfmaxy-1,
+StatusLineColor(pal.bkdLabelST,pal.txtdLabelST,
+  pal.bkdLabelNT,pal.txtdLabelNT,
+  halfmaxx-13,halfmaxy-1,
                                  'blocks size of      sectors ');
 colour(pal.bkdLabelNT,pal.txtdLabelNT);
-cbutton(pal.bkdButtonA,pal.txtdButtonA,pal.bkdButtonShadow,pal.txtdButtonShadow,36,halfmaxy+1,'    OK    ',true);
+cbutton(pal.bkdButtonA,pal.txtdButtonA,
+  pal.bkdButtonShadow,pal.txtdButtonShadow,
+  halfmaxx-4,halfmaxy+1,'    OK    ',true);
 colour(pal.bkdInputNT,pal.txtdInputNT); curon;
-s:=strhi(nospace(pscanf2(42,halfmaxy-1,strr(noHobCopyBlockSize),4,4,1))); curoff; restscr;
+s:=strhi(nospace(pscanf2(halfmaxx+2,halfmaxy-1,
+  strr(noHobCopyBlockSize),4,4,1)));
+curoff; restscr;
 ts1f:=vall(nospace(s));
 noHobCopyBlockSize:=ts1f;
 End else ts1f:=noHobCopyBlockSize;
@@ -999,7 +1075,8 @@ tff:=totalsec div ts1f;
 
 if sp.pcDir^[i].flength-l>0 then inc(totalsec);
 
-if (dp.PanelType=trdPanel)or(dp.PanelType=fddPanel)or(dp.PanelType=fdiPanel)or(dp.PanelType=flpPanel) then
+if (dp.PanelType=trdPanel)or(dp.PanelType=fddPanel)
+  or(dp.PanelType=fdiPanel) then
 if totalsec>dp.zxdisk.free then
  begin
   errormessage('Not enough space for this file');
@@ -1018,7 +1095,9 @@ if dp.zxdisk.files+wtf>128 then
  end;
 
 {$I-}
-assign(f,sp.pcnd+sp.TrueName(i)); filemode:=0; reset(f,1);
+assign(f,IncludeTrailingPathDelimiter(string(sp.pcnd))
+  +string(sp.TrueName(i)));
+filemode:=0; reset(f,1);
 
 w:=0;
 
@@ -1029,7 +1108,7 @@ for k:=1 to tff do
   getmem(HobetaInfo.body,256*ts1f);
 
   blockRead(f,HobetaInfo.body^,256*ts1f);
-  HobetaInfo.name:=strlo(sp.pcDir^[i].fname);
+  HobetaInfo.name:=strlo(string(sp.pcDir^[i].fname));
   s:=LZZ(w);
   if dp.PanelType=tapPanel then
    Begin
@@ -1051,13 +1130,17 @@ for k:=1 to tff do
   if TRDOS3 then
    Begin
     HobetaInfo.typ:=DnCase(sp.pcDir^[i].fext[1]);
-    HobetaInfo.start:=ord(DnCase(sp.pcDir^[i].fext[2]))+256*ord(DnCase(sp.pcDir^[i].fext[3]));
-    if (w>0)and(noHobNaming=1) then HobetaInfo.typ:=chr(w+47);
+    HobetaInfo.start:=ord(DnCase(sp.pcDir^[i].fext[2]))
+      +256*ord(DnCase(sp.pcDir^[i].fext[3]));
+    if (w>0)and(noHobNaming=1) then
+      HobetaInfo.typ:=chr(w+47);
    End
   else
    Begin
-    HobetaInfo.typ:='C'; HobetaInfo.start:=HobetaStartAddr;
-    if (w>0)and(noHobNaming=1) then HobetaInfo.typ:=chr(w+47);
+    HobetaInfo.typ:='C';
+    HobetaInfo.start:=HobetaStartAddr;
+    if (w>0)and(noHobNaming=1) then
+      HobetaInfo.typ:=chr(w+47);
    End;
   HobetaInfo.totalsec:=ts1f;
   HobetaInfo.length:=256*ts1f;
@@ -1069,18 +1152,19 @@ for k:=1 to tff do
    fddPanel: fddSave(dp);
    tapPanel: tapSave(dp);
    zxzPanel: zxzSave(dp);
-   flpPanel: flpSave(dp,dp.flpDrive);
   End;
 
   inc(w);
  End;
 
-  if sp.pcDir^[i].flength<>l then HobetaInfo.totalsec:=totalsec-tff*ts1f
+  if sp.pcDir^[i].flength<>l then
+    HobetaInfo.totalsec:=totalsec-tff*ts1f
                              else HobetaInfo.totalsec:=totalsec;
   getmem(HobetaInfo.body,256*HobetaInfo.totalsec);
-  for k:=1 to 256*HobetaInfo.totalsec do HobetaInfo.body^[k]:=0;
+  for k:=1 to 256*HobetaInfo.totalsec do
+    HobetaInfo.body^[k]:=0;
   blockRead(f,HobetaInfo.body^,65280);
-  HobetaInfo.name:=strlo(sp.pcDir^[i].fname);
+  HobetaInfo.name:=strlo(string(sp.pcDir^[i].fname));
   s:=LZZ(w);
   if dp.PanelType=tapPanel then
    Begin
@@ -1108,15 +1192,20 @@ for k:=1 to tff do
   if TRDOS3 then
    Begin
     HobetaInfo.typ:=DnCase(sp.pcDir^[i].fext[1]);
-    HobetaInfo.start:=ord(DnCase(sp.pcDir^[i].fext[2]))+256*ord(DnCase(sp.pcDir^[i].fext[3]));
-    if (w>0)and(noHobNaming=1) then HobetaInfo.typ:=chr(w+47);
+    HobetaInfo.start:=ord(DnCase(sp.pcDir^[i].fext[2]))
+      +256*ord(DnCase(sp.pcDir^[i].fext[3]));
+    if (w>0)and(noHobNaming=1) then
+      HobetaInfo.typ:=chr(w+47);
    End
   else
    Begin
-    HobetaInfo.typ:='C'; HobetaInfo.start:=HobetaStartAddr;
-    if (w>0)and(noHobNaming=1) then HobetaInfo.typ:=chr(w+47);
+    HobetaInfo.typ:='C';
+    HobetaInfo.start:=HobetaStartAddr;
+    if (w>0)and(noHobNaming=1) then
+      HobetaInfo.typ:=chr(w+47);
    End;
-  if sp.pcDir^[i].flength<>l then HobetaInfo.length:=sp.pcDir^[i].flength-tff*(256*ts1f)
+  if sp.pcDir^[i].flength<>l then
+    HobetaInfo.length:=sp.pcDir^[i].flength-tff*(256*ts1f)
                              else HobetaInfo.length:=l;
 
 close(f);
@@ -1128,22 +1217,25 @@ close(f);
    fddPanel: fddSave(dp);
    tapPanel: tapSave(dp);
    zxzPanel: zxzSave(dp);
-   flpPanel: flpSave(dp,dp.flpDrive);
   End;
 {$I+}
 
 if IOResult=0 then
  begin
   noHobCopy:=true; sp.pcDir^[i].mark:=false;
-  if flag=_F6 then filedelete(sp.pcnd+sp.TrueName(i));{}
+  if flag=_F6 then
+    SysUtils.DeleteFile(
+      IncludeTrailingPathDelimiter(string(sp.pcnd))
+      +string(sp.TrueName(i)));
  end;
 
-dp.MDF; reInfo('sf');{ rePDF;{}
+dp.MDF; reInfo('sf');
 End;
 
 
 
 {============================================================================}
+{$push}{$hints off}{$notes off}
 Procedure snCopier(flag:word; SourcePanel,DestPanel:byte);
 Var
     TargetPath,stemp:string;
@@ -1151,7 +1243,7 @@ Var
     tc,wasc,i:word;
     loaded,saved,bool:boolean;
     q:char;
-Label fin;
+    ke:TKeyEvent;
 Begin
  noHobCopyBlockSizeSet:=false;
  noHobCopyBlockSize:=255;
@@ -1178,7 +1270,6 @@ Begin
      End;
 
 
-   if Moused then MouseOff;
    Colour(pal.bkdRama,pal.txtdRama); sPutWin(halfmaxx-20,halfmaxy-4,halfmaxx+21,halfmaxy+2);
    cmcentre(pal.bkdRama,pal.txtdRama,halfmaxy-4,' Copy ');
 
@@ -1211,9 +1302,11 @@ Begin
    for i:=1 to tdirsfilesOf(focus) do
     begin
 
-     if keypressed then
+     ke:=PollKeyEvent;
+     if ke<>0 then
       begin
-       q:=readkey;
+       ke:=GetKeyEvent; ke:=TranslateKeyEvent(ke);
+       q:=GetKeyEventChar(ke);
        stemp:='Stop operation?';
        if q=#27 then if cquestion(stemp,lang) then begin userout:=true; break; end;
       end;
@@ -1249,24 +1342,23 @@ Begin
             fddPanel: if fddLoad(lp,i) then loaded:=true;
             tapPanel: if tapLoad(lp,i) then loaded:=true;
             zxzPanel: if zxzLoad(lp,i) then loaded:=true;
-            flpPanel: if flpLoad(lp,i,lp.flpDrive) then loaded:=true;
            End;
            {What to SAVE?}
            if (not loaded)and(SourcePanel=pcPanel)and(DestPanel<>pcPanel) then
             begin
              noHobCopy(flag,i,lp,rp);
              noHobCopyBlockSizeSet:=true;
-             if UserOut then goto fin;
+             if UserOut then break;
             end;
            if loaded then
             Begin
              UserOut:=false;
      {-->}   if (DestPanel<1)or(DestPanel>10) then
               begin
-               if CheckDir(TargetPath)<>0 then CreateDir(TargetPath);
+               if CheckDir(TargetPath)<>0 then ForceDirectories(TargetPath);
                hobSave(TargetPath,AltF5Pressed);
               end;
-     {-->}   if (DestPanel=trdPanel)or(DestPanel=fdiPanel)or(DestPanel=fddPanel)or(DestPanel=flpPanel) then
+     {-->}   if (DestPanel=trdPanel)or(DestPanel=fdiPanel)or(DestPanel=fddPanel)then
               Begin
                if rp.zxdisk.files+1>128 then
                  begin errormessage('To many files'); UserOut:=true; end;
@@ -1277,14 +1369,14 @@ Begin
               Begin
                if rp.zxdisk.files+1>128 then
                  begin errormessage('To many files'); UserOut:=true; end;
-               if DiskFree(ord(UpCase(rp.sclfile[1]))-64)<256*HobetaInfo.totalsec then
+               if DiskFree(0)<256*HobetaInfo.totalsec then
                  begin errormessage('Disk full'); UserOut:=true; end;
               End;
      {-->}   if DestPanel=tapPanel then
               Begin
                if rp.zxdisk.files+1>256 then
                  begin errormessage('To many files'); UserOut:=true; end;
-               if DiskFree(ord(UpCase(rp.tapfile[1]))-64)<HobetaInfo.length then
+               if DiskFree(0)<HobetaInfo.length then
                  begin errormessage('Disk full'); UserOut:=true; end;
               End;
 
@@ -1292,7 +1384,7 @@ Begin
               sclPanel: sclSave(rp);
               pcPanel:
                 BEGIN
-                 if CheckDir(TargetPath)<>0 then CreateDir(TargetPath);
+                 if CheckDir(TargetPath)<>0 then ForceDirectories(TargetPath);
                  if not hob2scl then hobSave(TargetPath,AltF5Pressed)
                             else
                              begin
@@ -1306,7 +1398,7 @@ Begin
                                 begin
                                 rp.sclMDFs(rp.sclfile);
                                 end;
-                              rp.pcnn:=strlo(GetOf(rp.sclfile,_name))+'.scl';
+                              rp.pcnn:=LowerCase(GetOf(rp.sclfile,_name))+'.scl';
                               rp.PanelType:=sclPanel;
                               sclSave(rp);
                               rp.sclfrom:=1; rp.sclf:=1;
@@ -1314,15 +1406,13 @@ Begin
                 END;
               trdPanel: trdSave(rp);
               fdiPanel: fdiSave(rp);
-              sclPanel: sclSave(rp);
               fddPanel: fddSave(rp);
               tapPanel: tapSave(rp);
               zxzPanel: zxzSave(rp);
-              flpPanel: flpSave(rp,rp.flpDrive);
              End else FreeMem(HobetaInfo.body,256*HobetaInfo.totalsec);
              if UserOut then break;
              lp.pcDir^[i].mark:=false; lp.trdDir^[i].mark:=false;
-             if flag=_F6 then filedelete(lp.pcnd+lp.TrueName(i));
+             if flag=_F6 then SysUtils.DeleteFile(lp.pcnd+lp.TrueName(i));
             End;
           END;
         right:
@@ -1346,24 +1436,23 @@ Begin
             fddPanel: if fddLoad(rp,i) then loaded:=true;
             tapPanel: if tapLoad(rp,i) then loaded:=true;
             zxzPanel: if zxzLoad(rp,i) then loaded:=true;
-            flpPanel: if flpLoad(rp,i,rp.flpDrive) then loaded:=true;
            End;
            {What to SAVE?}
            if (not loaded)and(SourcePanel=pcPanel)and(DestPanel<>pcPanel) then
             begin
              noHobCopy(flag,i,rp,lp);
              noHobCopyBlockSizeSet:=true;
-             if UserOut then goto fin;
+             if UserOut then break;
             end;
            if loaded then
             Begin
              UserOut:=false;
      {-->}   if (DestPanel<1)or(DestPanel>10) then
               begin
-               if CheckDir(TargetPath)<>0 then CreateDir(TargetPath);
+               if CheckDir(TargetPath)<>0 then ForceDirectories(TargetPath);
                hobSave(TargetPath,AltF5Pressed);
               end;
-     {-->}   if (DestPanel=trdPanel)or(DestPanel=fdiPanel)or(DestPanel=fddPanel)or(DestPanel=flpPanel) then
+     {-->}   if (DestPanel=trdPanel)or(DestPanel=fdiPanel)or(DestPanel=fddPanel)then
               Begin
                if lp.zxdisk.files+1>128 then
                  begin errormessage('To many files'); UserOut:=true; end;
@@ -1374,21 +1463,21 @@ Begin
               Begin
                if lp.zxdisk.files+1>128 then
                  begin errormessage('To many files'); UserOut:=true; end;
-               if DiskFree(ord(UpCase(lp.sclfile[1]))-64)<256*HobetaInfo.totalsec then
+               if DiskFree(0)<256*HobetaInfo.totalsec then
                  begin errormessage('Disk full'); UserOut:=true; end;
               End;
      {-->}   if DestPanel=tapPanel then
               Begin
                if lp.zxdisk.files+1>256 then
                  begin errormessage('To many files'); UserOut:=true; end;
-               if DiskFree(ord(UpCase(lp.tapfile[1]))-64)<HobetaInfo.length then
+               if DiskFree(0)<HobetaInfo.length then
                  begin errormessage('Disk full'); UserOut:=true; end;
               End;
 
              if not UserOut then Case DestPanel of
               pcPanel:
                 BEGIN
-                 if CheckDir(TargetPath)<>0 then CreateDir(TargetPath);
+                 if CheckDir(TargetPath)<>0 then ForceDirectories(TargetPath);
                  if not hob2scl then hobSave(TargetPath,AltF5Pressed)
                             else
                              begin
@@ -1402,7 +1491,7 @@ Begin
                                 begin
                                 lp.sclMDFs(lp.sclfile);
                                 end;
-                              lp.pcnn:=strlo(GetOf(lp.sclfile,_name))+'.scl';
+                              lp.pcnn:=LowerCase(GetOf(lp.sclfile,_name))+'.scl';
                               lp.PanelType:=sclPanel;
                               sclSave(lp);
                               lp.sclfrom:=1; lp.sclf:=1;
@@ -1414,11 +1503,10 @@ Begin
               fddPanel: fddSave(lp);
               tapPanel: tapSave(lp);
               zxzPanel: zxzSave(lp);
-              flpPanel: flpSave(lp,lp.flpDrive);
              End else FreeMem(HobetaInfo.body,256*HobetaInfo.totalsec);
              if UserOut then break;
              rp.pcDir^[i].mark:=false; rp.trdDir^[i].mark:=false;
-             if flag=_F6 then filedelete(rp.pcnd+rp.TrueName(i));
+             if flag=_F6 then SysUtils.DeleteFile(rp.pcnd+rp.TrueName(i));
             End;
           END;
        End;
@@ -1429,101 +1517,19 @@ Begin
       End;
     end;
 
-fin:
    RestScr;
    reMDF; reTrueCur; lp.Inside; lp.Outside;  rp.Inside; rp.Outside;
    if focus=left then lp.Inside else rp.Inside;
    reInfo('cbdnsfi');  rePDF;
   END;
 End;
-
-
-
-
-
-{============================================================================}
-procedure snEraser(var p:TPanel);
-Var
-    s:string;
-Begin
-if p.PanelType=zxzPanel then exit;
-
-if (p.Insed=0)and(p.Index<=1) then exit;
-if ((ord(p.trddir^[p.Index].name[1])=1)or(ord(p.trddir^[p.Index].name[1])=0))and(p.Insed=0) then exit;
-
-if p.Insed=0 then s:=p.trddir^[p.Index].name+'.'+TRDOSe3(p,p.Index);
-if p.Insed=1 then s:=p.trddir^[p.FirstMarked].name+'.'+TRDOSe3(p,p.FirstMarked);
-
-if p.PanelType=tapPanel then
- Begin
-  if (p.Insed=0)and(PanelTypeOf(oFocus)<>tapPanel)and(p.trdDir^[p.Index].tapflag=0) then exit;
-  if p.Insed=0 then
-   if PanelTypeOf(oFocus)=tapPanel
-      then if p.trdDir^[p.Index].tapflag=0
-              then s:=p.trdDir^[p.Index].name
-              else s:='codes'
-      else if p.Index>2
-              then if p.trdDir^[p.Index-1].tapflag<>0
-                      then s:='less'
-                      else s:=p.trdDir^[p.Index-1].name
-              else s:='less';
-
-  if p.Insed=1 then
-   if PanelTypeOf(oFocus)=tapPanel
-      then if p.trdDir^[p.FirstMarked].tapflag=0
-              then s:=p.trdDir^[p.FirstMarked].name
-              else s:='codes'
-      else if p.FirstMarked>2
-              then if p.trdDir^[p.FirstMarked-1].tapflag<>0
-                      then s:='less'
-                      else s:=p.trdDir^[p.FirstMarked-1].name
-              else s:='less';
-
-  if PanelTypeOf(oFocus)=tapPanel then
-   BEGIN
-    s:='Do you wish to delete'#255'item "'+s+'" ?';
-
-    if p.Insed>1 then s:='Do you wish to delete'#255'this items ?';
-   END
-  else
-   BEGIN
-    s:='Do you wish to delete'#255'file "'+s+'" ?';
-
-    if p.Insed>1 then s:='Do you wish to delete'#255'this files ?';
-  END;
- End
-else
- Begin
-  s:='Do you wish to delete'#255'file "'+s+'" ?';
-
-  if p.Insed>1 then s:='Do you wish to delete'#255'this files ?';
- End;
-
-CancelSB;
-if cquestion(s,lang) then
- begin
-  if p.Insed=0 then p.trddir^[p.Index].mark:=true;
-  Case p.PanelType of
-   trdPanel: trdDel(p);
-   fdiPanel: fdiDel(p);
-   fddPanel: fddDel(p);
-   sclPanel: sclDel(p);
-   tapPanel: tapDel(p);
-   flpPanel: flpDel(p,p.flpDrive);
-  End;
-  reMDF;
-  lp.TrueCur; lp.InSide;
-  rp.TrueCur; rp.InSide;
-  reInfo('cbdnsfi'); rePDF;
- end;
-End;
-
+{$pop}
 
 
 
 {============================================================================}
-Procedure zxEditParam(p:TPanel; ind:integer);
-var i,y:integer; s0,s:string; EditFileParam:boolean;
+Procedure zxEditParam(var p:TPanel; ind:word);
+var i,x,y:integer; s:string; EditFileParam:boolean;
 
 type TEdit=record
             disklabel:string[8];
@@ -1568,48 +1574,50 @@ End;
 
 procedure PutParams;
 begin
-  cmPrint(menu_bkNT,menu_txtNT,31,y-4,edit.disklabel);
+  menu_bkNT:=pal.bkdInputNT;
+  menu_txtNT:=pal.txtdInputNT;
+  cmPrint(menu_bkNT,menu_txtNT,x-9,y-4,edit.disklabel);
 
   s:=edit.files; s:=fill(3-length(s),'0')+s;
-  cmPrint(menu_bkNT,menu_txtNT,24,y-3,s);
+  cmPrint(menu_bkNT,menu_txtNT,x-16,y-3,s);
 
 Case edit.diskType of
- 22: cmPrint(menu_bkNT,menu_txtNT,42,y-3,'80 Track D. Side');
- 23: cmPrint(menu_bkNT,menu_txtNT,42,y-3,'80 Track S. Side');
- 24: cmPrint(menu_bkNT,menu_txtNT,42,y-3,'40 Track D. Side');
- 25: cmPrint(menu_bkNT,menu_txtNT,42,y-3,'40 Track S. Side');
+ $16: cmPrint(menu_bkNT,menu_txtNT,x+2,y-3,'80 Track D. Side');
+ $17: cmPrint(menu_bkNT,menu_txtNT,x+2,y-3,'80 Track S. Side');
+ $18: cmPrint(menu_bkNT,menu_txtNT,x+2,y-3,'40 Track D. Side');
+ $19: cmPrint(menu_bkNT,menu_txtNT,x+2,y-3,'40 Track S. Side');
 End;
 
   s:=edit.delfiles; s:=fill(3-length(s),'0')+s;
-  cmPrint(menu_bkNT,menu_txtNT,24,y-2,s);
+  cmPrint(menu_bkNT,menu_txtNT,x-16,y-2,s);
 
   s:=edit.free; s:=fill(4-length(s),'0')+s;
-  cmPrint(menu_bkNT,menu_txtNT,54,y-2,s);
+  cmPrint(menu_bkNT,menu_txtNT,x+14,y-2,s);
 
   s:=edit.nTr1FreeSec; s:=fill(3-length(s),'0')+s;
-  cmPrint(menu_bkNT,menu_txtNT,37,y-1,s);
+  cmPrint(menu_bkNT,menu_txtNT,x-3,y-1,s);
 
   s:=edit.n1FreeSec; s:=fill(3-length(s),'0')+s;
-  cmPrint(menu_bkNT,menu_txtNT,55,y-1,s);
+  cmPrint(menu_bkNT,menu_txtNT,x+15,y-1,s);
 
 if EditFileParam then
  Begin
-  cmPrint(menu_bkNT,menu_txtNT,24,y+2,edit.name);
-  cmPrint(menu_bkNT,menu_txtNT,33,y+2,'<'+edit.typ+'>');
+  cmPrint(menu_bkNT,menu_txtNT,x-16,y+2,edit.name);
+  cmPrint(menu_bkNT,menu_txtNT,x-7,y+2,'<'+edit.typ+'>');
   s:=edit.totalsec; s:=fill(3-length(s),'0')+s;
-  cmPrint(menu_bkNT,menu_txtNT,37,y+2,s);
+  cmPrint(menu_bkNT,menu_txtNT,x-3,y+2,s);
   s:=edit.start; s:=fill(5-length(s),'0')+s;
-  cmPrint(menu_bkNT,menu_txtNT,41,y+2,s);
+  cmPrint(menu_bkNT,menu_txtNT,x+1,y+2,s);
   s:=edit.len; s:=fill(5-length(s),'0')+s;
-  cmPrint(menu_bkNT,menu_txtNT,48,y+2,s);
+  cmPrint(menu_bkNT,menu_txtNT,x+8,y+2,s);
   s:=edit.line; s:=fill(4-length(s),'0')+s;
-  cmPrint(menu_bkNT,menu_txtNT,54,y+2,s);
+  cmPrint(menu_bkNT,menu_txtNT,x+14,y+2,s);
 
   s:=edit.n1Tr; s:=fill(3-length(s),'0')+s;
-  cmPrint(menu_bkNT,menu_txtNT,34,y+3,s);
+  cmPrint(menu_bkNT,menu_txtNT,x-6,y+3,s);
 
   s:=edit.n1Sec; s:=fill(3-length(s),'0')+s;
-  cmPrint(menu_bkNT,menu_txtNT,52,y+3,s);
+  cmPrint(menu_bkNT,menu_txtNT,x+12,y+3,s);
  End;
 end;
 
@@ -1618,26 +1626,24 @@ end;
 function edit1(str:string):string;
 begin
 colour(pal.bkdInputNT,pal.txtdInputNT);
-printself(pal.bkdInputNT,pal.txtdInputNT,31,y-4,8);
+printself(pal.bkdInputNT,pal.txtdInputNT,x-9,y-4,8);
 curon;
-scanf_tab_enable:=true;
-edit1:=scanf(31,y-4,str,8,8,1);
+edit1:=scanf(x-9,y-4,str,8,8,1);
 end;
 
 function edit2(str:string):string;
 begin
 colour(pal.bkdInputNT,pal.txtdInputNT);
-scanf_tab_enable:=true;
-edit2:=scanf(24,y-3,str,3,3,1);
+edit2:=scanf(x-16,y-3,str,3,3,1);
 end;
 
 
 
 
+{$push}{$warn 5033 off}  { original never sets result }
 function edit3:byte;
 var i:integer;
 begin
-scanf_tab_enable:=true;
 menu_name[1]:='80 Track D. Side';
 menu_name[2]:='80 Track S. Side';
 menu_name[3]:='40 Track D. Side';
@@ -1649,7 +1655,7 @@ case edit.disktype of
  $18: menu_f:=3;
  $19: menu_f:=4;
 end;
-menu_posx:=halfmaxx+2; menu_posy:=halfmaxy-3;
+menu_posx:=x+2; menu_posy:=y-3;
 curoff;
 i:=ChooseItem;
  Case i of
@@ -1660,94 +1666,83 @@ i:=ChooseItem;
  End;
 curon;
 end;
+{$pop}
 
 function edit4(str:string):string;
 begin
 colour(pal.bkdInputNT,pal.txtdInputNT);
-scanf_tab_enable:=true;
-edit4:=scanf(24,y-2,str,3,3,1);
+edit4:=scanf(x-16,y-2,str,3,3,1);
 end;
 
 function edit5(str:string):string;
 begin
 colour(pal.bkdInputNT,pal.txtdInputNT);
-scanf_tab_enable:=true;
-edit5:=scanf(54,y-2,str,4,4,1);
+edit5:=scanf(x+14,y-2,str,4,4,1);
 end;
 
 function edit6(str:string):string;
 begin
 colour(pal.bkdInputNT,pal.txtdInputNT);
-scanf_tab_enable:=true;
-edit6:=scanf(37,y-1,str,3,3,1);
+edit6:=scanf(x-3,y-1,str,3,3,1);
 end;
 
 
 function edit7(str:string):string;
 begin
 colour(pal.bkdInputNT,pal.txtdInputNT);
-scanf_tab_enable:=true;
-edit7:=scanf(55,y-1,str,3,3,1);
+edit7:=scanf(x+15,y-1,str,3,3,1);
 end;
 
 
 function edit8(str:string):string;
 begin
 colour(pal.bkdInputNT,pal.txtdInputNT);
-scanf_tab_enable:=true;
-edit8:=scanf(24,y+2,str,8,8,1);
+edit8:=scanf(x-16,y+2,str,8,8,1);
 end;
 
 function edit9(str:string):string;
 begin
 colour(pal.bkdInputNT,pal.txtdInputNT);
-scanf_tab_enable:=true;
-edit9:=scanf(34,y+2,str,1,1,1);
+edit9:=scanf(x-6,y+2,str,1,1,1);
 end;
 
 function edit10(str:string):string;
 begin
 colour(pal.bkdInputNT,pal.txtdInputNT);
-scanf_tab_enable:=true;
-edit10:=scanf(37,y+2,str,3,3,1);
+edit10:=scanf(x-3,y+2,str,3,3,1);
 end;
 
 function edit11(str:string):string;
 begin
 colour(pal.bkdInputNT,pal.txtdInputNT);
-scanf_tab_enable:=true;
-edit11:=scanf(41,y+2,str,5,5,1);
+edit11:=scanf(x+1,y+2,str,5,5,1);
 end;
 
 function edit12(str:string):string;
 begin
 colour(pal.bkdInputNT,pal.txtdInputNT);
-scanf_tab_enable:=true;
-edit12:=scanf(48,y+2,str,5,5,1);
+edit12:=scanf(x+8,y+2,str,5,5,1);
 end;
 
 
 function edit13(str:string):string;
 begin
 colour(pal.bkdInputNT,pal.txtdInputNT);
-scanf_tab_enable:=true;
-edit13:=scanf(54,y+2,str,4,4,1);
+edit13:=scanf(x+14,y+2,str,4,4,1);
 end;
 
 
 function edit14(str:string):string;
 begin
 colour(pal.bkdInputNT,pal.txtdInputNT);
-scanf_tab_enable:=true;
-edit14:=scanf(34,y+3,str,3,3,1);
+edit14:=scanf(x-6,y+3,str,3,3,1);
 end;
 
 
 function edit15(str:string):string;
 begin
 colour(pal.bkdInputNT,pal.txtdInputNT);
-scanf_tab_enable:=true;
-edit15:=scanf(52,y+3,str,3,3,1);
+edit15:=scanf(x+12,y+3,str,3,3,1);
 end;
 
 
@@ -1772,30 +1767,30 @@ end;
 
 Begin
 EditFileParam:=true; if ind=1 then EditFileParam:=false;
-CurOff; if Moused then MouseOff; y:=halfmaxy;
+CurOff; if Moused then MouseOff; x:=HalfMaxX; y:=HalfMaxY;
 
 if EditFileParam then i:=y+4 else i:=y-0;
 
 Colour(pal.bkdRama,pal.txtdRama);
-sPutWin(40-18,y-5,40+19,i);
-mCentre(y-5,' System information ');
+sPutWin(x-18,y-5,x+19,i);
+cmCentre(pal.bkdRama,pal.txtdRama,y-5,' System information ');
 
-mPrint(24,y-4,'Title:'); mPrint(45,y-4,'Disk Drive: '+p.pcnd[1]);
-mPrint(28,y-3,'File(s)');
+mPrint(x-16,y-4,'Title:'); mPrint(x+5,y-4,'Disk Drive: -');
+mPrint(x-12,y-3,'File(s)');
 
-mPrint(28,y-2,'Del. File(s)');
-mPrint(42,y-2,'Free Sector ');
+mPrint(x-12,y-2,'Del. File(s)');
+mPrint(x+2,y-2,'Free Sector ');
 
-mPrint(24,y-1,'1st Free Tr.');
-mPrint(41,y-1,'1st Free Sec.');
+mPrint(x-16,y-1,'1st Free Tr.');
+mPrint(x+1,y-1,'1st Free Sec.');
 
 if EditFileParam then
  Begin
-  mPrint(40-18,y-0,'╟────────────────────────────────────╢');
-  mPrint(26,y+1,'File Name      Start Length Line');
+  mPrint(x-18,y-0,#204+StringOfChar(#205,36)+#185);
+  mPrint(x-14,y+1,'File Name      Start Length Line');
 
-  mPrint(24,y+3,'1st Track');
-  mPrint(41,y+3,'1st Sector');
+  mPrint(x-16,y+3,'1st Track');
+  mPrint(x+1,y+3,'1st Sector');
  End;
 
 
@@ -1818,9 +1813,12 @@ if EditFileParam then
 
 
 ce:=1;
+menu_bkNT:=pal.bkdInputNT;
+menu_txtNT:=pal.txtdInputNT;
 
 loop:
 PutParams;
+UpdateScreen(false);
  if ce=1 then
   begin
    edit.disklabel:=   edit1(edit.disklabel);
@@ -1958,7 +1956,7 @@ if not scanf_esc then if cquestion(s,LANG) then
      for i:=1 to 8 do begin b:=ord(edit.disklabel[i]); write(fb,b); end;
     if EditFileParam then
      Begin
-      seek(fb,16*(p.Index-2));
+      seek(fb,16*(ind-2));
       for i:=1 to 8 do begin b:=ord(edit.name[i]); write(fb,b); end;
       b:=ord(edit.typ[1]);      write(fb,b);
       b:=lo(vall(edit.start));  write(fb,b);
@@ -1976,7 +1974,7 @@ if not scanf_esc then if cquestion(s,LANG) then
    fdiPanel:
     Begin
     {$I-}
-     assign(fb,p.trdfile); filemode:=2; reset(fb);
+     assign(fb,p.fdifile); filemode:=2; reset(fb);
      seek(fb,p.fdiRec.offData+$8e1); b:=vall(edit.n1freesec);   write(fb,b);
      seek(fb,p.fdiRec.offData+$8e2); b:=vall(edit.ntr1freesec); write(fb,b);
      seek(fb,p.fdiRec.offData+$8e3); b:=edit.disktype;          write(fb,b);
@@ -1988,7 +1986,7 @@ if not scanf_esc then if cquestion(s,LANG) then
      for i:=1 to 8 do begin b:=ord(edit.disklabel[i]); write(fb,b); end;
     if EditFileParam then
      Begin
-      seek(fb,p.fdiRec.offData+16*(p.Index-2));
+      seek(fb,p.fdiRec.offData+16*(ind-2));
       for i:=1 to 8 do begin b:=ord(edit.name[i]); write(fb,b); end;
       b:=ord(edit.typ[1]);      write(fb,b);
       b:=lo(vall(edit.start));  write(fb,b);
@@ -2017,7 +2015,7 @@ if not scanf_esc then if cquestion(s,LANG) then
      fddWriteSector(p.fddfile,0,9);
      if EditFileParam then
       Begin
-       i:=p.Index-1; b:=(i div 16)+1; if (i mod 16)=0 then dec(b);
+       i:=ind-1; b:=(i div 16)+1; if (i mod 16)=0 then dec(b);
        fddReadSector(p.fddfile,0,b);
        for io:=0 to 7 do buf[io]:=ord(edit.name[io+1]);
        buf[8]:=ord(edit.typ[1]);
@@ -2034,38 +2032,7 @@ if not scanf_esc then if cquestion(s,LANG) then
       End;
     End;
 
-   flpPanel:
-    Begin
-     if not InitFDD(Ord(UpCase(p.FlpDrive))-Ord('A'),CheckMedia) then exit;
-     zxSeek(Ord(UpCase(p.FlpDrive))-Ord('A'),0);
-     ReadSector(Ord(UpCase(p.FlpDrive))-Ord('A'),0,0,9,1);
-     FDCBuf[$e1]:=vall(edit.n1freesec);
-     FDCBuf[$e2]:=vall(edit.ntr1freesec);
-     FDCBuf[$e3]:=edit.disktype;
-     FDCBuf[$e4]:=vall(edit.files);
-     FDCBuf[$e5]:=lo(vall(edit.free));
-     FDCBuf[$e6]:=hi(vall(edit.free));
-     FDCBuf[$f4]:=vall(edit.delfiles);
-     for i:=1 to 8 do begin FDCBuf[$f5+i-1]:=ord(edit.disklabel[i]);end;
-     WriteSector(Ord(UpCase(p.FlpDrive))-Ord('A'),0,0,9,1);
-     if EditFileParam then
-      Begin
-       i:=p.Index-1; b:=(i div 16)+1; if (i mod 16)=0 then dec(b);
-       ReadSector(Ord(UpCase(p.FlpDrive))-Ord('A'),0,0,b,1);
-       for io:=0 to 7 do buf[io]:=ord(edit.name[io+1]);
-       buf[8]:=ord(edit.typ[1]);
-       buf[9]:=lo(vall(edit.start));
-       buf[10]:=hi(vall(edit.start));
-       buf[11]:=lo(vall(edit.len));
-       buf[12]:=hi(vall(edit.len));
-       buf[13]:=vall(edit.totalsec);
-       buf[14]:=vall(edit.n1sec);
-       buf[15]:=vall(edit.n1tr);
-       k:=i-(i div 16)*16; if k=0 then k:=16; k:=(k-1)*16;
-       for io:=0 to 15 do FDCBuf[k+io]:=buf[io];{}
-       WriteSector(Ord(UpCase(p.FlpDrive))-Ord('A'),0,0,b,1);
-      End;
-    End;
+   // flpPanel: stubbed — real floppy hardware not available
 
   End;
 
@@ -2074,6 +2041,73 @@ if not scanf_esc then if cquestion(s,LANG) then
  end;
 End;
 
+
+{============================================================================}
+
+function trdMakeImageFile(path: string; tracks: byte): boolean;
+var
+  ff: file;
+  fb: file of byte;
+  blank: array[1..8192] of byte;
+  i: word;
+  freeSec: word;
+  b: byte;
+begin
+  trdMakeImageFile := false;
+  if tracks = 0 then tracks := 80;
+  {$push}{$hints off}{$notes off}
+  FillChar(blank, SizeOf(blank), 0);
+  {$pop}
+{$I-}
+  Assign(ff, path);
+  FileMode := 2;
+  Rewrite(ff, 1);
+  for i := 1 to tracks do
+    BlockWrite(ff, blank[1], SizeOf(blank));
+  Close(ff);
+
+  freeSec := (word(tracks) * 2 - 1) * 16;
+  Assign(fb, path);
+  FileMode := 2;
+  Reset(fb);
+  b := 0;    Seek(fb, $8e1); Write(fb, b);
+  b := 1;    Seek(fb, $8e2); Write(fb, b);
+  if tracks = 40 then b := $17 else b := $16;
+  Seek(fb, $8e3); Write(fb, b);
+  b := 0;    Seek(fb, $8e4); Write(fb, b);
+  b := Lo(freeSec); Seek(fb, $8e5); Write(fb, b);
+  b := Hi(freeSec); Seek(fb, $8e6); Write(fb, b);
+  b := $10;  Seek(fb, $8e7); Write(fb, b);
+  b := 0;    Seek(fb, $8f4); Write(fb, b);
+  b := Ord(' ');
+  Seek(fb, $8f5);
+  for i := 0 to 7 do Write(fb, b);
+  Close(fb);
+{$I+}
+  if IOResult = 0 then trdMakeImageFile := true;
+end;
+
+function trdWriteLabel(const path: string;
+  const lbl: string): boolean;
+var
+  fs: file of byte;
+  b: byte;
+  i: integer;
+begin
+  trdWriteLabel := false;
+{$I-}
+  Assign(fs, path);
+  FileMode := 2;
+  Reset(fs);
+  Seek(fs, $8f5);
+  for i := 1 to 8 do begin
+    b := Ord(lbl[i]);
+    Write(fs, b);
+  end;
+  Close(fs);
+{$I+}
+  if IOResult = 0 then trdWriteLabel := true;
+end;
 
 
 End.

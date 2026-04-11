@@ -1,8 +1,8 @@
-{$O+,F+}
 Unit TAP;
+{$mode objfpc}{$H+}
 Interface
 Uses
-     Crt,RV,sn_Obj, Vars, Palette, Main, Main_Ovr;
+     RV,sn_Obj, Vars, Palette, Main;
 
 function tapNameLine(var p:TPanel; a:word):string;
 function  isTAP(path:string):boolean;
@@ -15,7 +15,7 @@ procedure CheckTapInsed;
 
 Implementation
 Uses
-     TRD;
+     SysUtils, TRD, Video;
 
 {============================================================================}
 function tapNameLine(var p:TPanel; a:word):string;
@@ -43,12 +43,12 @@ begin
             end
            else
             begin
-             nm:='▒Data▒▒▒▒▒';
+             nm:=#177+'Data'+#177+#177+#177+#177+#177;
 
              stemp:=strr(p.trdDir^[a].tapflag);
              nm:=nm+space(11-length(stemp))+stemp;
 
-{             nm:=nm+space(11-length(nm));{}
+//             nm:=nm+space(11-length(nm));
 
              stemp:=ChangeChar(extnum(strr(p.trdDir^[a].length)),' ',',');
              nm:=nm+space(9-length(stemp))+stemp;{}
@@ -58,9 +58,8 @@ end;
 
 
 {============================================================================}
+{$push}{$warn 5024 off}
 function ewitems(n:longint; lang:byte):string; {запись}
-var
-   i:longint;
 begin
   if n=1 then ewitems:='' else ewitems:='s';
 end;
@@ -68,11 +67,10 @@ end;
 
 {============================================================================}
 function ei(n:longint; lang:byte):string; {запись}
-var
-   i:longint;
 begin
   if n=1 then ei:='' else ei:='s';
 end;
+{$pop}
 
 
 {============================================================================}
@@ -85,10 +83,12 @@ var fb:file of byte; f:file;
 label fin;
 begin
 isTAP:=false;
-if strlo(nospace(getof(path,_ext)))<>'.tap' then exit;
+if LowerCase(ExtractFileExt(path))<>'.tap' then exit;
 {$I-}
 filemode:=0;
-assign(fb,path); reset(fb);  assign(f,path); reset(f,1);
+assign(fb,path); reset(fb);  if ioresult<>0 then exit;
+assign(f,path); reset(f,1);
+if ioresult<>0 then begin close(fb); if ioresult<>0 then; exit; end;
 if filesize(fb)=0 then begin isTAP:=true; goto fin; end;
 seek(fb,0); read(fb,b); read(fb,b1); w:=b+256*b1;
 seek(fb,2); read(fb,csf);
@@ -175,8 +175,8 @@ for m:=1 to 256 do
   if buf^[1]<>0 then
    begin
     inc(p.taptfiles); inc(pos,2+w);
-    s:='▒▒▒▒▒▒▒▒▒▒';{}
-    {s:='░░░░░░░░░░';{}
+    s:=#177+#177+#177+#177+#177+#177+#177+#177+#177+#177;
+    // s:=#176+#176+#176+#176+#176+#176+#176+#176+#176+#176;
     p.trddir^[p.taptfiles].param2:=0;
     p.trddir^[p.taptfiles].start:=0;
    end;
@@ -203,18 +203,18 @@ end;
 
 {============================================================================}
 procedure tapPDF(var p:TPanel; fr:integer);
-var px,py,py0,ph,paper,ink,pp,ii,iii,dx,ddx:byte;
+var px,py,paper,ink,ii,dx,ddx:byte;
     i,n:integer;
-    s,name:string; e:string[3];
+    name:string; e:string[3];
 begin
 if p.paneltype<>tapPanel then exit;
 n:=p.taptfiles; px:=p.posx+1; py:=p.putfrom;
-Case p.Columns of 1: dx:=13; 2: dx:=19; 3: dx:=13; End;
+Case p.Columns of 1: dx:=13; 2: dx:=p.PanelW div 2; 3: dx:=(p.PanelW+1) div 3; End;
 
 if n>fr-1+p.panelhi*p.Columns then n:=fr-1+p.panelhi*p.Columns;
 for i:=fr to n do
  begin
-  if (px=21)or(px=61) then ddx:=1 else ddx:=0;
+  ddx:=0;
   name:=p.trdDir^[i].name;
   if i=1 then name:='<<'+space(dx+ddx-3) else
    begin
@@ -244,7 +244,7 @@ for i:=fr to n do
    end;
   col(e,p.trdDir^[i].length,paper,ink);
   if i=1 then begin paper:=pal.bkdir; ink:=pal.txtdir; end;
-  pp:=paper; ii:=ink; iii:=ink;
+  ii:=ink;
 
   if p.trddir^[i].mark then begin paper:=pal.bkST; ink:=pal.txtST; end;
   if p.focused and(i=p.from+p.f-1) then begin paper:=pal.bkCurNT; ink:=pal.txtCurNT; end;
@@ -253,11 +253,8 @@ for i:=fr to n do
 
   cmprint(paper,ink,px,py,name);
 
-  s:=space(25);
   if p.Columns=1 then
-   begin
-    cmprint(paper,ink,px+13,py,s); cmprint(paper,pal.TxtRama,px+12,py,'│');
-   end;
+    PaintRowSeps(p.PosX, p.PanelW, dx, py, paper, ink, pal.TxtRama);
 
   if ii=paper then ii:=ink;
   PrintSelf(paper,ii,px+(dx+ddx-3),py,1);
@@ -266,18 +263,18 @@ for i:=fr to n do
   if py>p.panelhi+p.putfrom-1 then begin py:=p.putfrom; inc(px,dx); end;
  end;
 
-for i:=n+1 to p.panelhi*p.Columns do
+for i:=n+1 to fr-1+p.panelhi*p.Columns do
  begin
-  if (px=21)or(px=61) then ddx:=1 else ddx:=0;
+  ddx:=0;
   name:=space(dx+ddx-1);
   cmprint(pal.bkNT,pal.txtNT,px,py,name);
   if p.Columns=1 then
-   begin
-    cmprint(pal.bkNT,pal.txtNT,px+13,py,space(25)); cmprint(pal.bkRama,pal.TxtRama,px+12,py,'│');
-   end;
+    PaintRowSeps(p.PosX, p.PanelW, dx, py, pal.bkNT, pal.txtNT, pal.TxtRama);
   inc(py);
   if py>p.panelhi+p.putfrom-1 then begin py:=p.putfrom; inc(px,dx); end;
  end;
+
+UpdateScreen(false);
 end;
 
 
@@ -285,11 +282,11 @@ end;
 {============================================================================}
 procedure CheckTapInsed;
 Var
-    i:integer; otp,tp:TPanel;
+    i:integer; otp:TPanel;
 Begin
 Case focus of
- left:  begin tp:=lp; otp:=rp; end;
- right: begin tp:=lp; otp:=lp; end;
+ left:  otp:=rp;
+ right: otp:=lp;
 End;
 if otp.PanelType=tapPanel then for i:=1 to otp.taptfiles do
  begin
@@ -300,6 +297,6 @@ End;
 
 
 
-Begin
+initialization
 sBar[eng,tapPanel]:='~`Alt+X~` Exit ~` F3~` View ~` F5~` Copy ~` F6~` Rename ~` F8~` Delete ';
 End.

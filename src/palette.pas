@@ -1,4 +1,4 @@
-{$O+,F+}
+{$mode objfpc}{$H+}
 Unit Palette;
 Interface
 
@@ -75,24 +75,15 @@ Var
 
    Pal: TPal;
 
-   group1: string;
-   group2: string;
-   group3: string;
-   group4: string;
-   group5: string;
-   gexe: string;
-   garc: string;
-
 
 Procedure Col(ex:string; size:longint; var paper,ink:byte);
-{Procedure GetPalFile;{}
+//Procedure GetPalFile;
 
 Implementation
 
-uses crt,rv,clock,Vars;
+uses SysUtils,rv,Vars;
 
 procedure Col(ex:string; size:longint; var paper,ink:byte);
-var s:string;
 begin
 ex:=';'+ex+';';
     if pos(ex,group1)<>0 then begin paper:=pal.bkg1; ink:=pal.txtg1; end;
@@ -103,28 +94,27 @@ ex:=';'+ex+';';
     if pos(ex,gexe)<>0 then begin paper:=pal.bkexe; ink:=pal.txtexe; end;
 
     if ex=';>P<;' then begin paper:=pal.bkexe; ink:=pal.txtexe; end;
-    if {(ex=';>C<;')and}(size=6912) then begin paper:=pal.bkg5; ink:=pal.txtg5; end;
+    if (size=6912) then begin paper:=pal.bkg5; ink:=pal.txtg5; end;
     if (ex=';>B<;')and(size=6912) then begin paper:=pal.bkg5; ink:=pal.txtg5; end;
 
     if pos(ex,garc)<>0 then begin paper:=pal.bkarc; ink:=pal.txtarc; end;
-    if strlo(ex)=';trd;' then begin paper:=pal.bkdir; ink:=pal.txtdir; end;
-    if strlo(ex)=';tap;' then begin paper:=pal.bkdir; ink:=pal.txtdir; end;
-    if strlo(ex)=';scl;' then begin paper:=pal.bkdir; ink:=pal.txtdir; end;{}
-    if strlo(ex)=';fdi;' then begin paper:=pal.bkdir; ink:=pal.txtdir; end;
-    if strlo(ex)=';fdd;' then begin paper:=pal.bkdir; ink:=pal.txtdir; end;
-    if (strlo(ex)=';scr;')and(size=6912) then begin paper:=pal.bkg5; ink:=pal.txtg5; end;
-    if (strlo(ex)=';xpc;')and(size=18432) then begin paper:=pal.bkg5; ink:=pal.txtg5; end;
+    if LowerCase(ex)=';trd;' then begin paper:=pal.bkdir; ink:=pal.txtdir; end;
+    if LowerCase(ex)=';tap;' then begin paper:=pal.bkdir; ink:=pal.txtdir; end;
+    if LowerCase(ex)=';scl;' then begin paper:=pal.bkdir; ink:=pal.txtdir; end;{}
+    if LowerCase(ex)=';fdi;' then begin paper:=pal.bkdir; ink:=pal.txtdir; end;
+    if LowerCase(ex)=';fdd;' then begin paper:=pal.bkdir; ink:=pal.txtdir; end;
+    if (LowerCase(ex)=';scr;')and(size=6912) then begin paper:=pal.bkg5; ink:=pal.txtg5; end;
+    if (LowerCase(ex)=';xpc;')and(size=18432) then begin paper:=pal.bkg5; ink:=pal.txtg5; end;
     if (ex=';<C>;')and(size=6912) then begin paper:=pal.bkg5; ink:=pal.txtg5; end;
     if (ex=';<C>;')and(size=18432) then begin paper:=pal.bkg5; ink:=pal.txtg5; end;
-    if (strlo(ex)=';$c;')and(size=6929) then begin paper:=pal.bkg5; ink:=pal.txtg5; end;
-    if (strlo(ex)=';$c;')and(size=18449) then begin paper:=pal.bkg5; ink:=pal.txtg5; end;
+    if (LowerCase(ex)=';$c;')and(size=6929) then begin paper:=pal.bkg5; ink:=pal.txtg5; end;
+    if (LowerCase(ex)=';$c;')and(size=18449) then begin paper:=pal.bkg5; ink:=pal.txtg5; end;
 end;
 
 
 
 
-{procedure GetPalFile;
-{}
+//procedure GetPalFile;
 Begin
 
 pal.bknameline:=1;     pal.txtnameline:=yellow;
@@ -190,7 +180,7 @@ pal.bkMenuMarkNT:=0;      pal.txtMenuMarkNT:=15;
 pal.bkMenuMarkST:=0;      pal.txtMenuMarkST:=Yellow;
 
 
-ClColour:=$1B;
+// ClColour:=$1B;
 
 group1:=';<A>;<H>;<a>;<T>;<X>;pas;asm;inc;c;cpp;sym;a80;db;dw;h;prj;';
 group2:=';.;<d>;<W>;bbs;doc;txt;ctl;diz;ini;hlp;nfo;new;rus;me!;me;now;'+
@@ -205,7 +195,7 @@ group5:=';<P>;<+>;<G>;<U>;<$>;<Y>;pcx;bmp;pic;gif;rle;ico;jpg;psd;raw;avi;'+
 gexe:=';exe;com;bat;<B>;';
 garc:=';<Z>;zxz;$z;arj;zip;rar;lha;ha;arc;cab;$z0;$z1;$z2;$z3;$z4;$z5;$z6;$z7;$z8;$z9;';
 
-{End;{}
+// End;
 
 
 

@@ -1,5 +1,5 @@
-{$O+,F+}
 Unit ZXZIP;
+{$mode objfpc}{$H+}
 Interface
 Uses
      RV,Vars,sn_Obj,Palette,TRD,Main,Main_Ovr;
@@ -12,9 +12,10 @@ Procedure zxzPDF(var p:TPanel; fr:integer);
 function  zxzLoad(var p:TPanel; ind:word):boolean;
 function  zxzSave(p:TPanel):boolean;
 
-Procedure zxzExtract(sp,dp:TPanel);
+Procedure zxzExtract(sp:TPanel);
 
 Implementation
+Uses Video;
 
 {============================================================================}
 function zxzNameLine(var p:TPanel; a:byte):string;
@@ -52,20 +53,20 @@ End;
 {============================================================================}
 Procedure zxzMDF(var p:TPanel; path:string);
 var
-    fb:file of byte; f:file;
+    f:file;
     m,w,i,vol:word;
+    nr:longint;
     pos:longint;
-    b,b1,cs,csf:byte;
     buf:array[1..22] of byte;
     s:string;
 Label RepeatMDF;
 Begin
 if (checkdirfile(path)<>0)or(not isZXZIP(path)) then
  begin
-  {
-  if lang=rus then errormessage('Hе найден ZXZIP файл')
-              else errormessage('ZXZIP file not found');
-  {}
+  //
+//    if lang=rus then errormessage('H€ €€€€€€ ZXZIP €€€€')
+//                else errormessage('ZXZIP file not found');
+//
   p.PanelType:=pcPanel;
   p.pcMDF(p.pcnd);
   p.Inside;
@@ -87,12 +88,15 @@ for w:=1 to 256 do
  begin
 RepeatMDF:
   seek(f,pos);
-  blockRead(f,buf,22); inc(pos,22);
-  if EOF(f) then
+  {$push}{$hints off}
+  blockRead(f,buf,22,nr);
+  {$pop}
+  inc(pos,22);
+  if (nr<22) or EOF(f) then
    begin
     inc(vol);
     if vol>9 then break;
-    s:=nospaceLR(s); s[length(s)]:=midch(strr(vol),1);
+    s:=nospaceLR(s); s[length(s)]:=strr(vol)[1];
     if CheckDirFile(s)<>0 then begin dec(vol); break;{} end;
     pos:=pos-22-filesize(f)+17;
     close(f); assign(f,s); filemode:=0; reset(f,1);
@@ -144,9 +148,9 @@ End;
 
 {============================================================================}
 Procedure zxzPDF(var p:TPanel; fr:integer);
-var px,py,py0,ph,paper,ink,pp,ii,dx,ddx:byte;
+var px,py,paper,ink,ii,dx,ddx:byte;
     i,n:integer;
-    s,name:string; e:string[3];
+    name:string; e:string[3];
 Begin
 
 if p.paneltype<>zxzPanel then exit;
@@ -154,10 +158,10 @@ if p.paneltype<>zxzPanel then exit;
 n:=p.zxztfiles;
 if n>fr-1+p.panelhi*p.Columns then n:=fr-1+p.panelhi*p.Columns;
 px:=p.posx+1; py:=p.putfrom;
-Case p.Columns of 1: dx:=13; 2: dx:=19; 3: dx:=13; End;
+Case p.Columns of 1: dx:=13; 2: dx:=p.PanelW div 2; 3: dx:=(p.PanelW+1) div 3; End;
 for i:=fr to n do
  begin
-  if (px=21)or(px=61) then ddx:=1 else ddx:=0;
+  ddx:=0;
   name:=p.trdDir^[i].name;
   if i=1
     then name:='<<'+space(dx+ddx-3)
@@ -168,7 +172,7 @@ for i:=fr to n do
   col(e,p.trdDir^[i].length,paper,ink);
   if (ord(p.trdDir^[i].name[1])=1)or(ord(p.trdDir^[i].name[1])=0) then begin paper:=pal.bkg4; ink:=pal.txtg4; end;
   if i=1 then begin paper:=pal.bkdir; ink:=pal.txtdir; end;
-  pp:=paper; ii:=ink;
+  ii:=ink;
   if p.trddir^[i].mark then begin paper:=pal.bkST; ink:=pal.txtST; end;
   if p.focused and(i=p.from+p.f-1) then begin paper:=pal.bkCurNT; ink:=pal.txtCurNT; end;
   if p.focused and(i=p.from+p.f-1)and(p.trddir^[i].mark) then begin paper:=pal.bkCurST; ink:=pal.txtCurST; end;
@@ -177,38 +181,33 @@ for i:=fr to n do
 
   cmprint(paper,ink,px,py,name);
 
-  s:=space(25);
   if p.Columns=1 then
-   begin
-    cmprint(paper,ink,px+13,py,s); cmprint(paper,pal.TxtRama,px+12,py,'│');
-   end;
+    PaintRowSeps(p.PosX, p.PanelW, dx, py, paper, ink, pal.TxtRama);
 
-  if ii=paper then ii:=ink;                                      {
-  if p.focused and(i=p.from+p.f-1) then ii:=txtCurNT;
-  if p.focused and(i=p.from+p.f-1)and(p.pcdir^[i].mark) then
-    begin ii:=ink; if ii=bkCurST then ii:=txtCurST; end;         {}
+  if ii=paper then ii:=ink;
   PrintSelf(paper,ii,px+(dx+ddx-5),py,1);
 
   inc(py);
   if py>p.panelhi+p.putfrom-1 then begin py:=p.putfrom; inc(px,dx); end;
  end;
 
-for i:=n+1 to p.panelhi*p.Columns do
+for i:=n+1 to fr-1+p.panelhi*p.Columns do
  begin
-  if (px=21)or(px=61) then ddx:=1 else ddx:=0;
+  ddx:=0;
   name:=space(dx+ddx-1);
   cmprint(pal.bkNT,pal.txtNT,px,py,name);
   if p.Columns=1 then
-   begin
-    cmprint(pal.bkNT,pal.txtNT,px+13,py,space(25)); cmprint(pal.bkRama,pal.TxtRama,px+12,py,'│');
-   end;
+    PaintRowSeps(p.PosX, p.PanelW, dx, py, pal.bkNT, pal.txtNT, pal.TxtRama);
   inc(py);
   if py>p.panelhi+p.putfrom-1 then begin py:=p.putfrom; inc(px,dx); end;
  end;
+
+UpdateScreen(false);
 End;
 
 
 {============================================================================}
+{$push}{$warn 5024 off}
 function  zxzLoad(var p:TPanel; ind:word):boolean;
 Begin
 zxzLoad:=false;
@@ -229,28 +228,29 @@ FreeMem(HobetaInfo.body,256*HobetaInfo.totalsec);
 {$I+}
 if ioresult=0 then zxzSave:=true;
 End;
+{$pop}
 
 
 
 {============================================================================}
 
-Procedure zxzExtract(sp,dp:TPanel);
-Var s,t:string; n:word;
+Procedure zxzExtract(sp:TPanel);
+Var s,t:string;
 Begin
 zxzMDF(sp,sp.pcnd+sp.pcnn);
 CancelSB;
 if sp.zxdisk.files=1 then
  s:='Extract file '+sp.trdDir^[sp.zxdisk.files+1].name+'.'+TRDOSe3(sp,sp.zxdisk.files+1)+' to'
                      else
- s:='Extract '+strr(sp.zxdisk.files)+' file'+efiles(sp.zxdisk.files,lang)+' to';
+ s:='Extract '+strr(sp.zxdisk.files)+' file'+efiles(sp.zxdisk.files)+' to';
 t:=sp.pcnd; if length(t)>30 then t:=copy(t,1,3)+'...'+copy(t,length(t)-30,30);
 s:=s+#255+t;
 if cQuestion(s,lang) then
  begin
-{
-  getprofile(startdir+'\sn.ini','Spectrum','zxunzip',s);
-  command:=s+' '+sp.pcnd+sp.pcnn;
-  DoExec(command,false);{}
+//
+//  getprofile(startdir+'\sn.ini','Spectrum','zxunzip',s);
+//  command:=s+' '+sp.pcnd+sp.pcnn;
+//  DoExec(command,false);
  end;
 End;
 {}

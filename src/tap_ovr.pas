@@ -1,8 +1,8 @@
-{$O+,F+}
 Unit TAP_Ovr;
+{$mode objfpc}{$H+}
 Interface
 Uses
-     Crt,RV,sn_Obj, Vars, Palette, Main, Main_Ovr, TRD;
+     RV,sn_Obj, Vars, Palette, Main, Main_Ovr, TRD;
 
 Function  tapLoad(var p:TPanel; ind:word):boolean;
 Function  tapSave(var p:TPanel):boolean;
@@ -17,7 +17,7 @@ Implementation
 
 {============================================================================}
 Function tapLoad(var p:TPanel; ind:word):boolean;
-Var f:file; i,b,w:word;
+Var f:file; i:word;
 Begin
  if p.trdDir^[ind].length>65533 then
   begin
@@ -58,7 +58,9 @@ if HobetaInfo.length-256*HobetaInfo.totalsec>0 then inc(HobetaInfo.totalsec);
 tapLoad:=false;
 {$I-}
 GetMem(HobetaInfo.body,256*HobetaInfo.totalsec);
-for w:=1 to 256*HobetaInfo.totalsec do HobetaInfo.body^[w]:=0;
+{$push}{$notes off}
+FillChar(HobetaInfo.body^, 256*HobetaInfo.totalsec, 0);
+{$pop}
 assign(f,p.tapfile); filemode:=0; reset(f,1);
 seek(f,p.trdDir^[ind].offset);
 blockread(f,HobetaInfo.body^,HobetaInfo.length);
@@ -115,8 +117,8 @@ tapSave:=false;
 
  if (lp.PanelType=tapPanel)and(rp.PanelType=tapPanel) then
   Begin
-   i:=lo(HobetaInfo.length+2); blockwrite(f,i,1);
-   i:=hi(HobetaInfo.length+2); blockwrite(f,i,1);
+   i:=lo(word(HobetaInfo.length+2)); blockwrite(f,i,1);
+   i:=hi(word(HobetaInfo.length+2)); blockwrite(f,i,1);
    i:=HobetaInfo.tapflag; blockwrite(f,i,1);
    cs:=HobetaInfo.tapflag; for i:=1 to HobetaInfo.length do cs:=cs xor HobetaInfo.body^[i];
    blockwrite(f,HobetaInfo.body^,HobetaInfo.length); blockwrite(f,cs,1);
@@ -124,8 +126,8 @@ tapSave:=false;
  else
   Begin
    blockwrite(f,buf,21);
-   i:=lo(HobetaInfo.length+2); blockwrite(f,i,1);
-   i:=hi(HobetaInfo.length+2); blockwrite(f,i,1);
+   i:=lo(word(HobetaInfo.length+2)); blockwrite(f,i,1);
+   i:=hi(word(HobetaInfo.length+2)); blockwrite(f,i,1);
    i:=255; blockwrite(f,i,1);
    cs:=255; for i:=1 to HobetaInfo.length do cs:=cs xor HobetaInfo.body^[i];
    blockwrite(f,HobetaInfo.body^,HobetaInfo.length); blockwrite(f,cs,1);
@@ -146,7 +148,7 @@ Var
     bufsize,nr,ind:word; was,head,tail,dif,TruncatePos:longint;
     f:file;
 Begin
-
+ nr:=0;
  ind:=p.Index;
  bufsize:=65280;
 
@@ -154,8 +156,8 @@ Begin
  GetMem(HobetaInfo.body,bufsize);
  assign(f,p.tapfile); filemode:=2; reset(f,1);
 
-for ind:=p.taptfiles downto 2{} do if p.trdDir^[ind].mark then
-BEGIN{}
+for ind:=p.taptfiles downto 2 do if p.trdDir^[ind].mark then
+BEGIN
  was:=filesize(f);
  if PanelTypeOf(oFocus)=tapPanel then
   BEGIN
@@ -213,12 +215,12 @@ End;
 
 {============================================================================}
 function tapRename:boolean;
-var p:TPanel; n,dx,cs,i,xc,yc:byte; s:string; f:file; buf:array[1..21]of byte;
+var p:TPanel; dx,cs,i,xc,yc:byte; s:string; f:file; buf:array[1..21]of byte;
 
 {== SCANF ===================================================================}
 function tapSNscanf(scanf_posx, scanf_posy:byte;scanf_str:string):string;
 var
-     scanf_kod:char;
+     scanf_kod:word;
      scanf_x:byte;
      scanf_str_old:string;
 label loop;
@@ -229,21 +231,18 @@ scanf_x:=1;
 loop:
 mprint(scanf_posx,scanf_posy,scanf_str);
 gotoxy(scanf_posx+scanf_x-1,scanf_posy);
-scanf_kod:=readkey;
-if scanf_kod=#27 then begin tapsnscanf:=scanf_str_old; scanf_esc:=true; exit; end;
-if scanf_kod=#13 then begin tapsnscanf:=scanf_str; exit; end;
+scanf_kod:=rKey;
+if scanf_kod=_ESC then begin tapsnscanf:=scanf_str_old; scanf_esc:=true; exit; end;
+if scanf_kod=_Enter then begin tapsnscanf:=scanf_str; exit; end;
 
-if (scanf_kod in[' '..')','-','0'..'9','@'..'[',']'..#255])and(scanf_x<=length(scanf_str)) then
+if (chr(lo(scanf_kod)) in[' '..')','-','0'..'9','@'..'[',']'..#255])and(scanf_x<=length(scanf_str)) then
  begin
-  scanf_str[scanf_x]:=scanf_kod;
+  scanf_str[scanf_x]:=chr(lo(scanf_kod));
   inc(scanf_x);
  end;
 
 
-if scanf_kod=#0 then
- begin
-  scanf_kod:=readkey;
-  if scanf_kod=#77 then
+if scanf_kod=_Right then
    begin
     inc(scanf_x);
     if scanf_x=DX+3 then
@@ -253,18 +252,17 @@ if scanf_kod=#0 then
       menu_name[3]:='~`C~`haracter array';
       menu_name[4]:='~`B~`ytes';
       menu_total:=4; menu_f:=p.trdDir^[p.Index].taptyp+1; menu_title:=''; menu_visible:=255;
-      curoff; cs:=ChooseItem; curon; setcursor(400);
+      curoff; cs:=ChooseItem; curon;
       if cs<>0 then begin p.trdDir^[p.Index].taptyp:=cs-1; p.PDF; end;
       dec(scanf_x);
       colour(pal.bkCurNT,pal.txtCurNT);
      end;
    end;
-  if scanf_kod=#75 then begin dec(scanf_x); end;
-  if scanf_kod=#72 then scanf_kod:=#27;
-  if scanf_kod=#80 then scanf_kod:=#27;
- end;
+if scanf_kod=_Left then begin dec(scanf_x); end;
+if scanf_kod=_Up then scanf_kod:=_ESC;
+if scanf_kod=_Down then scanf_kod:=_ESC;
 
-if scanf_kod=#27 then begin tapsnscanf:=scanf_str_old; scanf_esc:=true; exit; end;
+if scanf_kod=_ESC then begin tapsnscanf:=scanf_str_old; scanf_esc:=true; exit; end;
 
 if scanf_x<1 then scanf_x:=1;
 if scanf_x>DX+3 then begin scanf_x:=DX+3; end;
@@ -274,17 +272,21 @@ end;
 
 Begin
 tapRename:=false;
+xc:=0; yc:=0;
+{$push}{$hints off}{$notes off}
+FillChar(buf, SizeOf(buf), 0);
+{$pop}
 Case focus of left:p:=lp; right:p:=rp; End;
 if (p.trdDir^[p.Index].tapflag<>0)or(p.Index<=1) then exit;
 s:=p.trdDir^[p.Index].name; GetCurXYOf(focus,xc,yc);
 
  Case ColumnsOf(focus) of
   1,3: DX:=8;
-  2:   Begin DX:=15; if (xc=2)or(yc=42) then dec(DX);{} End;
+  2:   Begin DX:=15; end;
  End;
 
 CancelSB; colour(pal.bkCurNT,pal.txtCurNT);
-curon; SetCursor(400); s:=tapsnscanf(xc,yc,s); curoff;
+curon; s:=tapsnscanf(xc,yc,s); curoff;
 if not scanf_esc then
  BEGIN
   {$I-}
@@ -315,12 +317,12 @@ tapMakeImage:=false; name:='';
 Case focus of left:p:=lp; right:p:=rp; End;
  CancelSB;
  colour(pal.bkdRama,pal.txtdRama);
- scputwin(pal.bkdRama,pal.txtdRama,27,halfmaxy-4,54,halfmaxy+0);
+ scputwin(pal.bkdRama,pal.txtdRama,halfmaxx-13,halfmaxy-4,halfmaxx+14,halfmaxy+0);
  cmcentre(pal.bkdRama,pal.txtdRama,halfmaxy-4,' New TAP-file ');
- cmprint(pal.bkdLabelST,pal.txtdLabelST,31,halfmaxy-2,'File name:');
- printself(pal.bkdInputNT,pal.txtdInputNT,42,halfmaxy-2,8);
+ cmprint(pal.bkdLabelST,pal.txtdLabelST,halfmaxx-9,halfmaxy-2,'File name:');
+ printself(pal.bkdInputNT,pal.txtdInputNT,halfmaxx+2,halfmaxy-2,8);
  colour(pal.bkdInputNT,pal.txtdInputNT);
- curon; name:=scanf(42,halfmaxy-2,name,8,8,1); curoff;
+ curon; name:=scanf(halfmaxx+2,halfmaxy-2,name,8,8,1); curoff;
  restscr;
 
 name:=nospace(GetOf(name,_name));

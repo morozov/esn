@@ -1,7 +1,7 @@
-{$O+,F+}
 Unit SCL_Ovr;
+{$mode objfpc}{$H+}
 interface
-Uses RV, sn_Obj, Vars, Main, Main_Ovr, Palette, TRD,TRD_Ovr;
+Uses RV, sn_Obj, Vars, Main, Main_Ovr, Palette, TRD, TRD_Ovr;
 
 function  sclLoad(var p:TPanel; ind:word):boolean;
 function  sclSave(var p:TPanel):boolean;
@@ -14,6 +14,16 @@ function  sclMakeImage(sys:boolean):boolean;
 
 
 Implementation
+
+function LongHi(num:longint):word;
+Begin
+LongHi:=num div 65536;
+End;
+
+function LongLo(num:longint):word;
+Begin
+LongLo:=num-65536*LongHi(num);
+End;
 
 
 
@@ -54,6 +64,7 @@ Var f:file; i,b:byte; buf:array[1..14]of byte; l,fpos:longint;
     w,bufsize,nr:word; csbuf:^tbuf;
 Begin
 sclSave:=false;
+nr:=0;
 {$I-}
 assign(f,p.sclfile); filemode:=2; reset(f,1);
 
@@ -84,7 +95,7 @@ seek(f,8); b:=p.zxdisk.files; blockwrite(f,b,1);
 FreeMem(HobetaInfo.body,256*HobetaInfo.totalsec);
 
 l:=0;
-if MemAvail<65280 then bufsize:=MemAvail-10240 else bufsize:=65280;
+bufsize:=65280;
 getmem(csbuf,bufsize);
 seek(f,0);
 Repeat
@@ -110,10 +121,14 @@ End;
 function sclDel(var p:TPanel):boolean;
 type
     tbuf=array[1..2] of byte;
-Var f:file; ind,i,b,m:byte; buf:array[1..14]of byte; l,fpos:longint;
+Var f:file; ind,i,b:byte; buf:array[1..14]of byte; l,fpos:longint;
     w,bufsize,nr:word; csbuf:^tbuf;
 Begin
 sclDel:=false;
+nr:=0;
+{$push}{$hints off}{$notes off}
+FillChar(buf, SizeOf(buf), 0);
+{$pop}
 {$I-}
 assign(f,p.sclfile); filemode:=2; reset(f,1);  ind:=p.Index-1;
 
@@ -176,7 +191,7 @@ for ind:=p.tfiles-1 downto 1 do if p.trdDir^[ind+1].mark then
   b:=hi(longhi(l)); blockwrite(f,b,1);
 
   p.sclMDFs(p.sclfile);
-{  p.sclPDFs(p.sclfrom); rpause;{}
+//  p.sclPDFs(p.sclfrom); rpause;
  END;
 {}
 close(f);
@@ -191,8 +206,8 @@ End;
 function sclRename:boolean;
 type
     tbuf=array[1..2] of byte;
-var i,io:integer;
-    stemp,s:string;
+var i:integer;
+    stemp:string;
     fs:file;
     xc,yc,b:byte;
     buf:array[1..14] of byte; csbuf:^tbuf;
@@ -201,14 +216,19 @@ var i,io:integer;
     l:longint;
 label fin;
 Begin
+sclRename:=false;
+xc:=0; yc:=0; nr:=0;
+{$push}{$hints off}{$notes off}
+FillChar(buf, SizeOf(buf), 0);
+{$pop}
 Case focus of left:p:=lp; right:p:=rp; End;
 
 if p.Index<=1 then exit;
 CancelSB;
 colour(pal.bkCurNT,pal.txtCurNT);
 stemp:=p.trddir^[p.Index].name+'.'+TRDOSe3(p,p.Index);
-s:=stemp; GetCurXYOf(focus,xc,yc);
-curon; SetCursor(400); stemp:=zxsnscanf(xc,yc,stemp,p.trddir^[p.Index].typ); curoff;
+GetCurXYOf(focus,xc,yc);
+curon; stemp:=zxsnscanf(xc,yc,stemp,p.trddir^[p.Index].typ); curoff;
 if not scanf_esc then
  begin
   {$I-}
@@ -253,17 +273,17 @@ var p:TPanel; name,stemp:string; i:byte; f:file; a:array[1..13] of byte;
 begin
 sclMakeImage:=false; name:='';
 
-{if not sys then{}
+// if not sys then
 BEGIN
 Case focus of left:p:=lp; right:p:=rp; End;
  CancelSB;
  colour(pal.bkdRama,pal.txtdRama);
- scputwin(pal.bkdRama,pal.txtdRama,27,halfmaxy-4,54,halfmaxy+0);
+ scputwin(pal.bkdRama,pal.txtdRama,halfmaxx-13,halfmaxy-4,halfmaxx+14,halfmaxy+0);
  cmcentre(pal.bkdRama,pal.txtdRama,halfmaxy-4,' New SCL-file ');
- cmprint(pal.bkdLabelST,pal.txtdLabelST,31,halfmaxy-2,'File name:');
- printself(pal.bkdInputNT,pal.txtdInputNT,42,halfmaxy-2,8);
+ cmprint(pal.bkdLabelST,pal.txtdLabelST,halfmaxx-9,halfmaxy-2,'File name:');
+ printself(pal.bkdInputNT,pal.txtdInputNT,halfmaxx+2,halfmaxy-2,8);
  colour(pal.bkdInputNT,pal.txtdInputNT);
- curon; name:=scanf(42,halfmaxy-2,name,8,8,1); curoff;
+ curon; name:=scanf(halfmaxx+2,halfmaxy-2,name,8,8,1); curoff;
  restscr;
  name:=nospace(GetOf(name,_name));
 END;

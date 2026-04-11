@@ -1,6 +1,6 @@
 Unit Vars;
+{$mode objfpc}{$H+}
 Interface
-Uses Dos;
 
 Const
      Rus=1; Eng=2;
@@ -40,14 +40,14 @@ Var
      snKernelExitCode:byte;
      sBar:array[Eng..Eng,noPanel..lastPanel]of string[120];
      dCur:array[1..3] of byte;
-     pr1,pr2,pr3,pr4,pr5,pr6,pr7,pr8,pr9,pr11:string[128];
+     pr1,pr2,pr3,pr4,pr5,pr6,pr7,pr8,pr9,pr11:string;
 
      ASCln:byte;
-     PlusMask,MinusMask:string[12];
+     PlusMask,MinusMask:string;
 
-     WorkDir,StartDir,TempDir,StartNum:string[128];
+     WorkDir,StartDir,TempDir,StartNum:string;
      SavedAttr:word;
-     group1,group2,group3,group4,group5,gExe,gArc:string[128];
+     group1,group2,group3,group4,group5,gexe,garc:string;
 
      TRDOS3en,TRDOS3:boolean;
      AutoMove,trdAutoMove:boolean;
@@ -84,7 +84,7 @@ Var  HobetaInfo:HobRec;
 Implementation
 
 
-Begin
+initialization
 SNDEBUG:=false;
 Clocked:=true;
 CmdLine:=true;

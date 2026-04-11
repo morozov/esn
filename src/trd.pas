@@ -1,16 +1,15 @@
-{$O+,F+}
+{$mode objfpc}{$H+}
 Unit TRD;
 Interface
 Uses
-     Dos,Crt,RV,sn_Obj, Vars, Main, Main_Ovr,
-     PC,PC_Ovr;
+     sn_Obj, Vars;
 Var
      less:byte;
 
 function  trdNameLine(var p:TPanel; a:word):string;
 function  bpos(tr,sc:byte):longint;
 
-function  et(n:longint; lang:byte):string; {дорожка}
+function  et(n:longint):string; {дорожка}
 Procedure trdInfoPanel(w:byte);
 
 function  isTRD(path:string):boolean;
@@ -21,15 +20,14 @@ function  hiTRDOSe3:string;
 function  hiTRDOSe31:string;
 procedure trdMDF(var p:TPanel; path:string);
 procedure trdPDF(var p:TPanel; fr:integer);
-function  eb(n:longint; lang:byte):string;   {блок, файл}
+function  eb(n:longint):string;   {блок, файл}
 function  itHobeta(name:string; var rec:hobrec):boolean;
 
 
 Implementation
 Uses
-     FLP,
-     FDI,FDI_Ovr,SCL,SCL_Ovr,FDD,FDD_Ovr,TAP,TAP_Ovr,TRD_Ovr,ZXZIP,zxView,
-     palette,FLP_OVR,mouse,trdos;
+     FDI,SCL,FDD,TAP,ZXZIP,
+     palette, rv, crc, Main_Ovr, Video;
 
 
 {============================================================================}
@@ -71,9 +69,7 @@ end;
 
 
 {============================================================================}
-function et(n:longint; lang:byte):string; {дорожка}
-var
-   i:longint;
+function et(n:longint):string; {дорожка}
 begin
   if n=1 then et:='' else et:='s';
 end;
@@ -86,8 +82,9 @@ end;
 {============================================================================}
 Procedure trdInfoPanel(w:byte);
 var
-     a,b:byte; s,s0:string; i,m,l:longint; k:char; posx,posy,panellong:byte;
-     trks,pt,treec:byte; zxlabel,trdfile,pcnd:string; free,trddfiles,trdtfiles:word;
+     a:byte; s,s0:string; i:longint;
+     posx,posy,panellong,pw:byte;
+     trks,pt:byte; zxlabel,trdfile:string; free,trddfiles,trdtfiles:word;
      p:TPanel;
 begin
 
@@ -100,8 +97,7 @@ Case w of
     posx:=rp.posx;
     posy:=rp.posy;
     panellong:=rp.panellong;
-    treec:=lp.treec;
-    pcnd:=lp.pcnd;
+     pw:=rp.PanelW;
     Case pt of
      trdPanel: trdfile:=lp.trdfile;
      fdiPanel: trdfile:=lp.fdifile;
@@ -124,8 +120,7 @@ Case w of
     posx:=lp.posx;
     posy:=lp.posy;
     panellong:=lp.panellong;
-    treec:=rp.treec;
-    pcnd:=rp.pcnd;
+     pw:=lp.PanelW;
     Case pt of
      trdPanel: trdfile:=rp.trdfile;
      fdiPanel: trdfile:=rp.fdifile;
@@ -142,8 +137,8 @@ Case w of
    END;
 End;
 
-cmPrint(pal.bkRama,pal.txtRama,posx,posy+PanelLong-2,'║'+space(38)+'║');
-cmPrint(pal.bkRama,pal.txtRama,posx,posy+PanelLong-1,'╚'+fill(38,'═')+'╝');
+cmPrint(pal.bkRama,pal.txtRama,posx,posy+PanelLong-2,#186+space(pw)+#186);
+cmPrint(pal.bkRama,pal.txtRama,posx,posy+PanelLong-1,#200+fill(pw,#205)+#188);
 
 Case pt of
  trdPanel: s0:='Current TRD-file:';
@@ -155,95 +150,52 @@ Case pt of
  flpPanel: s0:='Current drive:';
 End;
 
-i:=19-(length(without(s0,'~`'))div 2); if i<0 then i:=0;
-s:=space(i)+s0; s:=s+space(abs(38-CClen(s))); if CClen(s)>38 then delete(s,39+8,10);
-StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,2,s);{}
+InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,2,s0,pw);
 
 s0:=nospace(trdfile);
-if length(s0)>29 then s0:=copy(s0,1,4)+'...'+copy(s0,length(s0)-22,30);
-s:='~`'+s0+'~`';
-s0:=s;
-i:=19-(length(without(s0,'~`'))div 2); if i<0 then i:=0;
-s:=space(i)+s0; s:=s+space(abs(38-CClen(s))); if CClen(s)>38 then delete(s,39+8,10);
+if length(s0)>pw-9 then s0:=copy(s0,1,4)+'...'+copy(s0,length(s0)-(pw-14),pw-8);
+InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,3,'~`'+s0+'~`',pw);
 
-StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,3,s);{}
+StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,4,space(pw));
 
-StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,4,space(38));
-{
-  Case TIP of
-   1: s:=('5.25"~`,~` 360k');
-   2: s:=('5.25"~`,~` 1.2M');
-   3: s:=('3.5"~`,~` 720k');
-   4: s:=('3.5"~`,~` 1.44M');
-  End;
-s:='Device ~`'+s+'~`';
-{}
 i:=trks;
 if (p.PanelType=trdPanel)or(p.PanelType=fdiPanel)or(p.PanelType=fddPanel) then
  Begin
   s:='(~`'+changechar(extnum(strr(filelen(trdfile))),' ',',')+'~` bytes)';
-  s:='~`'+strr(i)+'~` track'+et(i,lang)+' '+s;
+   s:='~`'+strr(i)+'~` track'+et(i)+' '+s;
  End;
 if (p.PanelType=tapPanel)or(p.PanelType=sclPanel)or(p.PanelType=zxzPanel) then s:='';
-s0:=s;
-i:=19-(length(without(s0,'~`'))div 2); if i<0 then i:=0;
-s:=space(i)+s0; s:=s+space(abs(38-CClen(s))); if CClen(s)>38 then delete(s,39+8,10);
-{StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,5,s);
-{}
-StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,6,space(38));
 
-s:='────────────────';
-s0:=s;
-i:=19-(length(without(s0,'~`'))div 2); if i<0 then i:=0;
-s:=space(i)+s0; s:=s+space(abs(38-CClen(s))); if CClen(s)>38 then delete(s,39+8,10);
-StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,7,s);
+StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,6,space(pw));
 
-StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,8,space(38));
+InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,7,fill(16,#196),pw);
 
-s:='Disk name: ~`'+nospaceLR(zxlabel);
-s0:=s;
-i:=19-(length(without(s0,'~`'))div 2); if i<0 then i:=0;
-s:=space(i)+s0; s:=s+space(abs(38-CClen(s))); if CClen(s)>38 then delete(s,39+8,10);
-StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,9,s);
+StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,8,space(pw));
 
-s:='Total files - ~`'+strr(trdtfiles)+'~`, deleted - ~`'+strr(trddfiles);
-s0:=s;
-i:=19-(length(without(s0,'~`'))div 2); if i<0 then i:=0;
-s:=space(i)+s0; s:=s+space(abs(38-CClen(s))); if CClen(s)>38 then delete(s,39+8,10);
-StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,10,s);
+InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,9,
+  'Disk name: ~`'+nospaceLR(zxlabel),pw);
 
-StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,11,space(38));
+InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,10,
+  'Total files - ~`'+strr(trdtfiles)+'~`, deleted - ~`'+strr(trddfiles),pw);
 
-s:='~`'+strr(free)+'~` block'+eb(free,lang)+' free';
-s0:=s;
-i:=19-(length(without(s0,'~`'))div 2); if i<0 then i:=0;
-s:=space(i)+s0; s:=s+space(abs(38-CClen(s))); if CClen(s)>38 then delete(s,39+8,10);
-StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,12,s);
+StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,11,space(pw));
 
-StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,13,space(38));
+InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,12,
+  '~`'+strr(free)+'~` block'+eb(free)+' free',pw);
 
-s:='────────────────';
-s0:=s;
-i:=19-(length(without(s0,'~`'))div 2); if i<0 then i:=0;
-s:=space(i)+s0; s:=s+space(abs(38-CClen(s))); if CClen(s)>38 then delete(s,39+8,10);
-StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,14,s);
+StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,13,space(pw));
 
-StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,15,space(38));
+InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,14,fill(16,#196),pw);
+
+StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,15,space(pw));
 
 if (p.PanelType<>sclPanel)and(p.PanelType<>tapPanel)and(p.PanelType<>zxzPanel) then
  BEGIN
-s:='The first free track - ~`'+strr(p.zxDisk.nTr1FreeSec)+'~` (~`'+dec2hex(strr(p.zxDisk.nTr1FreeSec))+'h~`)';
+  InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,16,
+    'The first free track - ~`'+strr(p.zxDisk.nTr1FreeSec)+'~` (~`'+dec2hex(strr(p.zxDisk.nTr1FreeSec))+'h~`)',pw);
 
-  s0:=s;
-  i:=19-(length(without(s0,'~`'))div 2); if i<0 then i:=0;
-  s:=space(i)+s0; s:=s+space(abs(38-CClen(s))); if CClen(s)>38 then delete(s,39+8,10);
-  StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,16,s);
-
-s:='The first free sector - ~`'+strr(p.zxDisk.n1FreeSec)+'~` (~`'+dec2hex(strr(p.zxDisk.n1FreeSec))+'h~`)';
-  s0:=s;
-  i:=19-(length(without(s0,'~`'))div 2); if i<0 then i:=0;
-  s:=space(i)+s0; s:=s+space(abs(38-CClen(s))); if CClen(s)>38 then delete(s,39+8,10);
-  StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,17,s);
+  InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,17,
+    'The first free sector - ~`'+strr(p.zxDisk.n1FreeSec)+'~` (~`'+dec2hex(strr(p.zxDisk.n1FreeSec))+'h~`)',pw);
 
   Case p.PanelType of
    trdPanel: a:=p.trdtfiles;
@@ -251,25 +203,17 @@ s:='The first free sector - ~`'+strr(p.zxDisk.n1FreeSec)+'~` (~`'+dec2hex(strr(p
    fddPanel: a:=p.fddtfiles;
    flpPanel: a:=p.flptfiles;
   End;
-{  errormessage(strr(a));{}
   for i:=1 to a+1 do
-   begin
-{    message(p.trddir^[i].name+'.'+p.trddir^[i].typ);{}
     if p.trddir^[i].name+'.'+p.trddir^[i].typ='boot    .B' then break;
-   end;
   if i>a then
-   begin
-    s:='File ~`boot.<B>~` not present';
-    s0:=s;
-    i:=19-(length(without(s0,'~`'))div 2); if i<0 then i:=0;
-    s:=space(i)+s0; s:=s+space(abs(38-CClen(s))); if CClen(s)>38 then delete(s,39+8,10);
-    StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,19,s);
-   end else
-StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,19,space(38));
+    InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,19,
+      'File ~`boot.<B>~` not present',pw)
+  else
+    StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,19,space(pw));
  END else
   Begin
-   StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,16,space(38));
-   StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,19,space(38));
+   StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,16,space(pw));
+   StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,19,space(pw));
   End;
 
 end;
@@ -279,10 +223,9 @@ end;
 function isTRD(path:string):boolean;
 var fb:file of byte;
     b:byte;
-    i:integer;
 label fin,fin2;
 begin
-{message(path);{}
+//message(path);
 isTRD:=false;
 {$I-}
 filemode:=0;
@@ -418,6 +361,7 @@ for i:=1 to p.zxdisk.files do
   p.trddir^[i+1].totalsec:=buf[14];
   p.trddir^[i+1].n1sec:=buf[15];
   p.trddir^[i+1].n1tr:=buf[16];
+  p.trddir^[i+1].offset:=16*(i-1);
   p.trddir^[i+1].mark:=false;
  end;
 END
@@ -428,7 +372,8 @@ While i<=128 do
  begin
   seek(fb,16*(i-1));
   for k:=0 to 15 do read(fb,buf[k+1]);
-  if (buf[1]<>0){and(buf[1]<>1){} then
+  if (buf[1]<>0)//and(buf[1]<>1)
+   then
    Begin
     s:=''; for k:=1 to 8 do s:=s+chr(buf[k]);
     p.trddir^[i+1].name:=s;
@@ -438,6 +383,7 @@ While i<=128 do
     p.trddir^[i+1].totalsec:=buf[14];
     p.trddir^[i+1].n1sec:=buf[15];
     p.trddir^[i+1].n1tr:=buf[16];
+    p.trddir^[i+1].offset:=16*(i-1);
     p.trddir^[i+1].mark:=false;
     Inc(FoundFiles);
    End else Break;
@@ -462,9 +408,9 @@ end;
 
 {============================================================================}
 procedure trdPDF(var p:TPanel; fr:integer);
-var px,py,py0,ph,paper,ink,pp,ii,dx,ddx:byte;
+var px,py,paper,ink,ii,dx,ddx:byte;
     i,n:integer;
-    s,name:string; e:string[3];
+    name:string; e:string[3];
 begin
 
 if p.paneltype<>trdPanel then exit;
@@ -472,22 +418,26 @@ if p.paneltype<>trdPanel then exit;
 n:=p.trdtfiles;
 if n>fr-1+p.panelhi*p.Columns then n:=fr-1+p.panelhi*p.Columns;
 px:=p.posx+1; py:=p.putfrom;
-Case p.Columns of 1: dx:=13; 2: dx:=19; 3: dx:=13; End;
+Case p.Columns of
+  1: dx:=13;
+  2: dx:=p.PanelW div 2;
+  3: dx:=(p.PanelW+1) div 3;
+else dx:=(p.PanelW+1) div 3;
+End;
+ddx:=0;
 for i:=fr to n do
  begin
-  if (px=21)or(px=61) then ddx:=1 else ddx:=0;
   name:=p.trdDir^[i].name;
   if i=1
     then name:='<<'+space(dx+ddx-3)
     else name:=name+space((dx+ddx-5)-length(name))+' '+TRDOSe3(p,i);
 
   paper:=pal.bkNT; ink:=pal.txtNT;
-{  e:='<'+p.trdDir^[i].typ+'>';{}
   e:=TRDOSe3(p,i);
   col(e,p.trdDir^[i].length,paper,ink);
   if (ord(p.trdDir^[i].name[1])=1)or(ord(p.trdDir^[i].name[1])=0) then begin paper:=pal.bkg4; ink:=pal.txtg4; end;
   if i=1 then begin paper:=pal.bkdir; ink:=pal.txtdir; end;
-  pp:=paper; ii:=ink;
+  ii:=ink;
   if p.trddir^[i].mark then begin paper:=pal.bkST; ink:=pal.txtST; end;
   if p.focused and(i=p.from+p.f-1) then begin paper:=pal.bkCurNT; ink:=pal.txtCurNT; end;
   if p.focused and(i=p.from+p.f-1)and(p.trddir^[i].mark) then begin paper:=pal.bkCurST; ink:=pal.txtCurST; end;
@@ -495,11 +445,9 @@ for i:=fr to n do
   if p.trddir^[i].mark then name[(dx+ddx-4)]:=#251;
 
   cmprint(paper,ink,px,py,name);
-  s:=space(25);
   if p.Columns=1 then
-   begin
-    cmprint(paper,ink,px+13,py,s); cmprint(paper,pal.TxtRama,px+12,py,'│');
-   end;
+    PaintRowSeps(p.PosX, p.PanelW, dx, py, paper, ink,
+      pal.TxtRama);
 
 
   if ii=paper then ii:=ink;
@@ -509,27 +457,25 @@ for i:=fr to n do
   if py>p.panelhi+p.putfrom-1 then begin py:=p.putfrom; inc(px,dx); end;
  end;
 
-for i:=n+1 to p.panelhi*p.Columns do
+for i:=n+1 to fr-1+p.panelhi*p.Columns do
  begin
-  if (px=21)or(px=61) then ddx:=1 else ddx:=0;
   name:=space(dx+ddx-1);
   cmprint(pal.bkNT,pal.txtNT,px,py,name);
   if p.Columns=1 then
-   begin
-    cmprint(pal.bkNT,pal.txtNT,px+13,py,space(25)); cmprint(pal.bkRama,pal.TxtRama,px+12,py,'│');
-   end;
+    PaintRowSeps(p.PosX, p.PanelW, dx, py, pal.bkNT,
+      pal.txtNT, pal.TxtRama);
   inc(py);
   if py>p.panelhi+p.putfrom-1 then begin py:=p.putfrom; inc(px,dx); end;
  end;
+
+UpdateScreen(false);
 end;
 
 
 
 
 {============================================================================}
-function eb(n:longint; lang:byte):string;   {блок, файл}
-var
-   i:longint; s:string;
+function eb(n:longint):string;   {блок, файл}
 begin
   if n=1 then eb:='' else eb:='s';
 end;
@@ -577,7 +523,8 @@ end;
 
 
 
-Begin
+initialization
+
 sBar[eng,trdPanel]:='~`Alt+X~` Exit ~` F3~` View ~` F5~` Copy ~` F6~` Rename ~` F7~` Move ~` F8~` Delete ~` F9~` Label ~`';
 TRDOS3:=false;
 
