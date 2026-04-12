@@ -13,9 +13,9 @@ SCL_FILE=""
 
 setup() {
   make_fixture_dir
-  TRD_FILE="${APP_WORKDIR}/TESTMAKE.TRD"
-  TAP_FILE="${APP_WORKDIR}/TESTMAKE.TAP"
-  SCL_FILE="${APP_WORKDIR}/TESTMAKE.SCL"
+  TRD_FILE="${APP_WORKDIR}/testmake.trd"
+  TAP_FILE="${APP_WORKDIR}/testmake.tap"
+  SCL_FILE="${APP_WORKDIR}/testmake.scl"
   app_reset
   send_key
 }

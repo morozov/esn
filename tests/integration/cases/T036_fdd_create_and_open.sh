@@ -15,7 +15,7 @@ FDD_FILE=""
 
 setup() {
   make_fixture_dir
-  FDD_FILE="$APP_WORKDIR/TEST.FDD"
+  FDD_FILE="$APP_WORKDIR/test.fdd"
   app_reset
   send_key
 }
