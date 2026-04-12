@@ -10,7 +10,7 @@
 _TIMING_LOADED=1
 
 # After launching the app; waits for first frame.
-sleep_for_app_start() { sleep 0.5; }
+sleep_for_app_start() { sleep "${ESN_TEST_APP_START_DELAY:-0.5}"; }
 
 # After sending the quit keystroke.
 sleep_for_app_stop() { sleep 0.15; }

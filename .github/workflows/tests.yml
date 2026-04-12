@@ -1,0 +1,44 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit-tests:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Free Pascal
+        run: sudo apt-get update && sudo apt-get install -y fpc
+
+      - name: Build
+        run: make
+
+      - name: Run unit tests
+        run: make unit-test
+
+  integration-tests:
+    name: Integration tests
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Free Pascal
+        run: sudo apt-get update && sudo apt-get install -y fpc
+
+      - name: Install tmux
+        run: sudo apt-get update && sudo apt-get install -y tmux
+
+      - name: Build
+        run: make
+
+      - name: Run integration tests
+        run: make integration-test
+        env:
+          ESN_TEST_APP_START_DELAY: "1.5"
