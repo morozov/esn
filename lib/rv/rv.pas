@@ -313,6 +313,7 @@ initialization
   OnIdle       := nil;
   OnResize     := nil;
   needResize   := false;
+  needQuit     := false;
   curX         := 1;
   curY         := 1;
   winTop       := 0;

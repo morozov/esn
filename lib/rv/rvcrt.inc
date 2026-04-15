@@ -46,13 +46,18 @@ var
   curX: byte;
   curY: byte;
   needResize: boolean;
+  needQuit: boolean;
   rvActive: boolean;
 
 {$IFDEF UNIX}
 procedure SigWinchHandler(sig: longint); cdecl;
 begin
-  { sig parameter is required by signal handler convention. }
   if sig = sig then needResize := true;
+end;
+
+procedure SigTermHandler(sig: longint); cdecl;
+begin
+  if sig = sig then needQuit := true;
 end;
 {$ENDIF}
 
@@ -321,6 +326,8 @@ begin
   MouseOn;
   {$IFDEF UNIX}
   fpSignal(SIGWINCH, @SigWinchHandler);
+  fpSignal(SIGTERM, @SigTermHandler);
+  fpSignal(SIGHUP, @SigTermHandler);
   {$ENDIF}
   GmaxX   := ScreenWidth;
   GmaxY   := ScreenHeight;

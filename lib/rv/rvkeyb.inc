@@ -61,6 +61,15 @@ begin
         lastSec := s;
         if Assigned(OnIdle) then OnIdle;
       end;
+      if needQuit then begin
+        rvActive := false;
+        {$IFDEF UNIX}
+        Write(#27']104'#27'\');
+        {$ENDIF}
+        Write(#27'[?25h');    { show cursor }
+        Write(#27'[?1049l');  { leave alternate screen }
+        Halt(143);
+      end;
       if needResize then
       begin
         needResize := false;
