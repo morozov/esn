@@ -1028,6 +1028,7 @@ Var
     wtf:word; tff,ts1f:byte; l:longint; k,w:word;
     f:file;
     nm:string;
+    rem:longint;
 Begin
 noHobCopy:=false;
 nm:=IncludeTrailingPathDelimiter(string(sp.pcnd))
@@ -1106,8 +1107,17 @@ if sp.pcDir^[i].flength<>l then
 for k:=1 to tff do
  Begin
   getmem(HobetaInfo.body,256*ts1f);
-
-  blockRead(f,HobetaInfo.body^,256*ts1f);
+  {$push}{$hints off}{$notes off}
+  fillchar(HobetaInfo.body^, 256*ts1f, 0);
+  {$pop}
+  rem := longint(sp.pcDir^[i].flength) - (longint(w)*longint(ts1f)*256);
+  if rem > 0 then
+  begin
+    if rem > longint(ts1f)*256 then rem := longint(ts1f)*256;
+    blockRead(f,HobetaInfo.body^,rem);
+  end;
+  if ioresult<>0 then;
+  HobetaInfo.totalsec:=ts1f;
   HobetaInfo.name:=strlo(string(sp.pcDir^[i].fname));
   s:=LZZ(w);
   if dp.PanelType=tapPanel then
@@ -1161,9 +1171,12 @@ for k:=1 to tff do
     HobetaInfo.totalsec:=totalsec-tff*ts1f
                              else HobetaInfo.totalsec:=totalsec;
   getmem(HobetaInfo.body,256*HobetaInfo.totalsec);
-  for k:=1 to 256*HobetaInfo.totalsec do
-    HobetaInfo.body^[k]:=0;
-  blockRead(f,HobetaInfo.body^,65280);
+  {$push}{$hints off}{$notes off}
+  fillchar(HobetaInfo.body^, 256*HobetaInfo.totalsec, 0);
+  {$pop}
+  rem := sp.pcDir^[i].flength - longint(tff)*longint(ts1f)*256;
+  if (rem > 0) and (rem <= 256*HobetaInfo.totalsec) then blockRead(f,HobetaInfo.body^,rem);
+  if ioresult<>0 then;
   HobetaInfo.name:=strlo(string(sp.pcDir^[i].fname));
   s:=LZZ(w);
   if dp.PanelType=tapPanel then
