@@ -831,6 +831,7 @@ if (pos('c',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
    end;
   cmprint(pal.BkRama,pal.TxtRama,posx+1,posy,r);
   cmprint(p,i,x,1,s);
+  CurOff;
 
   Case PanelType of
    trdPanel: cmprint(pal.BkRama,pal.TxtRama,posx+5,posy,'TRD');
