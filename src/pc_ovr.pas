@@ -802,7 +802,11 @@ begin
     end;
     RemoveDir(path);
   end else
-    DeleteFile(path);
+  begin
+    FileSetAttr(path, 0);
+    if not DeleteFile(path) then
+      errormessage('Cannot delete: ' + path);
+  end;
 end;
 
 End.
