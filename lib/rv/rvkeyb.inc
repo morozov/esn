@@ -15,9 +15,6 @@ var
   ch: char;
   lastSec: word;
   h, m, s, ms: word;
-  {$IFDEF ESN_KEY_DEBUG}
-  dbgF: Text;
-  {$ENDIF}
 begin
   DecodeTime(Now, h, m, s, ms);
   lastSec := s;
@@ -26,29 +23,8 @@ begin
   repeat
     ke := PollKeyEvent;
     if ke <> 0 then begin
-      {$IFDEF ESN_KEY_DEBUG}
-      rawKe := GetKeyEvent;
-      Assign(dbgF, '/tmp/esn_keys.log');
-      if FileExists('/tmp/esn_keys.log') then
-        Append(dbgF)
-      else
-        Rewrite(dbgF);
-      WriteLn(dbgF, Format(
-        'PRE  kflags=$%02x kcode=$%04x char=$%02x',
-        [GetKeyEventFlags(rawKe),
-         GetKeyEventCode(rawKe),
-         Ord(GetKeyEventChar(rawKe))]));
-      ke := TranslateKeyEvent(rawKe);
-      WriteLn(dbgF, Format(
-        'POST kflags=$%02x kcode=$%04x char=$%02x'
-        + ' keep=%d',
-        [GetKeyEventFlags(ke), GetKeyEventCode(ke),
-         Ord(GetKeyEventChar(ke)), Ord(ke <> 0)]));
-      Close(dbgF);
-      {$ELSE}
       rawKe := GetKeyEvent;
       ke := TranslateKeyEvent(rawKe);
-      {$ENDIF}
       if ke <> 0 then break;
     end else begin
       Sleep(50);
@@ -114,16 +90,6 @@ begin
   rawFlags := GetKeyEventFlags(rawKe);
   rawCode  := GetKeyEventCode(rawKe);
 
-  {$IFDEF ESN_KEY_DEBUG}
-  Assign(dbgF, '/tmp/esn_keys.log');
-  if FileExists('/tmp/esn_keys.log') then
-    Append(dbgF)
-  else
-    Rewrite(dbgF);
-  WriteLn(dbgF, Format('kflags=$%02x kcode=$%04x char=$%02x',
-    [kflags, kcode, Ord(GetKeyEventChar(ke))]));
-  Close(dbgF);
-  {$ENDIF}
 
   { TranslateKeyEvent converts Shift/Ctrl/Alt+Fn into plain Fn
     events (kflags changes from 3 to kbFnKey, kcode becomes
