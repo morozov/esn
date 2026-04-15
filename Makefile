@@ -35,6 +35,6 @@ integration-test: $(BINARY)
 	bash tests/integration/run_tests.sh
 
 clean:
-	rm -f $(BINDIR)/esn $(BINDIR)/*.o $(BINDIR)/*.ppu $(BINDIR)/*.res \
+	rm -f $(BINDIR)/esn $(BINDIR)/esn.exe $(BINDIR)/*.o $(BINDIR)/*.ppu $(BINDIR)/*.res \
 	     $(BINDIR)/ppaslink.sh
 	$(MAKE) -C tests/unit clean

@@ -45,7 +45,7 @@ end;
 {============================================================================}
 Procedure pcInfoPanel(w:byte);
 Var
-     s,s0:string; i:longint; m,l:int64;
+     s,s0:string; i,m:longint; l:int64;
      posx,posy,panellong,pw:byte;
      treec:byte; pcnd:string; pctdirs,pctfiles:word;
      p:TPanel;
