@@ -427,7 +427,7 @@ if nospace(name)<>'' then
     ProcessBar(0,round(100*i/(w2)),22,'');
     cmprint(7,0,halfmaxx+9,halfmaxy-0,strr(round(100*i/(w2))-1)+'%');
    End;
-  close(ff);
+  if ioresult<>0 then; close(ff);
 
   for w1:=0 to 255 do fddSectorBuf[w1]:=0;
 

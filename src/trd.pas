@@ -235,7 +235,7 @@ seek(fb,$8e4); read(fb,b); if not (b in [0..142]) then goto fin;{}
 seek(fb,$8e7); read(fb,b); if not (b in [$10]) then goto fin;
 isTRD:=true;
 fin:
-close(fb);
+if ioresult<>0 then; close(fb);
 {$I+}
 fin2:
 if ioresult<>0 then;
@@ -396,7 +396,7 @@ END;
 
 p.trdtfiles:=p.zxdisk.files; inc(p.trdtfiles);
 
-close(fb);
+if ioresult<>0 then; close(fb);
 {$I+}
 if ioresult<>0 then;
 
@@ -497,7 +497,7 @@ begin
 ithobeta:=false;
 if checkdirfile(name)<>0 then exit;
 filemode := fmReadShared;
-assign(fb,name); reset(fb); seek(fb,0); for i:=0 to 16 do read(fb,hob[i]); close(fb);
+assign(fb,name); reset(fb); seek(fb,0); for i:=0 to 16 do read(fb,hob[i]); if ioresult<>0 then; close(fb);
 if ioresult<>0 then;
 {$I+}
 

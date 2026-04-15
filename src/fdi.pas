@@ -83,7 +83,7 @@ if p.fdiRec.heads<>2 then goto fin;
 seek(fb,p.fdiRec.offData+$8e7); read(fb,b); if not (b in [$10]) then goto fin;
 isFDI:=true;
 fin:
-close(fb);
+if ioresult<>0 then; close(fb);
 {$I+}
 fin2:
 if ioresult<>0 then;
@@ -188,7 +188,7 @@ END;
 
 p.fditfiles:=p.zxdisk.files; inc(p.fditfiles);
 
-close(fb);
+if ioresult<>0 then; close(fb);
 {$I+}
 if ioresult<>0 then;
 

@@ -414,7 +414,7 @@ if nospace(name)<>'' then
     cmprint(7,0,halfmaxx+9,halfmaxy-0,strr(round(100*i/vall(tr))-1)+'%');
    end;
 
-  close(ff);
+  if ioresult<>0 then; close(ff);
 
   assign(fb,p.pcnd+getof(name,_name)+'.fdi'); filemode := fmReadWriteShared; reset(fb);{}
   seek(fb,8);
@@ -433,7 +433,7 @@ if nospace(name)<>'' then
   name:=name+space(8-length(name));
   seek(fb,p.fdiRec.offData+$8f5);
   for i:=0 to 7 do begin b:=byte(name[i+1]); write(fb,b); end;
-  close(fb);
+  if ioresult<>0 then; close(fb);
 
   {$I+}
   i:=ioresult;

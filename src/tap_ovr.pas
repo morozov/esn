@@ -334,7 +334,7 @@ if nospace(name)<>'' then
   stemp:='File '+name+'.tap'+' alredy exist.'+#255+' Overwrite?';
   if checkdirfile(p.pcnd+name+'.tap')=0 then if not cquestion(stemp,lang) then begin restscr; exit; end;
   case focus of left:lp.pcnn:=name+'.tap'; right:rp.pcnn:=name+'.tap'; end;
-assign(f,p.pcnd+name+'.tap'); filemode:=1; rewrite(f); close(f);
+assign(f,p.pcnd+name+'.tap'); filemode:=1; rewrite(f); if ioresult<>0 then; close(f);
  {$I+}
  end;
 i:=ioresult;

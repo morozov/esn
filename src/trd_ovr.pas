@@ -630,7 +630,7 @@ if nospace(name)<>'' then
     blockwrite(ff,buf,sizeof(buf));
     cmprint(7,0,halfmaxx+9,halfmaxy-0,strr(round(100*i/vall(tr))-1)+'%');
    end;
-  close(ff);
+  if ioresult<>0 then; close(ff);
 
   if vall(tr)=0 then tr:='80';
   i:=(vall(tr)*2-1)*16;
@@ -646,7 +646,7 @@ if nospace(name)<>'' then
   name:=name+space(8-length(name));
   seek(fb,$8f5);
   for i:=0 to 7 do begin b:=byte(name[i+1]); write(fb,b); end;
-  close(fb);
+  if ioresult<>0 then; close(fb);
   {$I+}
   i:=ioresult;
   if i<>0 then errormessage('Error '+strr(i)+' while create TRD-file');
@@ -687,7 +687,7 @@ if istrd(p.pcnd+p.pcnn) then
     seek(fb,$8e4); read(fb,b); p.zxdisk.files:=b;
     seek(fb,$8e5); read(fb,b1);
     seek(fb,$8e6); read(fb,b); p.zxdisk.free:=b1+256*b;
-    close(fb);
+    if ioresult<>0 then; close(fb);
 
     rest:=p.zxdisk.free;
 
@@ -715,7 +715,7 @@ if istrd(p.pcnd+p.pcnn) then
     seek(ff,bpos(0,9)); blockwrite(ff,buf^,7*256);
 
     freemem(buf,nw);
-    close(ff);
+    if ioresult<>0 then; close(ff);
 {$I+}
     if ioresult<>0 then;
 
@@ -753,7 +753,7 @@ seek(ff,$8e2); read(ff,p.zxdisk.ntr1freesec);
 
     seek(ff,bpos(p.zxdisk.nTr1freeSec,p.zxdisk.n1freeSec));
     truncate(ff);
-    close(ff);
+    if ioresult<>0 then; close(ff);
 {$I+}
     if ioresult<>0 then;
     reMDF;
@@ -797,7 +797,7 @@ case p.paneltype of
       blockwrite(ff,buf^,nr,nw);
       if hobetainfo.typ='B' then seek(ff,hobetainfo.length+4) else seek(ff,hobetainfo.length);
       truncate(ff);
-      close(ff);
+      if ioresult<>0 then; close(ff);
       if TRDOS3
         then t:=getof(ss,_name)+'.'+hobetainfo.typ+chr(lo(hobetainfo.start))+chr(hi(hobetainfo.start))
         else
@@ -831,7 +831,7 @@ case p.paneltype of
         getmem(buf,256*hbuf[15]); for nr:=1 to 256*hbuf[15] do buf^[nr]:=0;
         assign(ff,ss); filemode := fmReadWriteShared; reset(ff,1);
         blockread(ff,buf^,p.pcdir^[p.pcfrom+p.pcf-1].flength,nr);
-        close(ff); erase(ff);
+        if ioresult<>0 then; close(ff); erase(ff);
 
         t:=strlo(p.pcdir^[p.pcfrom+p.pcf-1].fname); t:=t+space(8-length(t));
         for b:=1 to 8 do hbuf[b]:=ord(t[b]);
@@ -887,7 +887,7 @@ case p.paneltype of
          blockwrite(ff,hbuf,17,nw);{}
          blockwrite(ff,buf^,256*hbuf[15],nw);
 //       seek(ff,256*hbuf[15]-1+17); h:=0; blockwrite(ff,h,1,nw);
-         close(ff);
+         if ioresult<>0 then; close(ff);
          freemem(buf,256*hbuf[15]);
 {$I+}
          if ioresult<>0 then;
@@ -1208,7 +1208,7 @@ for k:=1 to tff do
     HobetaInfo.length:=sp.pcDir^[i].flength-tff*(256*ts1f)
                              else HobetaInfo.length:=l;
 
-close(f);
+if ioresult<>0 then; close(f);
 
   Case dp.PanelType of
    trdPanel: trdSave(dp);
@@ -2064,7 +2064,7 @@ begin
   Rewrite(ff, 1);
   for i := 1 to tracks do
     BlockWrite(ff, blank[1], SizeOf(blank));
-  Close(ff);
+  if IOResult <> 0 then; Close(ff);
 
   freeSec := (word(tracks) * 2 - 1) * 16;
   Assign(fb, path);
@@ -2082,7 +2082,7 @@ begin
   b := Ord(' ');
   Seek(fb, $8f5);
   for i := 0 to 7 do Write(fb, b);
-  Close(fb);
+  if IOResult <> 0 then; Close(fb);
 {$I+}
   if IOResult = 0 then trdMakeImageFile := true;
 end;

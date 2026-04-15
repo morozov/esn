@@ -58,7 +58,7 @@ Begin
 isFDD:=false;
 if checkdirfile(path)<>0 then exit;
 {$I-}
-assign(ff,path); filemode := fmReadShared; reset(ff,1); blockread(ff,fddSectorBuf,256); close(ff);
+assign(ff,path); filemode := fmReadShared; reset(ff,1); blockread(ff,fddSectorBuf,256); if ioresult<>0 then; close(ff);
 {$I+}
 if IOResult<>0 then exit;
 s:=''; for i:=1 to 30 do s:=s+chr(fddSectorBuf[i-1]);
@@ -115,7 +115,7 @@ seek(ff,indx); blockread(ff,buf,2);
 seek(ff,filepos(ff)+(s-1)*8); blockread(ff,Buf,8);
 w1:=Buf[5]+256*Buf[6]; w2:=Buf[7]+256*Buf[8]; indx:=w1+65536*w2;
 seek(ff,indx); blockWrite(ff,fddSectorBuf,256);
-close(ff);
+if ioresult<>0 then; close(ff);
 {$I+}
 if IOResult<>0 then;
 End;

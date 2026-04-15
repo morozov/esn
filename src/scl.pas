@@ -46,7 +46,7 @@ isSCL:=false;
 filemode := fmReadShared; assign(ff,path); reset(ff,1);
 if ioresult<>0 then Exit;
 BlockRead(ff,buf,8,nr);
-Close(ff);
+if ioresult<>0 then; Close(ff);
 {$I+}
 if ioresult<>0 then Exit;
 if nr<>8 then Exit;

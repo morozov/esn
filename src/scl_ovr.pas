@@ -314,7 +314,7 @@ if nospace(name)<>'' then
     end;
   {}
 
-  assign(f,p.pcnd+name+'.scl'); filemode:=1; rewrite(f,1); blockwrite(f,a,13); close(f);
+  assign(f,p.pcnd+name+'.scl'); filemode:=1; rewrite(f,1); blockwrite(f,a,13); if ioresult<>0 then; close(f);
  {$I+}
   i:=ioresult;
   if i<>0 then

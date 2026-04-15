@@ -88,7 +88,7 @@ if LowerCase(ExtractFileExt(path))<>'.tap' then exit;
 filemode := fmReadShared;
 assign(fb,path); reset(fb);  if ioresult<>0 then exit;
 assign(f,path); reset(f,1);
-if ioresult<>0 then begin close(fb); if ioresult<>0 then; exit; end;
+if ioresult<>0 then begin if ioresult<>0 then; close(fb); if ioresult<>0 then; exit; end;
 if filesize(fb)=0 then begin isTAP:=true; goto fin; end;
 seek(fb,0); read(fb,b); read(fb,b1); w:=b+256*b1;
 seek(fb,2); read(fb,csf);
@@ -102,7 +102,7 @@ seek(fb,w+1); read(fb,cs);
 if cs=csf then isTAP:=true;
 
 fin:
-close(fb); close(f);
+if ioresult<>0 then; close(fb); if ioresult<>0 then; close(f);
 {$I+}
 if ioresult<>0 then;
 end;
@@ -189,7 +189,7 @@ for m:=1 to 256 do
 
   freemem(buf,w-2);
  end;
-close(fb); close(f);
+if ioresult<>0 then; close(fb); if ioresult<>0 then; close(f);
 {$I+}
 if ioresult<>0 then;
 
