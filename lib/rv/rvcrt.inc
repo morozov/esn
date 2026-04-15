@@ -270,11 +270,26 @@ begin
 end;
 
 procedure GotoXY(x, y: byte);
+{$IFDEF WINDOWS}
+var
+  hOut: THandle;
+  coord: TCoord;
+begin
+  curX := x;
+  curY := y;
+  SetCursorPos(x - 1, y - 1);
+  hOut := GetStdHandle(STD_OUTPUT_HANDLE);
+  coord.X := x - 1;
+  coord.Y := y - 1;
+  SetConsoleCursorPosition(hOut, coord);
+end;
+{$ELSE}
 begin
   curX := x;
   curY := y;
   SetCursorPos(x - 1, y - 1);
 end;
+{$ENDIF}
 
 function WhereX: byte;
 begin
@@ -287,14 +302,44 @@ begin
 end;
 
 procedure CurOn;
+{$IFDEF WINDOWS}
+var
+  hOut: THandle;
+  cci: TConsoleCursorInfo;
+begin
+  hOut := GetStdHandle(STD_OUTPUT_HANDLE);
+  if GetConsoleCursorInfo(hOut, cci) then
+  begin
+    cci.bVisible := True;
+    SetConsoleCursorInfo(hOut, cci);
+  end;
+  SetCursorType(crUnderLine);
+end;
+{$ELSE}
 begin
   SetCursorType(crUnderLine);
 end;
+{$ENDIF}
 
 procedure CurOff;
+{$IFDEF WINDOWS}
+var
+  hOut: THandle;
+  cci: TConsoleCursorInfo;
+begin
+  hOut := GetStdHandle(STD_OUTPUT_HANDLE);
+  if GetConsoleCursorInfo(hOut, cci) then
+  begin
+    cci.bVisible := False;
+    SetConsoleCursorInfo(hOut, cci);
+  end;
+  SetCursorType(crHidden);
+end;
+{$ELSE}
 begin
   SetCursorType(crHidden);
 end;
+{$ENDIF}
 
 procedure Flash(offOn: byte);
 begin
