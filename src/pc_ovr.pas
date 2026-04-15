@@ -609,7 +609,7 @@ var
         if (sr.Attr and (faDirectory or faVolumeId)) = 0 then begin
         {$pop}
           if userOut then begin
-            FindClose(sr);
+            SysUtils.FindClose(sr);
             exit;
           end;
           s := IncludeTrailingPathDelimiter(scanPath)
@@ -621,12 +621,12 @@ var
             IncludeTrailingPathDelimiter(tPath)
               + s);
           if userOut then begin
-            FindClose(sr);
+            SysUtils.FindClose(sr);
             exit;
           end;
         end;
       until FindNext(sr) <> 0;
-      FindClose(sr);
+      SysUtils.FindClose(sr);
     end;
   end;
 
@@ -643,21 +643,21 @@ var
            and (sr.Name <> '.') and (sr.Name <> '..')
         then begin
           if userOut then begin
-            FindClose(sr);
+            SysUtils.FindClose(sr);
             exit;
           end;
           CopyDirScan(
             IncludeTrailingPathDelimiter(scanPath)
               + sr.Name);
           if userOut then begin
-            FindClose(sr);
+            SysUtils.FindClose(sr);
             exit;
           end;
           CopyFileScan(
             IncludeTrailingPathDelimiter(scanPath)
               + sr.Name);
           if userOut then begin
-            FindClose(sr);
+            SysUtils.FindClose(sr);
             exit;
           end;
           if cmflag = _F6 then begin
@@ -669,7 +669,7 @@ var
           end;
         end;
       until FindNext(sr) <> 0;
-      FindClose(sr);
+      SysUtils.FindClose(sr);
     end;
     s := scanPath;
     Delete(s, 1, Length(string(sp^.pcnd)));

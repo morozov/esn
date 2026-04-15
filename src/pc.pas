@@ -202,7 +202,7 @@ Var
         {$pop}
           Inc(size, sr.Size);
       until FindNext(sr) <> 0;
-      FindClose(sr);
+      SysUtils.FindClose(sr);
   end;
 end;
 
@@ -231,7 +231,7 @@ end;
                    + sr.Name);
     end;
       until FindNext(sr) <> 0;
-      FindClose(sr);
+      SysUtils.FindClose(sr);
   end;
 end;
 

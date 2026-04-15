@@ -36,7 +36,7 @@ var
 begin
   if FindFirst(path, faAnyFile, sr) = 0 then begin
     FileLen := sr.Size;
-    FindClose(sr);
+    SysUtils.FindClose(sr);
   end else
     FileLen := -1;
 end;
