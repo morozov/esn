@@ -1853,6 +1853,7 @@ Case PanelType of
    BEGIN
       for i:=1 to 257 do Begin trdIns^[i].crc16:=0; trdDir^[i].name[1]:=#0; end;
       if PanelType=tapPanel then CheckTapInsed;
+      trdfile:=''; fdifile:=''; sclfile:=''; tapfile:=''; fddfile:=''; zxzfile:='';
       PanelType:=pcPanel;
       reMDF;
       TrueCur;
