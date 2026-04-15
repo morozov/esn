@@ -418,7 +418,8 @@ else
 StatusLineColor(pal.bkdLabelST,pal.txtdLabelST,pal.bkdLabelNT,pal.txtdLabelNT,halfmaxx-24,halfmaxy-3,s);
 UpdateScreen(false);
 
-Colour(pal.bkdInputNT,pal.txtdInputNT); curon;
+Colour(pal.bkdInputNT,pal.txtdInputNT);
+CMPrint(pal.bkdInputNT,pal.txtdInputNT,halfmaxx-25,halfmaxy-2,Space(52)); curon;
  s:=Trim(pscanf(halfmaxx-25,halfmaxy-2,'',52,52,1)); curoff; restscr;
  if not scanf_esc then
   begin
