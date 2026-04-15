@@ -77,11 +77,15 @@ Var
 
 
 Procedure Col(ex:string; size:longint; var paper,ink:byte);
-//Procedure GetPalFile;
+procedure ApplyVGAPalette;
 
 Implementation
 
-uses SysUtils,rv,Vars;
+uses SysUtils, rv, Vars
+     {$IFDEF WINDOWS}
+     , Windows
+     {$ENDIF}
+     ;
 
 procedure Col(ex:string; size:longint; var paper,ink:byte);
 begin
@@ -111,11 +115,77 @@ ex:=';'+ex+';';
     if (LowerCase(ex)=';$c;')and(size=18449) then begin paper:=pal.bkg5; ink:=pal.txtg5; end;
 end;
 
+procedure ApplyVGAPalette;
+type
+  TRGB = array[0..2] of byte;
+const
+  { Canonical VGA text-mode palette, indexed by color name. }
+  Black       : TRGB = (  0,   0,   0);
+  Blue        : TRGB = (  0,   0, 170);
+  Green       : TRGB = (  0, 170,   0);
+  Cyan        : TRGB = (  0, 170, 170);
+  Red         : TRGB = (170,   0,   0);
+  Magenta     : TRGB = (170,   0, 170);
+  Brown       : TRGB = (170,  85,   0);
+  LightGray   : TRGB = (170, 170, 170);
+  DarkGray    : TRGB = ( 85,  85,  85);
+  LightBlue   : TRGB = ( 85,  85, 255);
+  LightGreen  : TRGB = ( 85, 255,  85);
+  LightCyan   : TRGB = ( 85, 255, 255);
+  LightRed    : TRGB = (255,  85,  85);
+  LightMagenta: TRGB = (255,  85, 255);
+  Yellow      : TRGB = (255, 255,  85);
+  White       : TRGB = (255, 255, 255);
 
+  { Windows console and ANSI terminals number the 16 colors differently.
+    Each table maps slot 0..15 to an RGB value in the platform's order. }
+  {$IFDEF WINDOWS}
+  { Windows uses DOS/BIOS order: 0=Black 1=Blue 2=Green 3=Cyan ... }
+  Slot: array[0..15] of ^TRGB = (
+    @Black,    @Blue,         @Green,      @Cyan,
+    @Red,      @Magenta,      @Brown,      @LightGray,
+    @DarkGray, @LightBlue,    @LightGreen, @LightCyan,
+    @LightRed, @LightMagenta, @Yellow,     @White
+  );
+  {$ENDIF}
+  {$IFDEF UNIX}
+  { ANSI order: 0=Black 1=Red 2=Green 3=Brown 4=Blue 5=Magenta 6=Cyan ... }
+  Slot: array[0..15] of ^TRGB = (
+    @Black,     @Red,          @Green,      @Brown,
+    @Blue,      @Magenta,      @Cyan,       @LightGray,
+    @DarkGray,  @LightRed,     @LightGreen, @Yellow,
+    @LightBlue, @LightMagenta, @LightCyan,  @White
+  );
+  {$ENDIF}
+var
+  i: byte;
+  {$IFDEF WINDOWS}
+  hConsole: THandle;
+  csbiex: CONSOLE_SCREEN_BUFFER_INFOEX;
+  {$ENDIF}
+begin
+  {$IFDEF WINDOWS}
+  hConsole := GetStdHandle(STD_OUTPUT_HANDLE);
+  csbiex.cbSize := SizeOf(CONSOLE_SCREEN_BUFFER_INFOEX);
+  if GetConsoleScreenBufferInfoEx(hConsole, @csbiex) then
+  begin
+    for i := 0 to 15 do
+      csbiex.ColorTable[i] := RGB(Slot[i]^[0], Slot[i]^[1], Slot[i]^[2]);
+    SetConsoleScreenBufferInfoEx(hConsole, @csbiex);
+  end;
+  {$ENDIF}
+  {$IFDEF UNIX}
+  for i := 0 to 15 do
+    Write(#27']4;', i, ';rgb:',
+      HexStr(Slot[i]^[0], 2), '/',
+      HexStr(Slot[i]^[1], 2), '/',
+      HexStr(Slot[i]^[2], 2), #27'\');
+  {$ENDIF}
+end;
 
-
-//procedure GetPalFile;
 Begin
+
+ApplyVGAPalette;
 
 pal.bknameline:=1;     pal.txtnameline:=yellow;
 

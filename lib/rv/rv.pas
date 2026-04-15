@@ -340,6 +340,10 @@ finalization
     MouseOff;
     DoneKeyboard;
     DoneVideo;
+    { Restore terminal palette to defaults before leaving. }
+    {$IFDEF UNIX}
+    Write(#27']104'#27'\');
+    {$ENDIF}
     { Leave alternate screen buffer: restores the original screen
       contents and cursor position from before the program
       launched. }
