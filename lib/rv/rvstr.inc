@@ -300,3 +300,23 @@ begin
     s := s + ' ';
   RightPad := s;
 end;
+
+function ConsoleText(const s: string): string;
+{$IFDEF WINDOWS}
+var
+  src, dst: AnsiString;
+{$ENDIF}
+begin
+  {$IFDEF WINDOWS}
+  src := AnsiString(s);
+  if Length(src) = 0 then begin
+    ConsoleText := s;
+    exit;
+  end;
+  SetLength(dst, Length(src));
+  CharToOemBuffA(PAnsiChar(src), PAnsiChar(dst), Length(src));
+  ConsoleText := string(dst);
+  {$ELSE}
+  ConsoleText := s;
+  {$ENDIF}
+end;

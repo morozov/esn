@@ -49,6 +49,28 @@ var
   needQuit: boolean;
   rvActive: boolean;
 
+procedure UpdateScreenSize;
+{$IFDEF WINDOWS}
+var
+  hOut: THandle;
+  csbi: TConsoleScreenBufferInfo;
+{$ENDIF}
+begin
+  GmaxX := ScreenWidth;
+  GmaxY := ScreenHeight;
+  {$IFDEF WINDOWS}
+  hOut := GetStdHandle(STD_OUTPUT_HANDLE);
+  if (hOut <> INVALID_HANDLE_VALUE) and
+     GetConsoleScreenBufferInfo(hOut, csbi) then
+  begin
+    GmaxX := csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    GmaxY := csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+  end;
+  {$ENDIF}
+  HalfMaxX := GmaxX div 2;
+  HalfMaxY := GmaxY div 2;
+end;
+
 {$IFDEF UNIX}
 procedure SigWinchHandler(sig: longint); cdecl;
 begin
@@ -329,10 +351,7 @@ begin
   fpSignal(SIGTERM, @SigTermHandler);
   fpSignal(SIGHUP, @SigTermHandler);
   {$ENDIF}
-  GmaxX   := ScreenWidth;
-  GmaxY   := ScreenHeight;
-  HalfMaxX := GmaxX div 2;
-  HalfMaxY := GmaxY div 2;
+  UpdateScreenSize;
   CurOff;
   rvActive := true;
 end;

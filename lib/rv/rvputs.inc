@@ -37,6 +37,7 @@ var
   w: TSavedWin;
   src: PWord;
   row, col: integer;
+  ofs: word;
 begin
   if winTop = 0 then
     exit;
@@ -44,7 +45,9 @@ begin
   src := PWord(w.buf);
   for row := w.y1 - 1 to w.y2 - 1 do
     for col := w.x1 - 1 to w.x2 - 1 do begin
-      VideoBuf^[row * ScreenWidth + col] := src^;
+      ofs := word(row) * ScreenWidth + word(col);
+      if ofs < ScreenWidth * ScreenHeight then
+        VideoBuf^[ofs] := src^;
       Inc(src);
     end;
   FreeMem(winStack[winTop].buf, winStack[winTop].bufSize);

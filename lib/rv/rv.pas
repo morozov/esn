@@ -248,6 +248,7 @@ function LeftStr(const s: string; n: byte): string;
 function RightStr(const s: string; n: byte): string;
 function LeftPad(s: string; n: byte): string;
 function RightPad(s: string; n: byte): string;
+function ConsoleText(const s: string): string;
 function NoSpace(s: string): string;
 function NoSpaceLR(s: string): string;
 function Vall(tempein: string): longint;
@@ -297,6 +298,9 @@ implementation
 
 uses
   Classes
+  {$IFDEF WINDOWS}
+  , Windows
+  {$ENDIF}
   {$IFDEF UNIX}
   , BaseUnix
   {$ENDIF}

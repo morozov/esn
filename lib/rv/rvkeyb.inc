@@ -102,10 +102,7 @@ begin
           SIGWINCH delivering bytes).  If consumed as a key
           event they would move the cursor spuriously. }
         while PollKeyEvent <> 0 do GetKeyEvent;
-        GmaxX := ScreenWidth;
-        GmaxY := ScreenHeight;
-        HalfMaxX := GmaxX div 2;
-        HalfMaxY := GmaxY div 2;
+        UpdateScreenSize;
         if Assigned(OnResize) then OnResize;
         UpdateScreen(false);
       end;
