@@ -33,7 +33,10 @@ type
 
     procedure TestLoad_Entry;
 
+    procedure TestSave_Entry;
+
     procedure TestDel_FileCount;
+    procedure TestDel_RemainingIntact;
   end;
 
 implementation
@@ -237,6 +240,58 @@ begin
   FreeMem(HobetaInfo.body, 256 * longint(HobetaInfo.totalsec));
 end;
 
+{ ===== sclSave ===== }
+
+procedure TSclTest.TestSave_Entry;
+{ Save a new file into sample.scl, reload, verify 4 files exist
+  and the original entries are intact. }
+var
+  tmp: string;
+  body: pointer;
+begin
+  tmp := GetTempFileName('', 'scl');
+  try
+    AssertTrue('copy ok', CopyBinaryFile(FixDir + 'sample.scl', tmp));
+
+    FPanel.sclFile := tmp;
+    sclMDF(FPanel, tmp);
+    AssertEquals('3 files before save', 3, FPanel.zxDisk.files);
+
+    { Prepare HobetaInfo for the new file }
+    HobetaInfo.name := 'test    ';
+    HobetaInfo.typ  := 'C';
+    HobetaInfo.start := 0;
+    HobetaInfo.length := 256;
+    HobetaInfo.totalsec := 1;
+    GetMem(body, 256);
+    {$push}{$notes off}
+    FillChar(body^, 256, $AA);
+    {$pop}
+    HobetaInfo.body := body;
+
+    AssertTrue('sclSave ok', sclSave(FPanel));
+
+    { Reload and verify }
+    {$push}{$notes off}
+    FillChar(FPanel.trdDir^, 257 * SizeOf(zxDirRec), 0);
+    FillChar(FPanel.trdIns^, 257 * SizeOf(zxInsedRec), 0);
+    {$pop}
+    FPanel.scltfiles := 0;
+    sclMDF(FPanel, tmp);
+    AssertEquals('4 files after save', 4, FPanel.zxDisk.files);
+
+    { Original entry 2 should still be intact }
+    AssertEquals('entry2 name intact', 'hello   ', TrdDir(2).name);
+    AssertEquals('entry2 type intact', 'B', TrdDir(2).typ);
+
+    { New entry should be at position 5 (index 1 is <<) }
+    AssertEquals('new entry name', 'test    ', TrdDir(5).name);
+    AssertEquals('new entry type', 'C', TrdDir(5).typ);
+  finally
+    DeleteFile(tmp);
+  end;
+end;
+
 { ===== sclDel ===== }
 
 procedure TSclTest.TestDel_FileCount;
@@ -261,6 +316,42 @@ begin
     FPanel.scltfiles := 0;
     sclMDF(FPanel, tmp);
     AssertEquals('2 files remain', 2, FPanel.zxDisk.files);
+  finally
+    DeleteFile(tmp);
+  end;
+end;
+
+procedure TSclTest.TestDel_RemainingIntact;
+{ Delete entry 2 ("hello"), verify remaining entries are intact. }
+var
+  tmp: string;
+begin
+  tmp := GetTempFileName('', 'scl');
+  try
+    AssertTrue('copy ok', CopyBinaryFile(FixDir + 'sample.scl', tmp));
+
+    FPanel.sclFile := tmp;
+    sclMDF(FPanel, tmp);
+    SetMark(2, true);
+    AssertTrue('sclDel ok', sclDel(FPanel));
+
+    { Reload and verify remaining entries }
+    {$push}{$notes off}
+    FillChar(FPanel.trdDir^, 257 * SizeOf(zxDirRec), 0);
+    FillChar(FPanel.trdIns^, 257 * SizeOf(zxInsedRec), 0);
+    {$pop}
+    FPanel.scltfiles := 0;
+    sclMDF(FPanel, tmp);
+
+    { Entry 2 should now be "data" (was entry 3 before delete) }
+    AssertEquals('entry2 name', 'data    ', TrdDir(2).name);
+    AssertEquals('entry2 type', 'C', TrdDir(2).typ);
+    AssertEquals('entry2 length', 256, integer(TrdDir(2).length));
+
+    { Entry 3 should be "code" (was entry 4 before delete) }
+    AssertEquals('entry3 name', 'code    ', TrdDir(3).name);
+    AssertEquals('entry3 type', 'D', TrdDir(3).typ);
+    AssertEquals('entry3 length', 512, integer(TrdDir(3).length));
   finally
     DeleteFile(tmp);
   end;

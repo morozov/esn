@@ -62,6 +62,7 @@ type
     tbuf=array[1..2] of byte;
 Var f:file; i,b:byte; buf:array[1..14]of byte; l,fpos:longint;
     w,bufsize,nr:word; csbuf:^tbuf;
+    shiftbuf: pointer; shiftsize: word;
 Begin
 sclSave:=false;
 nr:=0;
@@ -74,11 +75,14 @@ p.trdDir^[p.scltfiles].totalsec:=HobetaInfo.totalsec;
 
 for i:=p.scltfiles downto 2 do
  Begin
+  shiftsize:=256*p.trdDir^[i].totalsec;
+  getmem(shiftbuf,shiftsize);
   fpos:=0;
   for b:=2 to i-1 do inc(fpos,p.trdDir^[b].totalsec); fpos:=256*fpos;
   inc(fpos,9+14*(p.scltfiles-2));
-  seek(f,fpos);    blockread (f,HobetaInfo.body^,256*p.trdDir^[i].totalsec);
-  seek(f,fpos+14); blockwrite(f,HobetaInfo.body^,256*p.trdDir^[i].totalsec);
+  seek(f,fpos);    blockread (f,shiftbuf^,shiftsize);
+  seek(f,fpos+14); blockwrite(f,shiftbuf^,shiftsize);
+  freemem(shiftbuf,shiftsize);
  End;
 
 for i:=1 to 8 do buf[i]:=ord(HobetaInfo.name[i]);
@@ -110,7 +114,7 @@ b:=hi(longlo(l)); blockwrite(f,b,1);
 b:=lo(longhi(l)); blockwrite(f,b,1);
 b:=hi(longhi(l)); blockwrite(f,b,1);
 
-close(f);
+if ioresult<>0 then; close(f);
 {$I+}
 if ioresult=0 then sclSave:=true;
 End;
@@ -123,6 +127,7 @@ type
     tbuf=array[1..2] of byte;
 Var f:file; ind,i,b:byte; buf:array[1..14]of byte; l,fpos:longint;
     w,bufsize,nr:word; csbuf:^tbuf;
+    shiftbuf: pointer;
 Begin
 sclDel:=false;
 nr:=0;
@@ -145,27 +150,28 @@ for ind:=p.tfiles-1 downto 1 do if p.trdDir^[ind+1].mark then
     fpos:=0; for b:=1 to i-1 do inc(fpos,p.trdDir^[b+1].totalsec);
     fpos:=256*fpos; inc(fpos,9+14*p.zxdisk.files);
 
-    getmem (HobetaInfo.body,256*p.trdDir^[i+1].totalsec);
-    seek(f,fpos);    blockread (f,HobetaInfo.body^,256*p.trdDir^[i+1].totalsec);
-    seek(f,fpos-14); blockwrite(f,HobetaInfo.body^,256*p.trdDir^[i+1].totalsec);
-    freemem(HobetaInfo.body,256*p.trdDir^[i+1].totalsec);
+    w:=256*p.trdDir^[i+1].totalsec;
+    getmem(shiftbuf,w);
+    seek(f,fpos);    blockread (f,shiftbuf^,w);
+    seek(f,fpos-14); blockwrite(f,shiftbuf^,w);
+    freemem(shiftbuf,w);
    End;
 
   for i:=ind+1 to p.zxdisk.files do
    Begin
     w:=256*p.trdDir^[i+1].totalsec;
-    getmem(HobetaInfo.body,w);
+    getmem(shiftbuf,w);
     fpos:=0; for b:=1 to i-1 do inc(fpos,p.trdDir^[b+1].totalsec);
     fpos:=256*fpos;
     w:=14*p.zxdisk.files; inc(fpos,9+w);
     seek(f,fpos);
-    w:=256*p.trdDir^[i+1].totalsec; blockread(f,HobetaInfo.body^,w);
+    w:=256*p.trdDir^[i+1].totalsec; blockread(f,shiftbuf^,w);
 
     w:=256*p.trdDir^[ind+1].totalsec;
     dec(fpos,w); dec(fpos,14); seek(f,fpos);
     w:=256*p.trdDir^[i+1].totalsec;
-    blockwrite(f,HobetaInfo.body^,w);
-    freemem(HobetaInfo.body,w);
+    blockwrite(f,shiftbuf^,w);
+    freemem(shiftbuf,w);
    End;
 
   fpos:=0;
