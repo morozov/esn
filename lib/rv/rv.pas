@@ -148,6 +148,7 @@ procedure RvInit;
 { ===== Screen / color ===== }
 procedure Cls;
 procedure ClrBox(x1, y1, x2, y2: byte);
+procedure DrawBox(paper, ink, x1, y1, x2, y2: byte);
 procedure Colour(paper, ink: byte);
 procedure Print(x, y: byte; const s: string);
 procedure MPrint(x, y: byte; const s: string);

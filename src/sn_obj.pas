@@ -225,7 +225,11 @@ Uses
      main, sorting, sn_kbd, snviewer,
      trd, trd_ovr, scl_ovr, scl, tap_ovr, tap,
      fdi, fdi_ovr, fdd, fdd_ovr, zxzip, pc, pc_ovr,
-     Video, SysUtils;
+     Video, SysUtils
+     {$IFDEF WINDOWS}
+     , Windows
+     {$ENDIF}
+     ;
 
 
 {============================================================================}
@@ -1907,7 +1911,199 @@ End;
 
 {============================================================================}
 {$push}{$hints off}
-procedure TPanel.AltF1F2(ps: byte); begin end;
+procedure TPanel.AltF1F2(ps: byte);
+{$IFNDEF WINDOWS}
+begin
+end;
+{$ELSE}
+var
+  p: ^TPanel;
+  i, sel, dcnt, topRow, row, winX1, winX2, winY1, winY2: byte;
+  firstVisible, visibleCount: byte;
+  key: word;
+  ch: char;
+  drives: array[1..26] of char;
+  driveNums: array[1..26] of byte;
+  driveNames: array[1..26] of string;
+  freeB: int64;
+  root: string;
+  lineW: integer;
+  driveNo: byte;
+
+  function DriveDisplayName(letter: char; driveNum: byte): string;
+  {$IFDEF WINDOWS}
+  var
+    volName: array[0..255] of AnsiChar;
+    fsName: array[0..255] of AnsiChar;
+    serial, maxCompLen, flags: DWORD;
+    dtype: UINT;
+    ok: BOOL;
+  {$ENDIF}
+  begin
+    DriveDisplayName := letter + '_DRIVE';
+    {$IFDEF WINDOWS}
+    dtype := GetDriveTypeA(PAnsiChar(AnsiString(letter + ':\')));
+    if dtype = DRIVE_RAMDISK then DriveDisplayName := 'RAMDISK'
+    else if dtype = DRIVE_CDROM then DriveDisplayName := 'CDROM'
+    else if dtype = DRIVE_REMOVABLE then DriveDisplayName := 'REMOVABLE'
+    else begin
+      FillChar(volName, SizeOf(volName), 0);
+      FillChar(fsName, SizeOf(fsName), 0);
+      ok := GetVolumeInformationA(
+        PAnsiChar(AnsiString(letter + ':\')),
+        @volName[0], SizeOf(volName),
+        @serial, maxCompLen, flags,
+        @fsName[0], SizeOf(fsName));
+      if ok and (Trim(StrPas(@volName[0])) <> '') then
+        DriveDisplayName := StrPas(@volName[0]);
+    end;
+    {$ELSE}
+    if driveNum = driveNum then ;
+    {$ENDIF}
+  end;
+
+  function DriveIndexByLetter(c: char): byte;
+  var
+    k: byte;
+  begin
+    for k := 1 to dcnt do
+      if drives[k] = c then begin
+        DriveIndexByLetter := k;
+        exit;
+      end;
+    DriveIndexByLetter := 0;
+  end;
+
+  procedure DrawMenu;
+  var
+    k, idx: byte;
+    diskInfo, diskSize: string;
+  begin
+    Colour(pal.bkdRama, pal.txtdRama);
+    DrawBox(pal.bkdRama, pal.txtdRama, winX1, winY1, winX2, winY2);
+    CMPrint(pal.bkdRama, pal.txtdRama,
+      winX1 + (winX2 - winX1 + 1 - 4) div 2, winY1 + 1, 'Disk');
+
+    if firstVisible > 1 then
+      CMPrint(pal.bkdRama, pal.txtdRama, winX1 + lineW, topRow, #24);
+    if firstVisible + visibleCount - 1 < dcnt then
+      CMPrint(pal.bkdRama, pal.txtdRama, winX1 + lineW,
+        topRow + visibleCount - 1, #25);
+
+    for k := 1 to visibleCount do begin
+      idx := firstVisible + k - 1;
+      row := topRow + k - 1;
+      freeB := DiskFreePath(drives[idx] + ':\');
+      diskSize := ChangeChar(FormatFreeBytes(freeB), '.', ',');
+      diskInfo := ' ' + drives[idx] + ': Local   '
+        + RightPad(diskSize, 7) + '  ' + driveNames[idx];
+      if Length(diskInfo) > lineW - 1 then
+        diskInfo := Copy(diskInfo, 1, lineW - 1);
+      while Length(diskInfo) < lineW - 1 do
+        diskInfo := diskInfo + ' ';
+      if idx = sel then
+        CMPrint(pal.bkdPoleST, pal.txtdPoleST, winX1 + 1, row, diskInfo)
+      else
+        CMPrint(pal.bkdPoleNT, pal.txtdPoleNT, winX1 + 1, row, diskInfo);
+    end;
+    UpdateScreen(false);
+  end;
+
+begin
+  if ps = Left then p := @lp else p := @rp;
+  dcnt := 0;
+  for i := 1 to 26 do begin
+    driveNo := i;
+    root := Chr(Ord('A') + i - 1) + ':\';
+    if DiskStatus(driveNo) = 0 then begin
+      Inc(dcnt);
+      drives[dcnt] := Chr(Ord('A') + i - 1);
+      driveNums[dcnt] := driveNo;
+      driveNames[dcnt] := DriveDisplayName(drives[dcnt], driveNo);
+    end;
+  end;
+  if dcnt = 0 then begin
+    for i := Ord('A') to Ord('Z') do begin
+      root := Chr(i) + ':\';
+      if DirectoryExists(root) then begin
+        Inc(dcnt);
+        drives[dcnt] := Chr(i);
+        driveNums[dcnt] := i - Ord('A') + 1;
+        driveNames[dcnt] := DriveDisplayName(drives[dcnt], driveNums[dcnt]);
+      end;
+    end;
+  end;
+
+  if dcnt = 0 then begin
+    ErrorMessage('No drives found');
+    exit;
+  end;
+
+  CurOff;
+  sel := 1;
+  lineW := p^.PanelW - 3;
+  if lineW > 34 then lineW := 34;
+  if lineW < 20 then lineW := 20;
+  winX1 := p^.PosX + 1;
+  winX2 := winX1 + lineW + 1;
+  if winX2 > p^.PosX + p^.PanelW then winX2 := p^.PosX + p^.PanelW;
+  winY1 := p^.PutFrom + 1;
+  visibleCount := p^.PanelHi - 4;
+  if visibleCount < 3 then visibleCount := 3;
+  if visibleCount > dcnt then visibleCount := dcnt;
+  winY2 := winY1 + visibleCount + 2;
+  if winY2 > GmaxY - 1 then winY2 := GmaxY - 1;
+  topRow := winY1 + 2;
+  lineW := winX2 - winX1 - 1;
+  firstVisible := 1;
+
+  Main.CancelSB;
+  scPutWin(pal.bkdRama, pal.txtdRama, winX1, winY1, winX2, winY2);
+  while true do begin
+    DrawMenu;
+    key := rKey;
+    if key = _Esc then begin RestScr; exit; end;
+    if (key = _Enter) or (key = PadEnter) then break;
+    if (key = _Up) or (key = Pad8) then begin
+      if sel > 1 then Dec(sel) else sel := dcnt;
+      if sel < firstVisible then firstVisible := sel;
+      if sel >= firstVisible + visibleCount then
+        firstVisible := sel - visibleCount + 1;
+      continue;
+    end;
+    if (key = _Down) or (key = Pad2) then begin
+      if sel < dcnt then Inc(sel) else sel := 1;
+      if sel < firstVisible then firstVisible := sel;
+      if sel >= firstVisible + visibleCount then
+        firstVisible := sel - visibleCount + 1;
+      continue;
+    end;
+    ch := UpCase(Chr(Lo(key)));
+    if (ch >= 'A') and (ch <= 'Z') then begin
+      i := DriveIndexByLetter(ch);
+      if i <> 0 then begin
+        sel := i;
+        if sel < firstVisible then firstVisible := sel;
+        if sel >= firstVisible + visibleCount then
+          firstVisible := sel - visibleCount + 1;
+        break;
+      end;
+    end;
+  end;
+  RestScr;
+  Main.GlobalRedraw;
+
+  p^.PanelType := pcPanel;
+  p^.pcnd := drives[sel] + ':\';
+  p^.pcnn := '';
+  p^.pcfrom := 1;
+  p^.pcf := 1;
+  p^.pcMDF(p^.pcnd);
+  p^.TrueCur;
+  p^.Inside;
+  GlobalRedraw;
+end;
+{$ENDIF}
 {$pop}
 
 
