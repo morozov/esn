@@ -15,6 +15,10 @@ var
   ch: char;
   lastSec: word;
   h, m, s, ms: word;
+  {$IFDEF WINDOWS}
+  rszOut: THandle;
+  rszCsbi: TConsoleScreenBufferInfo;
+  {$ENDIF}
 begin
   DecodeTime(Now, h, m, s, ms);
   lastSec := s;
@@ -46,6 +50,18 @@ begin
         Write(#27'[?1049l');  { leave alternate screen }
         Halt(143);
       end;
+      {$IFDEF WINDOWS}
+      { Windows has no SIGWINCH. Poll the console window size
+        and trigger a resize once the size stabilizes. }
+      if not needResize then begin
+        rszOut := GetStdHandle(STD_OUTPUT_HANDLE);
+        if (rszOut <> INVALID_HANDLE_VALUE) and
+           GetConsoleScreenBufferInfo(rszOut, rszCsbi) then
+          if (rszCsbi.srWindow.Right - rszCsbi.srWindow.Left + 1 <> GmaxX) or
+             (rszCsbi.srWindow.Bottom - rszCsbi.srWindow.Top + 1 <> GmaxY) then
+            needResize := true;
+      end;
+      {$ENDIF}
       if needResize then
       begin
         needResize := false;
