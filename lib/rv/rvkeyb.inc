@@ -155,7 +155,6 @@ begin
       $FF08: result := $4200;   { F8  }
       $FF09: result := $4300;   { F9  }
       $FF0A: result := $4400;   { F10 }
-      $FF0B: result := $8500;   { F11 }
       $FF0C: result := $8600;   { F12 }
       { Navigation (plain) }
       $FF20: result := $47E0;   { Home  }
