@@ -48,6 +48,12 @@ var
   needResize: boolean;
   needQuit: boolean;
   rvActive: boolean;
+  {$IFDEF WINDOWS}
+const
+  ENABLE_MOUSE_INPUT             = $0010;
+  ENABLE_EXTENDED_FLAGS          = $0080;
+  ENABLE_VIRTUAL_TERMINAL_INPUT  = $0200;
+  {$ENDIF}
 
 procedure UpdateScreenSize;
 {$IFDEF WINDOWS}
@@ -390,6 +396,12 @@ begin
   Write(#27'[?1049h');
   InitVideo;
   InitKeyboard;
+  {$IFDEF WINDOWS}
+  { Disable ENABLE_PROCESSED_INPUT to prevent conhost/Windows Terminal
+    from intercepting F11 / Alt+Enter as global shortcuts. }
+  SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE),
+    ENABLE_EXTENDED_FLAGS or ENABLE_MOUSE_INPUT);
+  {$ENDIF}
   MouseOn;
   {$IFDEF UNIX}
   fpSignal(SIGWINCH, @SigWinchHandler);
