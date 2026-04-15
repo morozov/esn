@@ -61,7 +61,7 @@ GetMem(HobetaInfo.body,256*HobetaInfo.totalsec);
 {$push}{$notes off}
 FillChar(HobetaInfo.body^, 256*HobetaInfo.totalsec, 0);
 {$pop}
-assign(f,p.tapfile); filemode:=0; reset(f,1);
+assign(f,p.tapfile); filemode := fmReadShared; reset(f,1);
 seek(f,p.trdDir^[ind].offset);
 blockread(f,HobetaInfo.body^,HobetaInfo.length);
 close(f);
@@ -113,7 +113,7 @@ tapSave:=false;
  cs:=0; for i:=4 to 20 do cs:=cs xor buf[i]; buf[21]:=cs;
 
  {$I-}
- assign(f,p.tapfile); filemode:=2; reset(f,1); seek(f,filesize(f));
+ assign(f,p.tapfile); filemode := fmReadWriteShared; reset(f,1); seek(f,filesize(f));
 
  if (lp.PanelType=tapPanel)and(rp.PanelType=tapPanel) then
   Begin
@@ -154,7 +154,7 @@ Begin
 
  {$I-}
  GetMem(HobetaInfo.body,bufsize);
- assign(f,p.tapfile); filemode:=2; reset(f,1);
+ assign(f,p.tapfile); filemode := fmReadWriteShared; reset(f,1);
 
 for ind:=p.taptfiles downto 2 do if p.trdDir^[ind].mark then
 BEGIN
@@ -290,7 +290,7 @@ curon; s:=tapsnscanf(xc,yc,s); curoff;
 if not scanf_esc then
  BEGIN
   {$I-}
-  assign(f,p.tapfile); filemode:=2; reset(f,1);
+  assign(f,p.tapfile); filemode := fmReadWriteShared; reset(f,1);
   seek(f,p.trdDir^[p.Index].offset-3); blockread(f,buf,21);
 
   for i:=1 to 10 do buf[4+i]:=ord(s[i]);

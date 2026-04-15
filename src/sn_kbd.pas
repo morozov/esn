@@ -71,7 +71,7 @@ path := IncludeTrailingPathDelimiter(StartDir) + 'KEYS' +
 if not FileExists(path) then exit;
 {$I-}
 AssignFile(fw, path);
-FileMode := 0;
+filemode := fmReadShared;
 Reset(fw);
 if FileSize(fw) <> 1 then begin CloseFile(fw); exit; end;
 Read(fw, kbd);

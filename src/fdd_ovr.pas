@@ -377,7 +377,7 @@ if nospace(name)<>'' then
   if vall(tr)=0 then tr:='80';
 
   p.pcnn:=getof(name,_name)+'.fdd';
-  assign(ff,p.pcnd+getof(name,_name)+'.fdd'); filemode:=2; rewrite(ff,1);
+  assign(ff,p.pcnd+getof(name,_name)+'.fdd'); filemode := fmReadWriteShared; rewrite(ff,1);
   stemp:='SPM DISK (c) 1996 MOA v0.1    ';
   for i:=1 to 30 do buf[i]:=ord(stemp[i]);  {SPM}
   buf[31]:=vall(tr);                        {cylinders}

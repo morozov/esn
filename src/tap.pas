@@ -85,7 +85,7 @@ begin
 isTAP:=false;
 if LowerCase(ExtractFileExt(path))<>'.tap' then exit;
 {$I-}
-filemode:=0;
+filemode := fmReadShared;
 assign(fb,path); reset(fb);  if ioresult<>0 then exit;
 assign(f,path); reset(f,1);
 if ioresult<>0 then begin close(fb); if ioresult<>0 then; exit; end;
@@ -140,7 +140,7 @@ p.zxdisk.delfiles:=0;
 p.zxdisk.disklabel:='Tape';
 p.zxdisk.files:=0;
 
-filemode:=0; pos:=0; p.taptfiles:=1;
+filemode := fmReadShared; pos:=0; p.taptfiles:=1;
 p.trddir^[1].name:='<<        ';
 p.trddir^[1].length:=0;
 p.trddir^[1].tapflag:=0;

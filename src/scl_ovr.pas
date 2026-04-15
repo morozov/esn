@@ -42,7 +42,7 @@ HobetaInfo.totalsec:=p.trdDir^[ind].totalsec;
 sclLoad:=false; fpos:=0;
 {$I-}
 GetMem(HobetaInfo.body,256*HobetaInfo.totalsec);
-assign(f,p.sclfile); filemode:=0; reset(f,1);
+assign(f,p.sclfile); filemode := fmReadShared; reset(f,1);
 
 for i:=2 to ind-1 do inc(fpos,p.trdDir^[i].totalsec); fpos:=256*fpos;
 inc(fpos,9+14*p.zxDisk.files);
@@ -66,7 +66,7 @@ Begin
 sclSave:=false;
 nr:=0;
 {$I-}
-assign(f,p.sclfile); filemode:=2; reset(f,1);
+assign(f,p.sclfile); filemode := fmReadWriteShared; reset(f,1);
 
 seek(f,filesize(f)-4); blockwrite(f,HobetaInfo.body^,256*HobetaInfo.totalsec);
 inc(p.scltfiles); inc(p.zxdisk.files);
@@ -130,7 +130,7 @@ nr:=0;
 FillChar(buf, SizeOf(buf), 0);
 {$pop}
 {$I-}
-assign(f,p.sclfile); filemode:=2; reset(f,1);  ind:=p.Index-1;
+assign(f,p.sclfile); filemode := fmReadWriteShared; reset(f,1);  ind:=p.Index-1;
 
 for ind:=p.tfiles-1 downto 1 do if p.trdDir^[ind+1].mark then
  BEGIN{}
@@ -232,7 +232,7 @@ curon; stemp:=zxsnscanf(xc,yc,stemp,p.trddir^[p.Index].typ); curoff;
 if not scanf_esc then
  begin
   {$I-}
-  assign(fs,p.sclfile); filemode:=2; reset(fs,1);
+  assign(fs,p.sclfile); filemode := fmReadWriteShared; reset(fs,1);
   i:=p.Index;
   if (TRDOS3)and(p.trddir^[p.Index].typ<>'B') then p.trddir^[i].start:=256*ord(stemp[12])+ord(stemp[11]);
 

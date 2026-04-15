@@ -89,7 +89,7 @@ HobetaInfo.totalsec:=p.trdDir^[ind].totalsec;
 trdLoad:=false;
 {$I-}
 GetMem(HobetaInfo.body,256*HobetaInfo.totalsec);
-assign(f,p.trdfile); filemode:=0; reset(f,1);
+assign(f,p.trdfile); filemode := fmReadShared; reset(f,1);
 seek(f,bpos(p.trdDir^[ind].n1tr,p.trdDir^[ind].n1sec));
 blockread(f,HobetaInfo.body^,256*HobetaInfo.totalsec);
 close(f);
@@ -105,7 +105,7 @@ Var f:file; i,b:byte; buf:array[0..15]of byte;
 Begin
 trdSave:=false;
 {$I-}
-assign(f,p.trdfile); filemode:=2; reset(f,1);
+assign(f,p.trdfile); filemode := fmReadWriteShared; reset(f,1);
 
 seek(f,bpos(p.zxDisk.nTr1FreeSec,p.zxDisk.n1FreeSec));
 blockwrite(f,HobetaInfo.body^,256*HobetaInfo.totalsec);
@@ -158,7 +158,7 @@ type hbuft=array[0..15] of byte; var i,io:byte; hbuf:hbuft; fs:file;
 begin
 trdDel:=false;
   {$I-}
-  assign(fs,p.trdfile); filemode:=2; reset(fs,1);
+  assign(fs,p.trdfile); filemode := fmReadWriteShared; reset(fs,1);
 
   for i:=1 to p.tfiles do if p.trddir^[i].mark then
    begin
@@ -275,7 +275,7 @@ curon; stemp:=zxsnscanf(xc,yc,stemp,p.trddir^[p.Index].typ); curoff;
 if not scanf_esc then
  begin
   {$I-}
-  assign(fs,p.trdfile); filemode:=2; reset(fs,1);
+  assign(fs,p.trdfile); filemode := fmReadWriteShared; reset(fs,1);
   i:=p.Index;
   if (TRDOS3)and(p.trddir^[p.Index].typ<>'B') then p.trddir^[i].start:=256*ord(stemp[12])+ord(stemp[11]);
   if (s[1]=chr(ord('1')-48))or(s[1]=chr(ord('0')-48)) then
@@ -346,7 +346,7 @@ for i:=1 to p.trdtfiles do
   for c:=i to p.trdtfiles do
    if (ord(p.trddir^[c].name[1])<>1)and(ord(p.trddir^[c].name[1])<>0) then break;
   {$I-}
-  assign(fs,p.trdfile); filemode:=2; reset(fs,1);
+  assign(fs,p.trdfile); filemode := fmReadWriteShared; reset(fs,1);
 
   for a:=c to p.trdtfiles do
   if (ord(p.trddir^[a].name[1])<>1)and(ord(p.trddir^[a].name[1])<>0) then
@@ -424,7 +424,7 @@ curoff;
 if not scanf_esc then
  begin
   {$I-}
-  assign(fs,p.trdfile); filemode:=2; reset(fs);
+  assign(fs,p.trdfile); filemode := fmReadWriteShared; reset(fs);
   seek(fs,$8f5); for i:=1 to 8 do begin b:=ord(s[i]); write(fs,b); end;
   close(fs);
   {$I+}
@@ -620,7 +620,7 @@ if nospace(name)<>'' then
   stemp:='File '+getof(name,_name)+'.trd'+' alredy exist.'+#255+' Overwrite?';
   if checkdirfile(p.pcnd+getof(name,_name)+'.trd')=0 then
    if not cquestion(stemp,lang) then begin restscr; exit; end;
-  filemode:=2;
+  filemode := fmReadWriteShared;
   p.pcnn:=getof(name,_name)+'.trd';
   assign(ff,p.pcnd+getof(name,_name)+'.trd'); rewrite(ff,1);
   for i:=1 to sizeof(buf) do buf[i]:=0;
@@ -681,7 +681,7 @@ if istrd(p.pcnd+p.pcnn) then
    begin
     trdMove(p);
 {$I-}
-    assign(fb,p.pcnd+p.pcnn); filemode:=2; reset(fb);
+    assign(fb,p.pcnd+p.pcnn); filemode := fmReadWriteShared; reset(fb);
     seek(fb,$8e1); read(fb,b); p.zxdisk.n1FreeSec:=b;
     seek(fb,$8e2); read(fb,b); p.zxdisk.ntr1FreeSec:=b;
     seek(fb,$8e4); read(fb,b); p.zxdisk.files:=b;
@@ -693,7 +693,7 @@ if istrd(p.pcnd+p.pcnn) then
 
     getmem(buf,65280);
     for m:=1 to 65280 do buf^[m]:=0;
-    assign(ff,p.pcnd+p.pcnn); filemode:=2; reset(ff,1);
+    assign(ff,p.pcnd+p.pcnn); filemode := fmReadWriteShared; reset(ff,1);
     seek(ff,bpos(p.zxdisk.nTr1freeSec,p.zxdisk.n1freeSec));
 
     for m:=1 to (rest div 255) do blockwrite(ff,buf^,65280);
@@ -746,7 +746,7 @@ if istrd(p.pcnd+p.pcnn) then
     trdMove(p);
     trdautomove:=AutoMove;
 {$I-}
-    assign(ff,p.pcnd+p.pcnn); filemode:=2; reset(ff);
+    assign(ff,p.pcnd+p.pcnn); filemode := fmReadWriteShared; reset(ff);
 
 seek(ff,$8e1); read(ff,p.zxdisk.n1freesec);
 seek(ff,$8e2); read(ff,p.zxdisk.ntr1freesec);
@@ -791,7 +791,7 @@ case p.paneltype of
       if not cquestion(t,lang) then exit;
 {$I-}
       getmem(buf,p.pcdir^[p.pcfrom+p.pcf-1].flength);
-      assign(ff,ss); filemode:=2; reset(ff,1); seek(ff,17);
+      assign(ff,ss); filemode := fmReadWriteShared; reset(ff,1); seek(ff,17);
       blockread(ff,buf^,p.pcdir^[p.pcfrom+p.pcf-1].flength,nr);
       seek(ff,0);
       blockwrite(ff,buf^,nr,nw);
@@ -829,7 +829,7 @@ case p.paneltype of
         if 256*hbuf[15]<lp.pcdir^[p.pcfrom+p.pcf-1].flength then inc(hbuf[15]);
 
         getmem(buf,256*hbuf[15]); for nr:=1 to 256*hbuf[15] do buf^[nr]:=0;
-        assign(ff,ss); filemode:=2; reset(ff,1);
+        assign(ff,ss); filemode := fmReadWriteShared; reset(ff,1);
         blockread(ff,buf^,p.pcdir^[p.pcfrom+p.pcf-1].flength,nr);
         close(ff); erase(ff);
 
@@ -882,7 +882,7 @@ case p.paneltype of
             if hbuf[9]=ord('B') then t:=p.pcdir^[p.pcfrom+p.pcf-1].fname+'.$b';
            end;
          assign(ff,p.pcnd+t);
-         filemode:=2; rewrite(ff,1);
+         filemode := fmReadWriteShared; rewrite(ff,1);
 
          blockwrite(ff,hbuf,17,nw);{}
          blockwrite(ff,buf^,256*hbuf[15],nw);
@@ -1097,7 +1097,7 @@ if dp.zxdisk.files+wtf>128 then
 {$I-}
 assign(f,IncludeTrailingPathDelimiter(string(sp.pcnd))
   +string(sp.TrueName(i)));
-filemode:=0; reset(f,1);
+filemode := fmReadShared; reset(f,1);
 
 w:=0;
 
@@ -1558,7 +1558,7 @@ Begin
 {$I-}
   GetMem(HobetaInfo.body,256*p.trdDir^[i].totalsec);
   if CheckDirFile(nospace(p.trdfile))<>0 then p.trdfile:=p.pcnd+p.pcnn;
-  assign(f,p.trdfile); filemode:=0; reset(f,1);
+  assign(f,p.trdfile); filemode := fmReadShared; reset(f,1);
   seek(f,bpos(p.trdDir^[i].n1tr,p.trdDir^[i].n1sec));
   blockread(f,HobetaInfo.body^,256*p.trdDir^[i].totalsec);
   close(f);
@@ -1944,7 +1944,7 @@ if not scanf_esc then if cquestion(s,LANG) then
    trdPanel:
     Begin
     {$I-}
-     assign(fb,p.trdfile); filemode:=2; reset(fb);
+     assign(fb,p.trdfile); filemode := fmReadWriteShared; reset(fb);
      seek(fb,$8e1); b:=vall(edit.n1freesec);   write(fb,b);
      seek(fb,$8e2); b:=vall(edit.ntr1freesec); write(fb,b);
      seek(fb,$8e3); b:=edit.disktype;          write(fb,b);
@@ -1974,7 +1974,7 @@ if not scanf_esc then if cquestion(s,LANG) then
    fdiPanel:
     Begin
     {$I-}
-     assign(fb,p.fdifile); filemode:=2; reset(fb);
+     assign(fb,p.fdifile); filemode := fmReadWriteShared; reset(fb);
      seek(fb,p.fdiRec.offData+$8e1); b:=vall(edit.n1freesec);   write(fb,b);
      seek(fb,p.fdiRec.offData+$8e2); b:=vall(edit.ntr1freesec); write(fb,b);
      seek(fb,p.fdiRec.offData+$8e3); b:=edit.disktype;          write(fb,b);
@@ -2060,7 +2060,7 @@ begin
   {$pop}
 {$I-}
   Assign(ff, path);
-  FileMode := 2;
+  filemode := fmReadWriteShared;
   Rewrite(ff, 1);
   for i := 1 to tracks do
     BlockWrite(ff, blank[1], SizeOf(blank));
@@ -2068,7 +2068,7 @@ begin
 
   freeSec := (word(tracks) * 2 - 1) * 16;
   Assign(fb, path);
-  FileMode := 2;
+  filemode := fmReadWriteShared;
   Reset(fb);
   b := 0;    Seek(fb, $8e1); Write(fb, b);
   b := 1;    Seek(fb, $8e2); Write(fb, b);
@@ -2097,7 +2097,7 @@ begin
   trdWriteLabel := false;
 {$I-}
   Assign(fs, path);
-  FileMode := 2;
+  filemode := fmReadWriteShared;
   Reset(fs);
   Seek(fs, $8f5);
   for i := 1 to 8 do begin

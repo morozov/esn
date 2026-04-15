@@ -58,7 +58,7 @@ Begin
 isFDD:=false;
 if checkdirfile(path)<>0 then exit;
 {$I-}
-assign(ff,path); filemode:=0; reset(ff,1); blockread(ff,fddSectorBuf,256); close(ff);
+assign(ff,path); filemode := fmReadShared; reset(ff,1); blockread(ff,fddSectorBuf,256); close(ff);
 {$I+}
 if IOResult<>0 then exit;
 s:=''; for i:=1 to 30 do s:=s+chr(fddSectorBuf[i-1]);
@@ -83,7 +83,7 @@ Begin
 FillChar(buf, SizeOf(buf), 0);
 {$pop}
 {$I-}
-assign(ff,fddfile); filemode:=0; reset(ff,1); seek(ff,36+t*4);
+assign(ff,fddfile); filemode := fmReadShared; reset(ff,1); seek(ff,36+t*4);
 blockread(ff,buf,4);
 w1:=Buf[1]+256*Buf[2]; w2:=Buf[3]+256*Buf[4]; indx:=w1+65536*w2;
 seek(ff,indx); blockread(ff,buf,2);
@@ -106,7 +106,7 @@ Begin
 FillChar(buf, SizeOf(buf), 0);
 {$pop}
 {$I-}
-assign(ff,fddfile); filemode:=2;
+assign(ff,fddfile); filemode := fmReadWriteShared;
 reset(ff,1); if ioresult<>0 then;
 seek(ff,36+t*4);
 blockread(ff,buf,4);
@@ -155,7 +155,7 @@ if (checkdirfile(path)<>0)or(not isFDD(path)) then
 k:=0; for i:=1 to p.fddtfiles do if p.trdDir^[i].mark then begin inc(k);
 p.trdins^[k].crc16:=crc16(p.trddir^[i].name+TRDOSe3(p,i)); end; trdinsed:=k;
 
-assign(ff,p.fddfile); filemode:=0; reset(ff,1);
+assign(ff,p.fddfile); filemode := fmReadShared; reset(ff,1);
 blockread(ff,fddSectorBuf,32); p.zxdisk.tracks:=fddSectorBuf[$1E];
 
 ReadSector(0,9);

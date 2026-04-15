@@ -63,7 +63,7 @@ label fin,fin2;
 begin
 isFDI:=false;
 {$I-}
-filemode:=0;
+filemode := fmReadShared;
 assign(fb,path); reset(fb);
 
 seek(fb,0); s:='';
@@ -119,7 +119,7 @@ k:=0; for i:=1 to p.fditfiles do if p.trdDir^[i].mark then begin inc(k);
 p.trdins^[k].crc16:=crc16(p.trddir^[i].name+TRDOSe3(p,i)); end; trdinsed:=k;
 
 {$I-}
-filemode:=0;
+filemode := fmReadShared;
 assign(fb,path); reset(fb);
 seek(fb,4); read(fb,b); p.zxdisk.tracks:=b;
 

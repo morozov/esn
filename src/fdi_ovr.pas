@@ -33,7 +33,7 @@ HobetaInfo.totalsec:=p.trdDir^[ind].totalsec;
 fdiLoad:=false;
 {$I-}
 GetMem(HobetaInfo.body,256*HobetaInfo.totalsec);
-assign(f,p.fdifile); filemode:=0; reset(f,1);
+assign(f,p.fdifile); filemode := fmReadShared; reset(f,1);
 seek(f,p.fdiRec.offData+bpos(p.trdDir^[ind].n1tr,p.trdDir^[ind].n1sec));
 blockread(f,HobetaInfo.body^,256*HobetaInfo.totalsec);
 close(f);
@@ -49,7 +49,7 @@ Var f:file; i,b:byte; buf:array[0..15]of byte;
 Begin
 fdiSave:=false;
 {$I-}
-assign(f,p.fdifile); filemode:=2; reset(f,1);
+assign(f,p.fdifile); filemode := fmReadWriteShared; reset(f,1);
 
 seek(f,p.fdiRec.offData+bpos(p.zxDisk.nTr1FreeSec,p.zxDisk.n1FreeSec));
 blockwrite(f,HobetaInfo.body^,256*HobetaInfo.totalsec);
@@ -104,7 +104,7 @@ type hbuft=array[0..15] of byte; var i,io:byte; hbuf:hbuft; fs:file;
 begin
 fdiDel:=false;
   {$I-}
-  assign(fs,p.fdifile); filemode:=2; reset(fs,1);
+  assign(fs,p.fdifile); filemode := fmReadWriteShared; reset(fs,1);
 
   for i:=1 to p.tfiles do if p.trddir^[i].mark then
    begin
@@ -159,7 +159,7 @@ curon; stemp:=zxsnscanf(xc,yc,stemp,p.trddir^[p.Index].typ); curoff;
 if not scanf_esc then
  begin
   {$I-}
-  assign(fs,p.fdifile); filemode:=2; reset(fs,1);
+  assign(fs,p.fdifile); filemode := fmReadWriteShared; reset(fs,1);
   i:=p.Index;
   if (TRDOS3)and(p.trddir^[p.Index].typ<>'B') then p.trddir^[i].start:=256*ord(stemp[12])+ord(stemp[11]);
   if (s[1]=chr(ord('1')-48))or(s[1]=chr(ord('0')-48)) then
@@ -233,7 +233,7 @@ for i:=1 to p.fditfiles do
   for c:=i to p.fditfiles do
    if (ord(p.trddir^[c].name[1])<>1)and(ord(p.trddir^[c].name[1])<>0) then break;
   {$I-}
-  assign(fs,p.fdifile); filemode:=2; reset(fs,1);
+  assign(fs,p.fdifile); filemode := fmReadWriteShared; reset(fs,1);
 
   for a:=c to p.fditfiles do
   if (ord(p.trddir^[a].name[1])<>1)and(ord(p.trddir^[a].name[1])<>0) then
@@ -311,7 +311,7 @@ curoff;
 if not scanf_esc then
  begin
   {$I-}
-  assign(fs,p.fdifile); filemode:=2; reset(fs);
+  assign(fs,p.fdifile); filemode := fmReadWriteShared; reset(fs);
   seek(fs,p.fdiRec.offData+$8f5);
   for i:=1 to 8 do begin b:=ord(s[i]); write(fs,b); end;
   close(fs);
@@ -374,7 +374,7 @@ if nospace(name)<>'' then
   if vall(tr)=0 then tr:='80';
 
   p.pcnn:=getof(name,_name)+'.fdi';
-  assign(ff,p.pcnd+getof(name,_name)+'.fdi'); filemode:=2; rewrite(ff,1);
+  assign(ff,p.pcnd+getof(name,_name)+'.fdi'); filemode := fmReadWriteShared; rewrite(ff,1);
   buf[1]:=$46; buf[2]:=$44; buf[3]:=$49;   {FDI}
   buf[4]:=0;                               {write protect}
   buf[5]:=vall(tr);  buf[6]:=0;            {cylinders}
@@ -416,7 +416,7 @@ if nospace(name)<>'' then
 
   close(ff);
 
-  assign(fb,p.pcnd+getof(name,_name)+'.fdi'); filemode:=2; reset(fb);{}
+  assign(fb,p.pcnd+getof(name,_name)+'.fdi'); filemode := fmReadWriteShared; reset(fb);{}
   seek(fb,8);
   b:=lo(p.fdiRec.offText); write(fb,b); b:=hi(p.fdiRec.offText); write(fb,b);
   b:=lo(p.fdiRec.offData); write(fb,b); b:=hi(p.fdiRec.offData); write(fb,b);

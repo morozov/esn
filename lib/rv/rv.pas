@@ -22,6 +22,11 @@ const
   On  = 1;
   Off = 0;
 
+{ ===== File mode constants ===== }
+const
+  fmReadShared      = fmOpenRead      or fmShareDenyNone;
+  fmReadWriteShared = fmOpenReadWrite or fmShareDenyNone;
+
 { ===== Key code constants (DOS BIOS format: (scan shl 8) or ascii) ===== }
 const
   { Function keys }
@@ -334,6 +339,7 @@ initialization
   w_shadow     := true;
   scanf_tab    := false;
   scanf_shtab  := false;
+  FileMode     := fmReadWriteShared;
 
 finalization
   if rvActive then begin

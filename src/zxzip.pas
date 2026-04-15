@@ -73,7 +73,7 @@ if (checkdirfile(path)<>0)or(not isZXZIP(path)) then
   Exit;
  end;
 
-filemode:=0; pos:=0; p.zxztfiles:=1;
+filemode := fmReadShared; pos:=0; p.zxztfiles:=1;
 p.trddir^[1].name:='<<        ';
 p.trddir^[1].length:=0;
 p.trddir^[1].tapflag:=0;
@@ -82,7 +82,7 @@ p.trddir^[1].mark:=false;
 
 {$I-}
 pos:=17; vol:=0; s:=path;
-assign(f,s); filemode:=0; reset(f,1);
+assign(f,s); filemode := fmReadShared; reset(f,1);
 
 for w:=1 to 256 do
  begin
@@ -99,7 +99,7 @@ RepeatMDF:
     s:=nospaceLR(s); s[length(s)]:=strr(vol)[1];
     if CheckDirFile(s)<>0 then begin dec(vol); break;{} end;
     pos:=pos-22-filesize(f)+17;
-    close(f); assign(f,s); filemode:=0; reset(f,1);
+    close(f); assign(f,s); filemode := fmReadShared; reset(f,1);
     goto RepeatMDF;
    end;
   inc(p.zxztfiles);

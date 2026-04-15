@@ -228,7 +228,7 @@ begin
 //message(path);
 isTRD:=false;
 {$I-}
-filemode:=0;
+filemode := fmReadShared;
 assign(fb,path); reset(fb);
 seek(fb,$8e3); read(fb,b); if not (b in [$16,$17,$18,$19]) then goto fin;
 seek(fb,$8e4); read(fb,b); if not (b in [0..142]) then goto fin;{}
@@ -324,7 +324,7 @@ k:=0; for i:=1 to p.trdtfiles do if p.trdDir^[i].mark then begin inc(k);
 p.trdins^[k].crc16:=crc16(p.trddir^[i].name+TRDOSe3(p,i)); end; trdinsed:=k;
 
 {$I-}
-filemode:=0;
+filemode := fmReadShared;
 assign(fb,path); reset(fb);
 p.zxdisk.tracks:=filelen(p.trdfile)div 8192;
 
@@ -496,7 +496,7 @@ begin
 {$I-}
 ithobeta:=false;
 if checkdirfile(name)<>0 then exit;
-filemode:=0;
+filemode := fmReadShared;
 assign(fb,name); reset(fb); seek(fb,0); for i:=0 to 16 do read(fb,hob[i]); close(fb);
 if ioresult<>0 then;
 {$I+}

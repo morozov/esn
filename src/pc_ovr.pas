@@ -115,7 +115,7 @@ if ItHobeta(name,HobetaInfo) then
  begin
   {$I-}
   GetMem(HobetaInfo.body,256*HobetaInfo.totalsec);
-  Assign(f,name); filemode:=0; reset(f,1); seek(f,17);
+  Assign(f,name); filemode := fmReadShared; reset(f,1); seek(f,17);
   i1:=IOResult;
   BlockRead(f,HobetaInfo.body^,256*HobetaInfo.totalsec);
   if IOResult=0 then;
@@ -163,7 +163,7 @@ else
  stemp:=CheckEx(path,stemp);
 
 {$I-}
-Assign(f,path+stemp); filemode:=2; rewrite(f,1);
+Assign(f,path+stemp); filemode := fmReadWriteShared; rewrite(f,1);
 
 tbytes:=256*HobetaInfo.totalsec;
 if AltF5flag then if HobetaInfo.typ='B' then tbytes:=HobetaInfo.length+4
@@ -316,7 +316,7 @@ if not scanf_esc then
   buf[16]:=lo(m); buf[17]:=hi(m);
 
   {$I-}
-  assign(f,pcndOf(focus)+TrueNameOf(focus,IndexOf(focus))); FileMode:=2;
+  assign(f,pcndOf(focus)+TrueNameOf(focus,IndexOf(focus))); filemode := fmReadWriteShared;
   Reset(f,1);  Seek(f,0); BlockWrite(f,buf,17); Close(f);
   {$I+}
   if IOResult=0 then;
@@ -479,10 +479,10 @@ var
     {$I-}
     fage := FileAge(cfrom);
     Assign(ffr, cfrom);
-    FileMode := 0;
+    filemode := fmReadShared;
     Reset(ffr, 1);
     Assign(fto, cto);
-    FileMode := 2;
+    filemode := fmReadWriteShared;
     Rewrite(fto, 1);
     GetMem(buf, CopyBuf);
     fcvert := 1;

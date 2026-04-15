@@ -43,7 +43,7 @@ var
 Begin
 isSCL:=false;
 {$I-}
-filemode:=0; assign(ff,path); reset(ff,1);
+filemode := fmReadShared; assign(ff,path); reset(ff,1);
 if ioresult<>0 then Exit;
 BlockRead(ff,buf,8,nr);
 Close(ff);
@@ -79,7 +79,7 @@ if (checkdirfile(path)<>0)or(not isSCL(path)) then
 k:=0; for i:=1 to p.scltfiles do if p.trdDir^[i].mark then begin inc(k);
 p.trdins^[k].crc16:=crc16(p.trddir^[i].name+TRDOSe3(p,i)); end; trdinsed:=k;
 
-filemode:=0;
+filemode := fmReadShared;
 assign(fb,path); reset(fb);
 
 seek(fb,$8); read(fb,b); p.scltfiles:=b;

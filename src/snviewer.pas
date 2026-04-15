@@ -344,7 +344,7 @@ Begin
   ViewerFile.Init;
   ViewerFileName := fname;
   Assign(F, ViewerFileName);
-  FileMode := 0;
+  filemode := fmReadShared;
   {$I-}
   Reset(F);
   {$I+}
