@@ -49,10 +49,13 @@ var
   needQuit: boolean;
   rvActive: boolean;
   {$IFDEF WINDOWS}
+  savedOutMode: DWORD;
+  savedInMode: DWORD;
 const
-  ENABLE_MOUSE_INPUT             = $0010;
-  ENABLE_EXTENDED_FLAGS          = $0080;
-  ENABLE_VIRTUAL_TERMINAL_INPUT  = $0200;
+  ENABLE_MOUSE_INPUT                  = $0010;
+  ENABLE_EXTENDED_FLAGS               = $0080;
+  ENABLE_VIRTUAL_TERMINAL_INPUT       = $0200;
+  ENABLE_VIRTUAL_TERMINAL_PROCESSING  = $0004;
   {$ENDIF}
 
 procedure UpdateScreenSize;
@@ -391,9 +394,18 @@ end;
 procedure RvInit;
 begin
   if rvActive then exit;
+  {$IFDEF WINDOWS}
+  { Save original console modes and enable virtual terminal processing
+    on stdout so ANSI escape sequences are interpreted. }
+  GetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), @savedOutMode);
+  SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE),
+    savedOutMode or ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+  GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), @savedInMode);
+  {$ENDIF}
   { Enter alternate screen buffer: saves the current screen contents
     and cursor position, restored when we leave on exit. }
   Write(#27'[?1049h');
+  Flush(Output);
   InitVideo;
   InitKeyboard;
   {$IFDEF WINDOWS}

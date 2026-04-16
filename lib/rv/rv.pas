@@ -348,18 +348,28 @@ initialization
 
 finalization
   if rvActive then begin
-    CurOn;
     MouseOff;
+    { Shut down Video/Keyboard while still in the alternate buffer
+      so any output they produce does not affect the main buffer. }
     DoneKeyboard;
     DoneVideo;
-    { Restore terminal palette to defaults before leaving. }
+    {$IFDEF WINDOWS}
+    { DoneVideo may have restored the console mode without VT
+      processing. Re-enable it so the escape sequences below
+      are interpreted, not printed as literal characters. }
+    SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE),
+      savedOutMode or ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    {$ENDIF}
     {$IFDEF UNIX}
     Write(#27']104'#27'\');
     {$ENDIF}
-    { Leave alternate screen buffer: restores the original screen
-      contents and cursor position from before the program
-      launched. }
+    Write(#27'[?25h');
     Write(#27'[?1049l');
+    Flush(Output);
+    {$IFDEF WINDOWS}
+    SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), savedOutMode);
+    SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), savedInMode);
+    {$ENDIF}
   end;
 
 end.

@@ -469,8 +469,6 @@ if not sys then
  Begin
   if SaveOnExit then SaveConfig;
   FreeMemPCDirs;
-  DoneVideo;
-  DoneKeyboard;
   Halt(0);
  End;
 End;
