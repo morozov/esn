@@ -185,8 +185,6 @@ end;
 
 Begin
 
-ApplyVGAPalette;
-
 pal.bknameline:=1;     pal.txtnameline:=yellow;
 
 pal.bkRama:=1;         pal.txtRama:=11;

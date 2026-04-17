@@ -1,14 +1,22 @@
 {$mode objfpc}{$H+}
-Program Easy_ZX_Spectrum_Navigator_v1_14;
+Program Easy_Spectrum_Navigator;
 Uses
       RV,
-      Vars, Init, sn_Obj, Main;
+      Vars, Init, sn_Obj, Main, Palette;
 
 
 {================================= INIT =====================================}
 BEGIN
 
+if (ParamCount = 1) and (ParamStr(1) = '--version') then
+begin
+  WriteLn('Easy Spectrum Navigator ', Ver);
+  WriteLn('Built with Free Pascal ', {$I %FPCVERSION%});
+  Halt(0);
+end;
+
 RvInit;
+ApplyVGAPalette;
 snMouse:=false;
 snInit(false);
 {--------------------------------- LAUNCH -----------------------------------}
