@@ -16,7 +16,7 @@ Var
   ScrHeight:word;
 
 {============================================================================}
-Procedure WriteStr(X, Y: Byte; Str: String; Attr: Byte);
+Procedure WriteStr(X, Y: Word; Str: String; Attr: Byte);
 Begin
   CMPrint(Attr shr 4, Attr and $0F, X+1, Y+1, Str);
 End;
@@ -158,13 +158,13 @@ Var
   CurStrOfs: Byte;
   CurLine: PStrings;
 
-  ViewerX:byte;
-  ViewerY:byte;
+  ViewerX:word;
+  ViewerY:word;
   ViewerHeight:word;
 {----------------------------------------------------------------------------}
 Procedure DrawScr;
 Var
-  L,J: Byte;
+  L,J: Word;
   C: PStrings;
 
 var s:string;
@@ -196,7 +196,7 @@ End;
 {----------------------------------------------------------------------------}
 Procedure PageUp;
 Var
-  C: Byte;
+  C: Word;
 Begin
   If CurPos <= 1 Then Exit;
   If CurPos <= ViewerHeight Then
@@ -215,7 +215,7 @@ End;
 {----------------------------------------------------------------------------}
 Procedure PageDown;
 Var
-  C: Byte;
+  C: Word;
 Begin
 // message(strr(CurPos+ViewerHeight-3)+'  '+strr(T^.Count));
 

@@ -161,7 +161,7 @@ end;
 
 {============================================================================}
 function fddRename:boolean;
-var xc,yc,df,b,k,io:byte; buf:array[0..15]of byte; s,stemp:string;
+var xc,yc:word; df,b,k,io:byte; buf:array[0..15]of byte; s,stemp:string;
     p:tPanel;
     i:integer;
 begin

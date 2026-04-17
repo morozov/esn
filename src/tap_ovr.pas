@@ -215,10 +215,10 @@ End;
 
 {============================================================================}
 function tapRename:boolean;
-var p:TPanel; dx,cs,i,xc,yc:byte; s:string; f:file; buf:array[1..21]of byte;
+var p:TPanel; dx,cs,i:byte; xc,yc:word; s:string; f:file; buf:array[1..21]of byte;
 
 {== SCANF ===================================================================}
-function tapSNscanf(scanf_posx, scanf_posy:byte;scanf_str:string):string;
+function tapSNscanf(scanf_posx, scanf_posy:word;scanf_str:string):string;
 var
      scanf_kod:word;
      scanf_x:byte;

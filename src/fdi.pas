@@ -200,7 +200,8 @@ end;
 
 {============================================================================}
 procedure fdiPDF(var p:TPanel; fr:integer);
-var px,py,paper,ink,ii,dx,ddx:byte;
+var paper,ink,ii:byte;
+    px,py,dx,ddx:word;
     i,n:integer;
     name:string; e:string[3];
 begin

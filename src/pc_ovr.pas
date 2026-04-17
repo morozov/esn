@@ -188,10 +188,10 @@ End;
 {============================================================================}
 Procedure pcRename;
 Var
-    s,stemp:string; ff:file; CurXPos, CurYPos:byte;
+    s,stemp:string; ff:file; CurXPos, CurYPos:word;
      dx:byte;
 {== SCANF ===================================================================}
-function SNscanf(scanf_posx, scanf_posy:byte;scanf_str:string):string;
+function SNscanf(scanf_posx, scanf_posy:word;scanf_str:string):string;
 var
      scanf_kod:word;
      scanf_x:byte;
@@ -278,7 +278,7 @@ procedure hobRename;
 var
    buf:array[1..19]of byte;
     stemp:string;
-   tc,xc,yc:byte;
+   tc:byte; xc,yc:word;
    m:word;
    f:file;
 begin

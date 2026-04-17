@@ -1,7 +1,7 @@
-procedure sPutWin(x1, y1, x2, y2: byte);
+procedure sPutWin(x1, y1, x2, y2: word);
 var
   i: integer;
-  sx2, sy2: byte;
+  sx2, sy2: word;
 begin
   { Save region including the shadow area
     (2 cols right, 1 row below). }
@@ -17,10 +17,10 @@ begin
   UpdateScreen(false);
 end;
 
-procedure scPutWin(paper, ink, x1, y1, x2, y2: byte);
+procedure scPutWin(paper, ink: byte; x1, y1, x2, y2: word);
 var
   i: integer;
-  sx2, sy2: byte;
+  sx2, sy2: word;
 begin
   sx2 := x2 + 2;
   sy2 := y2 + 1;
@@ -37,7 +37,7 @@ var
   w: TSavedWin;
   src: PWord;
   row, col: integer;
-  ofs: word;
+  ofs: longword;
 begin
   if winTop = 0 then
     exit;
@@ -45,8 +45,8 @@ begin
   src := PWord(w.buf);
   for row := w.y1 - 1 to w.y2 - 1 do
     for col := w.x1 - 1 to w.x2 - 1 do begin
-      ofs := word(row) * ScreenWidth + word(col);
-      if ofs < ScreenWidth * ScreenHeight then
+      ofs := longword(row) * ScreenWidth + longword(col);
+      if ofs < longword(ScreenWidth) * ScreenHeight then
         VideoBuf^[ofs] := src^;
       Inc(src);
     end;
@@ -66,7 +66,7 @@ end;
 
 { ===== Dialog helpers ===== }
 
-procedure cmCentre(paper, ink, y: byte; const s: string);
+procedure cmCentre(paper, ink: byte; y: word; const s: string);
 var
   x: integer;
 begin
@@ -119,7 +119,7 @@ begin
   UpdateScreen(false);
 end;
 
-procedure cButton(bkA, txtA, bkSh, txtSh, x, y: byte;
+procedure cButton(bkA, txtA, bkSh, txtSh: byte; x, y: word;
   const s: string; active: boolean);
 var
   t: string;
@@ -191,10 +191,10 @@ end;
 { Print s centered on row y within the standard dialog width
   (40 chars), filling the interior columns with the given colors.
   txt2 unused. }
-procedure CStatusLineColor(bk, txt1, txt2: byte; y: byte;
+procedure CStatusLineColor(bk, txt1, txt2: byte; y: word;
   const s: string);
 var
-  x, w: byte;
+  x, w: word;
   line: string;
 begin
   { Suppress unused param warning }
@@ -211,7 +211,7 @@ end;
 
 { ===== scanf — single-line text input ===== }
 
-function scanf(x, y: byte; const def: string;
+function scanf(x, y: word; const def: string;
   maxLen, visLen, startPos: byte): string;
 var
   s: string;
@@ -223,7 +223,7 @@ var
   procedure Redraw;
   var
     vis: string;
-    coff: byte;
+    coff: word;
   begin
     if pos_ > dispFrom + visLen - 1 then
       dispFrom := pos_ - visLen + 1;
@@ -490,7 +490,7 @@ begin
 end;
 
 procedure InfoLine(bkNT,txtNT,bkST,txtST:byte;
-                   x:byte; y:integer; s0:string;
+                   x:word; y:integer; s0:string;
                    pw:integer);
 var s:string; half:integer;
 begin
@@ -509,7 +509,7 @@ procedure ProcessBar(act,per,total:byte; title:string);
 const run=1;
 var
    cm,ops:integer;
-   x1,x2,dx:byte;
+   x1,x2,dx:word;
 begin
 dx:=4;
 cm:=halfmaxy;

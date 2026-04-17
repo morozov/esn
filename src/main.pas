@@ -29,7 +29,7 @@ Function  pcDirFAttrOf(w:byte; ind:word):word;
 Function  pcDirMarkOf(w:byte; ind:word):boolean;
 Function  trdDirMarkOf(w:byte; ind:word):boolean;
 Function  TreeCOf(w:byte; path:string):byte;
-Procedure GetCurXYOf(w:byte; var x,y:byte);
+Procedure GetCurXYOf(w:byte; var x,y:word);
 Function  ColumnsOf(w:byte):byte;
 Function  FocusedOf(w:byte):boolean;
 
@@ -435,7 +435,7 @@ End;
 
 
 {============================================================================}
-Procedure GetCurXYOf(w:byte; Var x,y:byte);
+Procedure GetCurXYOf(w:byte; Var x,y:word);
 Begin
 Case w of
  left:  lp.GetCurXY(x,y);

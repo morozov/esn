@@ -67,8 +67,9 @@ begin
         needResize := false;
         { DoneVideo/InitVideo forces FPC to re-read the
           terminal size via ioctl(TIOCGWINSZ) and reallocate
-          VideoBuf.  SetVideoMode alone is a no-op on Unix
-          and leaves ScreenWidth/ScreenHeight stale.
+          VideoBuf. UpdateScreenSize then applies the true
+          terminal dimensions via SetVideoMode (FPC's own
+          detection caps ScreenWidth at 240 on Unix).
           DoneVideo restores the terminal from raw mode, so
           DoneKeyboard/InitKeyboard must bracket it to keep
           the keyboard in raw mode. }

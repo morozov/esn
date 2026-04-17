@@ -7,7 +7,7 @@ Uses
 function  trdLoad(var p:TPanel; ind:word):boolean;
 function  trdSave(var p:TPanel):boolean;
 function  trdDel(var p:TPanel):boolean;
-function  zxSNscanf(scanf_posx, scanf_posy:byte;scanf_str:string; t:char):string;
+function  zxSNscanf(scanf_posx, scanf_posy:word;scanf_str:string; t:char):string;
 function  trdRename:boolean;
 function  trdMove(var p:Tpanel):boolean;
 procedure mtscanf(scanf_str,scanf_str2:string; var scanf_str_out,scanf_str2_out:string);
@@ -193,7 +193,7 @@ end;
 
 
 {============================================================================}
-function zxSNscanf(scanf_posx, scanf_posy:byte;scanf_str:string; t:char):string;
+function zxSNscanf(scanf_posx, scanf_posy:word;scanf_str:string; t:char):string;
 var
      scanf_kod:char;
      scanf_x:byte;
@@ -257,7 +257,7 @@ type hbuft=array[0..15] of byte;
 var i,io:integer;
     stemp,s:string;
     fs:file;
-    xc,yc,b:byte;
+    xc,yc:word; b:byte;
     hbuf:hbuft;
     p:TPanel;
 label fin;
@@ -917,7 +917,7 @@ function noHobCopy(flag,i:word;
   var sp,dp:TPanel):boolean;
 var totalsec:word; s:string;
 {----------------------------------------------------------------------------}
-function pscanf2(scanf_posx, scanf_posy:byte;
+function pscanf2(scanf_posx, scanf_posy:word;
                scanf_str:string;
                scanf_total, scanf_visible,
                scanf_cur:byte):string;

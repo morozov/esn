@@ -34,17 +34,17 @@ const
 
 type
   TSavedWin = record
-    x1, y1, x2, y2: byte;
+    x1, y1, x2, y2: word;
     buf: pointer;
-    bufSize: word;
+    bufSize: longword;
   end;
 
 { ===== Module-level state ===== }
 var
   winStack: array[1..maxWinStack] of TSavedWin;
   winTop: byte;
-  curX: byte;
-  curY: byte;
+  curX: word;
+  curY: word;
   needResize: boolean;
   needQuit: boolean;
   rvActive: boolean;
@@ -59,23 +59,52 @@ const
   {$ENDIF}
 
 procedure UpdateScreenSize;
-{$IFDEF WINDOWS}
 var
+  m: TVideoMode;
+  wantCols, wantRows: word;
+  {$IFDEF WINDOWS}
   hOut: THandle;
   csbi: TConsoleScreenBufferInfo;
-{$ENDIF}
+  {$ENDIF}
+  {$IFDEF UNIX}
+  ws: TWinSize;
+  {$ENDIF}
 begin
-  GmaxX := ScreenWidth;
-  GmaxY := ScreenHeight;
+  { FPC's Video unit caps ScreenWidth at 240 (Unix, and at least
+    some Windows console configurations).  Query the real terminal
+    dimensions from the OS and tell Video to allocate a matching
+    buffer.  The SetVideoMode call is a no-op when FPC's detected
+    size already matches the OS. }
+  wantCols := ScreenWidth;
+  wantRows := ScreenHeight;
+  {$IFDEF UNIX}
+  if FpIoctl(1, TIOCGWINSZ, @ws) = 0 then
+  begin
+    if ws.ws_col > 0 then wantCols := ws.ws_col;
+    if ws.ws_row > 0 then wantRows := ws.ws_row;
+  end;
+  {$ENDIF}
   {$IFDEF WINDOWS}
   hOut := GetStdHandle(STD_OUTPUT_HANDLE);
   if (hOut <> INVALID_HANDLE_VALUE) and
      GetConsoleScreenBufferInfo(hOut, csbi) then
   begin
-    GmaxX := csbi.srWindow.Right - csbi.srWindow.Left + 1;
-    GmaxY := csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+    wantCols := csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    wantRows := csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
   end;
   {$ENDIF}
+  if (wantCols <> ScreenWidth) or (wantRows <> ScreenHeight) then
+  begin
+    m.Col := wantCols;
+    m.Row := wantRows;
+    m.Color := true;
+    { If the driver rejects the mode, fall through with FPC's
+      reported ScreenWidth/ScreenHeight: rendering stays correct
+      within that smaller area rather than writing past VideoBuf. }
+    SetVideoMode(m);
+  end;
+  GmaxX := ScreenWidth;
+  GmaxY := ScreenHeight;
   HalfMaxX := GmaxX div 2;
   HalfMaxY := GmaxY div 2;
 end;
@@ -95,14 +124,14 @@ end;
 { ===== Internal helpers ===== }
 
 { Write one cell to VideoBuf; (x,y) are 1-based. }
-procedure SetCell(x, y: byte; attr: byte; c: char);
+procedure SetCell(x, y: word; attr: byte; c: char);
 var
-  offset: word;
+  offset: longword;
 begin
   if (x < 1) or (y < 1) or
      (x > ScreenWidth) or (y > ScreenHeight) then
     exit;
-  offset := word(y - 1) * ScreenWidth + word(x - 1);
+  offset := longword(y - 1) * ScreenWidth + longword(x - 1);
   VideoBuf^[offset] := (word(attr) shl 8) or word(Ord(c));
 end;
 
@@ -129,7 +158,7 @@ begin
 end;
 
 { Draw a double-line box; fills interior with spaces. }
-procedure DrawBox(paper, ink, x1, y1, x2, y2: byte);
+procedure DrawBox(paper, ink: byte; x1, y1, x2, y2: word);
 var
   attr: byte;
   i: integer;
@@ -152,10 +181,10 @@ end;
 
 { Save a screen region to the win stack. Coordinates are 1-based,
   clamped to screen bounds. }
-procedure SaveRegion(x1, y1, x2, y2: byte);
+procedure SaveRegion(x1, y1, x2, y2: word);
 var
-  w, h: byte;
-  sz: word;
+  w, h: word;
+  sz: longword;
   dst: PWord;
   row, col: integer;
 begin
@@ -173,7 +202,7 @@ begin
   winStack[winTop].y2 := y2;
   w := x2 - x1 + 1;
   h := y2 - y1 + 1;
-  sz := word(w) * word(h) * SizeOf(TVideoCell);
+  sz := longword(w) * longword(h) * SizeOf(TVideoCell);
   winStack[winTop].bufSize := sz;
   GetMem(winStack[winTop].buf, sz);
   dst := PWord(winStack[winTop].buf);
@@ -198,32 +227,32 @@ var
 begin
   attr := (byte(paper) shl 4) or (byte(ink) and $0F);
   for i := 1 to Length(s) do
-    SetCell(byte(x) + byte(i) - 1, byte(y), attr, s[i]);
+    SetCell(x + word(i) - 1, y, attr, s[i]);
 end;
 
-procedure MPrint(x, y: byte; const s: string);
+procedure MPrint(x, y: word; const s: string);
 begin
   CMPrint(TextAttr shr 4, TextAttr and $0F, x, y, s);
 end;
 
-procedure Print(x, y: byte; const s: string);
+procedure Print(x, y: word; const s: string);
 begin
   MPrint(x, y, s);
-  curX := x + byte(Length(s));
+  curX := x + word(Length(s));
   curY := y;
   SetCursorPos(curX - 1, curY - 1);
 end;
 
-procedure PrintSelf(paper, ink, x, y, len: byte);
+procedure PrintSelf(paper, ink: byte; x, y, len: word);
 var
   attr: byte;
   i: integer;
-  offset: word;
+  offset: longword;
 begin
   attr := (paper shl 4) or (ink and $0F);
   for i := 0 to len - 1 do begin
-    offset := word(y - 1) * ScreenWidth + word(x - 1 + i);
-    if offset < ScreenWidth * ScreenHeight then
+    offset := longword(y - 1) * ScreenWidth + longword(x - 1 + i);
+    if offset < longword(ScreenWidth) * ScreenHeight then
       VideoBuf^[offset] :=
         (word(attr) shl 8) or (VideoBuf^[offset] and $00FF);
   end;
@@ -237,7 +266,7 @@ begin
     result := StringOfChar(' ', n);
 end;
 
-procedure PaintRowSeps(posX, panelW: integer; dx: byte;
+procedure PaintRowSeps(posX, panelW: integer; dx: word;
   py, paper, ink, sepInk: integer);
 var
   cw: integer;
@@ -267,7 +296,7 @@ begin
   UpdateScreen(false);
 end;
 
-procedure ClrBox(x1, y1, x2, y2: byte);
+procedure ClrBox(x1, y1, x2, y2: word);
 var
   i: integer;
   p, ink: byte;
@@ -278,7 +307,7 @@ begin
     CMPrint(p, ink, x1, i, Space(x2 - x1 + 1));
 end;
 
-procedure GotoXY(x, y: byte);
+procedure GotoXY(x, y: word);
 {$IFDEF WINDOWS}
 var
   hOut: THandle;
@@ -300,12 +329,12 @@ begin
 end;
 {$ENDIF}
 
-function WhereX: byte;
+function WhereX: word;
 begin
   result := curX;
 end;
 
-function WhereY: byte;
+function WhereY: word;
 begin
   result := curY;
 end;
@@ -362,7 +391,7 @@ procedure DrawClock;
 var
   h, m, s, ms: word;
   ts: string;
-  col: byte;
+  col: word;
 begin
   DecodeTime(Now, h, m, s, ms);
   { 10 chars: ' HH:MM:SS ' — matches original CLOCK.PAS layout }

@@ -215,7 +215,7 @@ type
 var i:integer;
     stemp:string;
     fs:file;
-    xc,yc,b:byte;
+    xc,yc:word; b:byte;
     buf:array[1..14] of byte; csbuf:^tbuf;
     p:TPanel;
     w,nr,bufsize:word;

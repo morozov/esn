@@ -90,10 +90,10 @@ Type
      TPanel=
       object
        Place                    :byte;
-       PanelLong, PanelHi, PanelW,
+       PanelLong, PanelHi, PanelW:word;
        Columns                  :byte;
        InfoLines                :byte;
-       PutFrom, PosX, PosY      :byte;
+       PutFrom, PosX, PosY      :word;
        NameLine                 :boolean;
        Visible                  :boolean;
        Focused                  :boolean;
@@ -103,7 +103,7 @@ Type
        ckLastPanelType,
        LastPanelType            :byte;
 
-       xc,yc,lc                 :byte;
+       xc,yc,lc                 :word;
        tdirs,tfiles             :integer;
        from,f                   :integer;
 
@@ -170,7 +170,7 @@ Type
 
        procedure pcAdd(r:pcdirrec; isitdir:boolean; ind:integer);
        procedure pcMDF(path:string);
-       procedure GetCurXY(var x,y:byte);
+       procedure GetCurXY(var x,y:word);
        procedure pcPDF(fr:integer);
 
        procedure MDF;
@@ -215,7 +215,7 @@ Type
 Var
      rp,lp:TPanel;
 
-function BuildHorizSep(panelW, columns: integer): string;
+function BuildHorizSep(panelW, columns: integer): AnsiString;
 procedure ClampPanel(var f, from: longint;
                      panelHi, cols, total: longint);
 
@@ -380,9 +380,9 @@ if Place=Right then begin PosX:=GmaxX div 2+1; PanelW:=GmaxX-GmaxX div 2-2; end
 End;
 
 
-function Fill(n: integer; ch: char): string;
+function Fill(n: integer; ch: char): AnsiString;
 var
-  s: string;
+  s: AnsiString;
   i: integer;
 begin
   s := '';
@@ -390,7 +390,7 @@ begin
   Fill := s;
 end;
 
-function BuildHorizSep(panelW, columns: integer): string;
+function BuildHorizSep(panelW, columns: integer): AnsiString;
 var
   cw, dh: integer;
 begin
@@ -431,7 +431,7 @@ end;
 {============================================================================}
 Procedure TPanel.Build(parts:string);
 Var
-    s:string;
+    s:AnsiString;
     i,cw:integer;
 Begin
 PanelSetup;{}
@@ -444,11 +444,11 @@ if pos('0',parts)<>0 then if PanelType<>noPanel then
   if (posx<>1)and clocked then
     s:=#201+Fill(PanelW-9,#205);
   cmprint(pal.BkRama,pal.TxtRama,posx,1, s);
+  s:=#186+Space(PanelW)+#186;
   for i:=1 to PanelLong-2 do
-    cmprint(pal.BkRama,pal.TxtRama,posx,1+i,
-      #186+Space(PanelW)+#186);
-  cmprint(pal.BkRama,pal.TxtRama,posx,PanelLong,
-    #200+Fill(PanelW,#205)+#188);
+    cmprint(pal.BkRama,pal.TxtRama,posx,1+i,s);
+  s:=#200+Fill(PanelW,#205)+#188;
+  cmprint(pal.BkRama,pal.TxtRama,posx,PanelLong,s);
  end;
 
 if pos('1',parts)<>0 then if (PanelType>=1)and(PanelType<=10) then
@@ -672,9 +672,9 @@ End;
 
 
 {============================================================================}
-Procedure TPanel.GetCurXY(var x,y:byte);
+Procedure TPanel.GetCurXY(var x,y:word);
 Var
-    px,py,dx:byte;
+    px,py,dx:word;
     i,n:integer;
 Begin
 n:=tdirs+tfiles;
@@ -699,7 +699,8 @@ End;
 
 {============================================================================}
 procedure TPanel.pcPDF(fr:integer);
-var px,py,paper,ink,ii,iii,dx,ddx:byte;
+var paper,ink,ii,iii:byte;
+    px,py,dx,ddx:word;
     i,n:integer;
     name,e:string;
 begin
@@ -744,7 +745,7 @@ for i:=fr to n do
   if focused and(i=from+f-1) then ii:=pal.txtCurNT;
   if focused and(i=from+f-1)and(pcdir^[i].mark) then
     begin ii:=iii; if ii=pal.bkCurST then ii:=pal.txtCurST; end;
-  PrintSelf(paper,ii,px+byte(dx+integer(ddx)-5),py,1);
+  PrintSelf(paper,ii,px+dx+ddx-5,py,1);
 
   inc(py);
   if py>panelhi+putfrom-1 then begin py:=putfrom; inc(px,dx); end;
@@ -802,8 +803,8 @@ End;
 {============================================================================}
 Procedure TPanel.Info(parts:string);
 Var
-    s, nm, stemp: string;
-    r:string; p,x,y,d:byte; m,n:word; i:integer;
+    s, nm, stemp: AnsiString;
+    r:AnsiString; p,d:byte; x,y:word; m,n:word; i:integer;
     ml,byt2:longint; byt:int64;
     freeBytes:int64;
 Begin
@@ -1918,7 +1919,8 @@ end;
 {$ELSE}
 var
   p: ^TPanel;
-  i, sel, dcnt, topRow, row, winX1, winX2, winY1, winY2: byte;
+  i, sel, dcnt, topRow, row: byte;
+  winX1, winX2, winY1, winY2: word;
   firstVisible, visibleCount: byte;
   key: word;
   ch: char;
@@ -2620,7 +2622,7 @@ End;
 procedure TPanel.MkDir;
 var
   d: string;
-  cy: byte;
+  cy: word;
        begin
   if PanelType <> pcPanel then exit;
   CurOff;

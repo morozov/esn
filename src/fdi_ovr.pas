@@ -142,7 +142,7 @@ type hbuft=array[0..15] of byte;
 var i,io:integer;
     stemp,s:string;
     fs:file;
-    xc,yc,b:byte;
+    xc,yc:word; b:byte;
     hbuf:hbuft;
     p:TPanel;
 label fin;

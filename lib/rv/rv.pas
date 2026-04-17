@@ -147,32 +147,32 @@ procedure RvInit;
 
 { ===== Screen / color ===== }
 procedure Cls;
-procedure ClrBox(x1, y1, x2, y2: byte);
-procedure DrawBox(paper, ink, x1, y1, x2, y2: byte);
+procedure ClrBox(x1, y1, x2, y2: word);
+procedure DrawBox(paper, ink: byte; x1, y1, x2, y2: word);
 procedure Colour(paper, ink: byte);
-procedure Print(x, y: byte; const s: string);
-procedure MPrint(x, y: byte; const s: string);
+procedure Print(x, y: word; const s: string);
+procedure MPrint(x, y: word; const s: string);
 procedure CMPrint(paper, ink, x, y: word; const s: string);
-procedure PrintSelf(paper, ink, x, y, len: byte);
+procedure PrintSelf(paper, ink: byte; x, y, len: word);
 procedure CurOn;
 procedure CurOff;
-procedure GotoXY(x, y: byte);
-function  WhereX: byte;
-function  WhereY: byte;
+procedure GotoXY(x, y: word);
+function  WhereX: word;
+function  WhereY: word;
 function  Space(n: integer): string;
 procedure Flash(offOn: byte);
 
 { Paint single-column separator zones for a directory row.
   Draws two | separators at posX+cw and posX+2*cw (cw=(panelW+1)/3)
   with fill zones in between.  dx is the name-column width. }
-procedure PaintRowSeps(posX, panelW: integer; dx: byte;
+procedure PaintRowSeps(posX, panelW: integer; dx: word;
   py, paper, ink, sepInk: integer);
 
 procedure ProcessBar(act,per,total:byte; title:string);
 
 { ===== Window save / restore ===== }
-procedure sPutWin(x1, y1, x2, y2: byte);
-procedure scPutWin(paper, ink, x1, y1, x2, y2: byte);
+procedure sPutWin(x1, y1, x2, y2: word);
+procedure scPutWin(paper, ink: byte; x1, y1, x2, y2: word);
 procedure RestScr;
 procedure FlushWinStack;
 
@@ -185,8 +185,8 @@ function  rKey: word;
 procedure rPause;
 
 { ===== Dialog helpers ===== }
-procedure cmCentre(paper, ink, y: byte; const s: string);
-procedure CStatusLineColor(bk, txt1, txt2: byte; y: byte;
+procedure cmCentre(paper, ink: byte; y: word; const s: string);
+procedure CStatusLineColor(bk, txt1, txt2: byte; y: word;
   const s: string);
 
 { Return the visible length of s, ignoring ~` toggle markers
@@ -200,13 +200,13 @@ procedure StatusLineColor(paper, ink, papermark, inkmark,
   x, y: integer; const s: string);
 procedure cStatusBar(bkNT, txtNT, bkST, txtST, focus: byte;
   const s: string);
-procedure cButton(bkA, txtA, bkSh, txtSh, x, y: byte;
+procedure cButton(bkA, txtA, bkSh, txtSh: byte; x, y: word;
   const s: string; active: boolean);
 
 { Centre s0 within pw columns (accounting for ~` markup),
   pad/truncate to pw, draw with StatusLineColor. }
 procedure InfoLine(bkNT,txtNT,bkST,txtST:byte;
-                   x:byte; y:integer; s0:string;
+                   x:word; y:integer; s0:string;
                    pw:integer);
 
 { ===== Text input field ===== }
@@ -214,7 +214,7 @@ var
   scanf_esc: boolean;
   scanf_tab: boolean;
   scanf_shtab: boolean;
-function scanf(x, y: byte; const def: string;
+function scanf(x, y: word; const def: string;
   maxLen, visLen, startPos: byte): string;
 
 { ===== Popup item menu ===== }
@@ -303,7 +303,7 @@ uses
   , Windows
   {$ENDIF}
   {$IFDEF UNIX}
-  , BaseUnix
+  , BaseUnix, TermIO
   {$ENDIF}
   ;
 

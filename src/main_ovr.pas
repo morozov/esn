@@ -27,9 +27,9 @@ uses rv, palette, Video, SysUtils,
      init, Keyboard, pc;
 
 { Horizontal centre of the dialog, in screen columns. }
-function DlgCX: byte; begin DlgCX := HalfMaxX; end;
+function DlgCX: word; begin DlgCX := HalfMaxX; end;
 { Vertical centre of the dialog, in screen rows. }
-function DlgCY: byte; begin DlgCY := HalfMaxY; end;
+function DlgCY: word; begin DlgCY := HalfMaxY; end;
 
 {============================================================================}
 {== COLOR QESTION ===========================================================}
@@ -38,7 +38,7 @@ function  CQuestion (quest:string; lan:byte):boolean;
 var
   k:word;
   m: byte;
-  cx, cy, x1, x2: byte;
+  cx, cy, x1, x2: word;
   sep: integer;
 begin
   if lan = 0 then ;  { suppress unused-param hint }
@@ -98,7 +98,7 @@ end;
 
 procedure PutSmallWindow(ts, bs: string);
 var
-  cy: byte;
+  cy: word;
 begin
   cy := DlgCY;
   Colour(pal.bkdRama, pal.txtdRama);
@@ -116,7 +116,7 @@ end;
 function GetWildMask(tit, currentMask: string): string;
 var
   newMask: string;
-  cy: byte;
+  cy: word;
     begin
   cy := DlgCY;
   Colour(pal.bkdRama, pal.txtdRama);
@@ -142,7 +142,7 @@ var
 
 procedure About;
 var
-  cy: byte;
+  cy: word;
                     begin
   CurOff;
   cy := DlgCY;
@@ -173,14 +173,14 @@ Function  WillCopyMove(wtype:word; var TargetPath:string; var Skip:boolean):bool
 Var
     a1,a2:string[49]; s,st:string; wtemp:word;
 {== SCANF ===================================================================}
-function pscanf(scanf_posx, scanf_posy:byte;
+function pscanf(scanf_posx, scanf_posy:word;
                scanf_str:string;
                scanf_total, scanf_visible,
                scanf_cur:byte):string;
 var
-     scanf_x, scanf_from:byte;
+     scanf_x, scanf_from:word;
      scanf_str_old:string;
-     x:byte;
+     x:word;
      kb:word;
      ch:char;
      inRadio:boolean;
@@ -440,8 +440,8 @@ End;
 
 procedure ErrorMessage(tekst: string);
 var
-  cx, cy: byte;
-  halfW: byte;
+  cx, cy: word;
+  halfW: word;
 begin
  CurOff;
   if Length(tekst) > 60 then tekst := Copy(tekst, 1, 60) + '...';

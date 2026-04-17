@@ -83,7 +83,7 @@ end;
 Procedure trdInfoPanel(w:byte);
 var
      a:byte; s,s0:string; i:longint;
-     posx,posy,panellong,pw:byte;
+     posx,posy,panellong,pw:word;
      trks,pt:byte; zxlabel,trdfile:string; free,trddfiles,trdtfiles:word;
      p:TPanel;
 begin
@@ -408,7 +408,8 @@ end;
 
 {============================================================================}
 procedure trdPDF(var p:TPanel; fr:integer);
-var px,py,paper,ink,ii,dx,ddx:byte;
+var paper,ink,ii:byte;
+    px,py,dx,ddx:word;
     i,n:integer;
     name:string; e:string[3];
 begin
