@@ -1,0 +1,68 @@
+name: Build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x86_64
+            runner: ubuntu-latest
+            artifact: esn-linux-x86_64
+            binary: bin/esn
+            setup: apt
+
+          - name: Linux aarch64
+            runner: ubuntu-24.04-arm
+            artifact: esn-linux-aarch64
+            binary: bin/esn
+            setup: apt
+
+          - name: macOS arm64
+            runner: macos-latest
+            artifact: esn-macos-arm64
+            binary: bin/esn
+            setup: brew
+
+          - name: Windows x86_64
+            runner: windows-latest
+            artifact: esn-windows-x86_64
+            binary: bin/esn.exe
+            setup: lazarus
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Free Pascal (apt)
+        if: matrix.setup == 'apt'
+        run: sudo apt-get update && sudo apt-get install -y fpc
+
+      - name: Install Free Pascal (brew)
+        if: matrix.setup == 'brew'
+        run: brew install fpc
+
+      - name: Install Free Pascal (Lazarus)
+        if: matrix.setup == 'lazarus'
+        uses: gcarreno/setup-lazarus@v3
+        with:
+          lazarus-version: stable
+
+      - name: Build (Unix)
+        if: runner.os == 'Linux' || runner.os == 'macOS'
+        run: make
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\build.ps1
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.binary }}
+          if-no-files-found: error
