@@ -1,12 +1,13 @@
 param(
-  [string]$Fpc = 'fpc'
+  [string]$Fpc = 'fpc',
+  [string]$Version = '1.15-dev'
 )
 
 $ErrorActionPreference = 'Stop'
 
 $FpcCmd           = (Get-Command $Fpc -ErrorAction Stop).Source
 $env:COMPILE_DATE = (Get-Date).ToString('ddd, dd MMM yyyy "at" HH:mm:ss K')
-$env:VERSION      = '1.14'
+$env:VERSION      = $Version
 $FpcFlags         = @('-Sd', '-O2', '-gl', '-Sc', '-Sm', '-Sewn', '-vewnhi')
 
 $Root    = Split-Path -Parent $MyInvocation.MyCommand.Path
