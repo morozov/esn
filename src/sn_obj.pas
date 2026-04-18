@@ -800,13 +800,31 @@ End;
 
 
 
+{$IFDEF WINDOWS}
+function WindowsDriveLetters: AnsiString;
+var
+  mask: DWORD;
+  k: integer;
+  acc: AnsiString;
+begin
+  acc := '';
+  mask := GetLogicalDrives;
+  for k := 0 to 25 do
+    if (mask and (DWORD(1) shl k)) <> 0 then
+      acc := acc + Chr(Ord('A') + k);
+  WindowsDriveLetters := acc;
+end;
+{$ENDIF}
+
+
 {============================================================================}
 Procedure TPanel.Info(parts:string);
 Var
     s, nm, stemp: AnsiString;
-    r:AnsiString; p,d:byte; x,y:word; m,n:word; i:integer;
+    r:AnsiString; p:byte; d:word; x,y:word; m,n:word; i:integer;
     ml,byt2:longint; byt:int64;
     freeBytes:int64;
+    spaced:boolean; q:word; activeCh:char;
 Begin
 
 
@@ -873,7 +891,44 @@ if (pos('b',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
 
 if (pos('d',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and(PanelType<=10) then
  Begin
-  cmprint(pal.bkRama,pal.txtRama,posx+1,PanelLong,Fill(PanelW,#205));
+  s := '';
+  {$IFDEF WINDOWS}
+  if DiskLine then s := WindowsDriveLetters;
+  {$ENDIF}
+  if s <> '' then
+   begin
+    cmprint(pal.bkDiskLineR,pal.txtDiskLineR,posx,PanelLong,#200+'[ ');
+    d := posx + 3;
+    spaced := (length(s) * 2 + 5) <= PanelW;
+    if length(pcnd) > 0 then activeCh := UpCase(pcnd[1]) else activeCh := #0;
+    for x := 1 to length(s) do
+     begin
+      { Need 1 cell for the letter and 2 for the trailing ' ]'.
+        Stop early if drawing this letter would push past the
+        panel's right border. }
+      if d > posx + PanelW - 2 then break;
+      if s[x] = activeCh then
+       begin p := pal.bkDiskLineST; i := pal.txtDiskLineST; end
+      else
+       begin p := pal.bkDiskLineNT; i := pal.txtDiskLineNT; end;
+      cmprint(p,i,d,PanelLong,s[x]);
+      inc(d);
+      if spaced and (x < length(s)) then
+       begin
+        cmprint(pal.bkDiskLineNT,pal.txtDiskLineNT,d,PanelLong,' ');
+        inc(d);
+       end;
+     end;
+    cmprint(pal.bkDiskLineR,pal.txtDiskLineR,d,PanelLong,' ]');
+    q := d + 2;
+    if q <= posx + PanelW then
+      cmprint(pal.bkRama,pal.txtRama,q,PanelLong,
+        Fill(posx + PanelW + 1 - q, #205));
+   end
+  else
+   begin
+    cmprint(pal.bkRama,pal.txtRama,posx+1,PanelLong,Fill(PanelW,#205));
+   end;
   cmprint(pal.bkRama,pal.txtRama,posx+PanelW+1,PanelLong,#188);
  End;
 
