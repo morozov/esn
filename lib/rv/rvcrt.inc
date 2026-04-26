@@ -35,8 +35,7 @@ const
 type
   TSavedWin = record
     x1, y1, x2, y2: word;
-    buf: pointer;
-    bufSize: longword;
+    buf: TEnhancedVideoBuf;
   end;
 
 { ===== Module-level state ===== }
@@ -123,16 +122,45 @@ end;
 
 { ===== Internal helpers ===== }
 
-{ Write one cell to VideoBuf; (x,y) are 1-based. }
+{ CP437 mapping for ASCII control bytes 0x00..0x1F. iconv treats
+  these as control characters and passes them through unchanged,
+  but in CP437 the same bytes are printable glyphs (•, ▲, ↑, …).
+  Table copied verbatim from FPC's `convert_lowascii_to_Unicode`
+  (lib/fpc/rtl-console/src/inc/video.inc). }
+const
+  cp437LowAscii: array[#0..#31] of WideChar = (
+    #8199, #9786, #9787, #9829, #9830, #9827, #9824, #8226,
+    #9688, #9675, #9689, #9794, #9792, #9834, #9835, #9788,
+    #9658, #9668, #8597, #8252, #0182, #0167, #9644, #8616,
+    #8593, #8595, #8594, #8592, #8735, #8596, #9650, #9660
+  );
+
+{ Write one cell to EnhancedVideoBuf; (x,y) are 1-based.
+  c is interpreted as CP437; low-ASCII (≤#31) and #127 use the
+  hand-rolled table above, the rest go through iconv (cwstring)
+  via CP437 codepage tagging. }
 procedure SetCell(x, y: word; attr: byte; c: char);
 var
   offset: longword;
+  raw: RawByteString;
+  egc: UnicodeString;
 begin
   if (x < 1) or (y < 1) or
      (x > ScreenWidth) or (y > ScreenHeight) then
     exit;
   offset := longword(y - 1) * ScreenWidth + longword(x - 1);
-  VideoBuf^[offset] := (word(attr) shl 8) or word(Ord(c));
+  if c <= #31 then
+    egc := cp437LowAscii[c]
+  else if c = #127 then
+    egc := #$2302
+  else
+  begin
+    raw := c;
+    SetCodePage(raw, 437, false);
+    egc := UnicodeString(raw);
+  end;
+  EnhancedVideoBuf[offset].ExtendedGraphemeCluster := egc;
+  EnhancedVideoBuf[offset].Attribute := attr;
 end;
 
 { Return scan code for an ASCII character. }
@@ -184,9 +212,8 @@ end;
 procedure SaveRegion(x1, y1, x2, y2: word);
 var
   w, h: word;
-  sz: longword;
-  dst: PWord;
   row, col: integer;
+  k: longword;
 begin
   if winTop >= maxWinStack then
     exit;
@@ -202,14 +229,13 @@ begin
   winStack[winTop].y2 := y2;
   w := x2 - x1 + 1;
   h := y2 - y1 + 1;
-  sz := longword(w) * longword(h) * SizeOf(TVideoCell);
-  winStack[winTop].bufSize := sz;
-  GetMem(winStack[winTop].buf, sz);
-  dst := PWord(winStack[winTop].buf);
+  SetLength(winStack[winTop].buf, longword(w) * longword(h));
+  k := 0;
   for row := y1 - 1 to y2 - 1 do
     for col := x1 - 1 to x2 - 1 do begin
-      dst^ := VideoBuf^[row * ScreenWidth + col];
-      Inc(dst);
+      winStack[winTop].buf[k] :=
+        EnhancedVideoBuf[row * ScreenWidth + col];
+      Inc(k);
     end;
 end;
 
@@ -253,8 +279,7 @@ begin
   for i := 0 to len - 1 do begin
     offset := longword(y - 1) * ScreenWidth + longword(x - 1 + i);
     if offset < longword(ScreenWidth) * ScreenHeight then
-      VideoBuf^[offset] :=
-        (word(attr) shl 8) or (VideoBuf^[offset] and $00FF);
+      EnhancedVideoBuf[offset].Attribute := attr;
   end;
 end;
 
@@ -435,7 +460,7 @@ begin
     and cursor position, restored when we leave on exit. }
   Write(#27'[?1049h');
   Flush(Output);
-  InitVideo;
+  InitEnhancedVideo;
   InitKeyboard;
   {$IFDEF WINDOWS}
   { Disable ENABLE_PROCESSED_INPUT to prevent conhost/Windows Terminal

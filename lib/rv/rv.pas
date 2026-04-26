@@ -350,9 +350,9 @@ finalization
     { Shut down Video/Keyboard while still in the alternate buffer
       so any output they produce does not affect the main buffer. }
     DoneKeyboard;
-    DoneVideo;
+    DoneEnhancedVideo;
     {$IFDEF WINDOWS}
-    { DoneVideo may have restored the console mode without VT
+    { DoneEnhancedVideo may have restored the console mode without VT
       processing. Re-enable it so the escape sequences below
       are interpreted, not printed as literal characters. }
     SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE),

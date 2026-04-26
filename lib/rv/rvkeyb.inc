@@ -70,30 +70,30 @@ begin
           VideoBuf. UpdateScreenSize then applies the true
           terminal dimensions via SetVideoMode (FPC's own
           detection caps ScreenWidth at 240 on Unix).
-          DoneVideo restores the terminal from raw mode, so
-          DoneKeyboard/InitKeyboard must bracket it to keep
+          DoneEnhancedVideo restores the terminal from raw mode,
+          so DoneKeyboard/InitKeyboard must bracket it to keep
           the keyboard in raw mode. }
         MouseOff;
         DoneKeyboard;
-        DoneVideo;
-        InitVideo;
+        DoneEnhancedVideo;
+        InitEnhancedVideo;
         InitKeyboard;
         MouseOn;
-        { InitVideo restores the terminal cursor to visible;
+        { InitEnhancedVideo restores the terminal cursor to visible;
           hide it again so it does not appear as a white spot
           at (1,1) after Cls. }
         CurOff;
         {$IFDEF UNIX}
-        { InitVideo may have reinstalled FPC's own SIGWINCH
-          handler, replacing ours.  Reinstall so future
+        { InitEnhancedVideo may have reinstalled FPC's own
+          SIGWINCH handler, replacing ours.  Reinstall so future
           resizes are detected. }
         fpSignal(SIGWINCH, @SigWinchHandler);
         {$ENDIF}
         { Drain any bytes that accumulated in stdin between
-          DoneKeyboard and InitKeyboard (e.g. from DoneVideo
-          escape sequences being echoed, or a pending
-          SIGWINCH delivering bytes).  If consumed as a key
-          event they would move the cursor spuriously. }
+          DoneKeyboard and InitKeyboard (e.g. from
+          DoneEnhancedVideo escape sequences being echoed, or a
+          pending SIGWINCH delivering bytes).  If consumed as a
+          key event they would move the cursor spuriously. }
         while PollKeyEvent <> 0 do GetKeyEvent;
         UpdateScreenSize;
         if Assigned(OnResize) then OnResize;

@@ -34,23 +34,25 @@ end;
 
 procedure RestScr;
 var
-  w: TSavedWin;
-  src: PWord;
   row, col: integer;
-  ofs: longword;
+  k, ofs: longword;
+  x1, y1, x2, y2: word;
 begin
   if winTop = 0 then
     exit;
-  w := winStack[winTop];
-  src := PWord(w.buf);
-  for row := w.y1 - 1 to w.y2 - 1 do
-    for col := w.x1 - 1 to w.x2 - 1 do begin
+  x1 := winStack[winTop].x1;
+  y1 := winStack[winTop].y1;
+  x2 := winStack[winTop].x2;
+  y2 := winStack[winTop].y2;
+  k := 0;
+  for row := y1 - 1 to y2 - 1 do
+    for col := x1 - 1 to x2 - 1 do begin
       ofs := longword(row) * ScreenWidth + longword(col);
       if ofs < longword(ScreenWidth) * ScreenHeight then
-        VideoBuf^[ofs] := src^;
-      Inc(src);
+        EnhancedVideoBuf[ofs] := winStack[winTop].buf[k];
+      Inc(k);
     end;
-  FreeMem(winStack[winTop].buf, winStack[winTop].bufSize);
+  SetLength(winStack[winTop].buf, 0);
   Dec(winTop);
   UpdateScreen(false);
   DrawClock;
@@ -59,7 +61,7 @@ end;
 procedure FlushWinStack;
 begin
   while winTop > 0 do begin
-    FreeMem(winStack[winTop].buf, winStack[winTop].bufSize);
+    SetLength(winStack[winTop].buf, 0);
     Dec(winTop);
   end;
 end;
