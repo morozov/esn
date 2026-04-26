@@ -255,7 +255,7 @@ function ConsoleText(const s: string): string;
 function NoSpace(s: string): string;
 function NoSpaceLR(s: string): string;
 function Vall(tempein: string): longint;
-function Fill(len: byte; const symb: string): string;
+function Fill(len: integer; const symb: string): string;
 function WithOut(s, chars: string): string;
 function CLen(s: string): integer;
 function LZ(w: word): string;

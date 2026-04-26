@@ -47,7 +47,7 @@ begin nospace := Trim(s); end;
 function nospaceLR(s: string): string;
 begin nospaceLR := Trim(s); end;
 
-function fill(len: byte; const symb: AnsiString): string;
+function fill(len: integer; const symb: AnsiString): string;
 begin fill := DupeString(symb, len); end;
 
 function readkey: char;

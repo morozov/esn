@@ -89,7 +89,7 @@ begin
 end;
 {$pop}
 
-function Fill(len: byte; const symb: string): string;
+function Fill(len: integer; const symb: string): string;
 begin
   Fill := DupeString(symb, len);
 end;
