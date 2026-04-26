@@ -8,11 +8,12 @@ function  pcNameLine(var p:TPanel; m:word):string;
 Procedure pcInfoPanel(w:byte);
 Function  DirSize(path:string; priory:byte; var size:int64; var UserOut:boolean; sys:boolean):boolean;
 
-function PcColumnEntry(const fname, fext: string; dx, ddx: byte): string;
+function PcColumnEntry(const fname, fext: string;
+                       dx, ddx: integer): string;
 
 Implementation
 Uses
-     SysUtils, Keyboard, RV,
+     SysUtils, UnicodeVideo, graphemebreakproperty, Keyboard, RV,
      Vars, Palette, Main,
      TRD;
 
@@ -159,16 +160,36 @@ End;
 
 
 {============================================================================}
-function PcColumnEntry(const fname, fext: string; dx, ddx: byte): string;
+function PcColumnEntry(const fname, fext: string;
+                       dx, ddx: integer): string;
 Var
+  baseU, fitU, egc: UnicodeString;
   base, ext3: string;
+  padTo, cw, fitW: integer;
  begin
-  base := fname;
-  if (Length(base) > 0) and (base[1] = ' ') then
-    Delete(base, 1, 1);
-  while Length(base) < dx + integer(ddx) - 5 do
-    base := base + ' ';
-  base := Copy(base, 1, dx + integer(ddx) - 5);
+  baseU := UTF8Decode(fname);
+  if (Length(baseU) > 0) and (baseU[1] = ' ') then
+    Delete(baseU, 1, 1);
+  padTo := dx + integer(ddx) - 5;
+  if padTo < 0 then padTo := 0;
+  { Truncate to fit padTo display columns. Iterate by grapheme
+    cluster so surrogate pairs (astral emoji) and modifier
+    sequences (skin-tone, ZWJ) are admitted or rejected as one
+    unit, never split mid-cluster. }
+  fitW := 0; fitU := '';
+  for egc in TUnicodeStringExtendedGraphemeClustersEnumerator.Create(baseU) do
+  begin
+    cw := ExtendedGraphemeClusterDisplayWidth(egc);
+    if fitW + cw > padTo then break;
+    fitU := fitU + egc;
+    Inc(fitW, cw);
+  end;
+  while fitW < padTo do
+  begin
+    fitU := fitU + ' ';
+    Inc(fitW);
+  end;
+  base := UTF8Encode(fitU);
   ext3 := Copy(fext, 1, 3);
   while Length(ext3) < 3 do ext3 := ext3 + ' ';
   PcColumnEntry := base + ' ' + ext3;

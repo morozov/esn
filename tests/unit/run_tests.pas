@@ -13,7 +13,8 @@ uses
   test_sn_utils,
   test_pc,
   test_resize,
-  test_insert;
+  test_insert,
+  test_unicode_width;
 
 var
   app: TTestRunner;

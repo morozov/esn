@@ -256,6 +256,35 @@ begin
     SetCell(x + word(i) - 1, y, attr, s[i]);
 end;
 
+procedure CMPrintU(paper, ink, x, y: word; const s: AnsiString);
+var
+  attr: byte;
+  i, cw: integer;
+  col: word;
+  us: UnicodeString;
+  raw: RawByteString;
+  offset: longword;
+begin
+  attr := (byte(paper) shl 4) or (byte(ink) and $0F);
+  raw := s;
+  SetCodePage(raw, CP_UTF8, false);
+  us := UnicodeString(raw);
+  col := x;
+  for i := 1 to Length(us) do
+  begin
+    cw := ExtendedGraphemeClusterDisplayWidth(us[i]);
+    if (col >= 1) and (col <= ScreenWidth) and
+       (y >= 1) and (y <= ScreenHeight) then
+    begin
+      offset := longword(y - 1) * ScreenWidth + longword(col - 1);
+      EnhancedVideoBuf[offset].ExtendedGraphemeCluster := us[i];
+      EnhancedVideoBuf[offset].Attribute := attr;
+    end;
+    if cw <= 0 then cw := 1;
+    Inc(col, cw);
+  end;
+end;
+
 procedure MPrint(x, y: word; const s: string);
 begin
   CMPrint(TextAttr shr 4, TextAttr and $0F, x, y, s);

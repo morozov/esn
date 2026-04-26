@@ -719,24 +719,23 @@ for i:=fr to n do
   if i<=pctdirs then begin paper:=pal.bkDir; ink:=pal.txtDir; end
   else
    begin
-    e:=nospace(copy(name,(dx+integer(ddx)-3),3)); if e='' then e:='.';
+    e:=nospace(string(pcDir^[i].fext)); if e='' then e:='.';
     col(e,pcDir^[i].flength,paper,ink);
    end;
   ii:=ink; iii:=ink;
   if pcdir^[i].mark then begin paper:=pal.bkST; ink:=pal.txtST; end;
   if focused and(i=from+f-1) then begin paper:=pal.bkCurNT; ink:=pal.txtCurNT; end;
   if focused and(i=from+f-1)and(pcdir^[i].mark) then begin paper:=pal.bkCurST; ink:=pal.txtCurST; end;
-  {$push}{$warnings off}
-  if ((pcdir^[i].fattr and faSysFile) <> 0) then name[1]:=upcase(name[1]);
   e:=' ';
+  {$push}{$warnings off}
   if ((pcdir^[i].fattr and faReadOnly)<> 0) then e:=#$B0;
   if ((pcdir^[i].fattr and faHidden)  <> 0) then e:=#$B1;
   if ((pcdir^[i].fattr and faSysFile) <> 0) then e:=#$B2;
   {$pop}
   if pcdir^[i].mark then e:=chr(251);
-  if (dx+integer(ddx)-4>=1)and(dx+integer(ddx)-4<=Length(name)) then
-    name[dx+integer(ddx)-4]:=e[1];
-  cmprint(paper,ink,px,py,name);
+  CMPrintU(paper,ink,px,py,name);
+  if e <> ' ' then
+    cmprint(paper, ink, px + dx + integer(ddx) - 5, py, e);
 
   if Columns=1 then
     PaintRowSeps(PosX, PanelW, dx, py, paper, ink, pal.TxtRama);

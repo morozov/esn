@@ -151,7 +151,13 @@ procedure DrawBox(paper, ink: byte; x1, y1, x2, y2: word);
 procedure Colour(paper, ink: byte);
 procedure Print(x, y: word; const s: string);
 procedure MPrint(x, y: word; const s: string);
+{ Input is interpreted as CP437. Each input byte maps to one
+  cell. }
 procedure CMPrint(paper, ink, x, y: word; const s: string);
+{ Input is interpreted as UTF-8. Each decoded codepoint maps to
+  one cell. Use for content that may contain non-CP437
+  codepoints (filenames, user-entered text). }
+procedure CMPrintU(paper, ink, x, y: word; const s: AnsiString);
 procedure PrintSelf(paper, ink: byte; x, y, len: word);
 procedure CurOn;
 procedure CurOff;
