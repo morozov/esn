@@ -17,7 +17,6 @@ end;
 
 RvInit;
 ApplyVGAPalette;
-snMouse:=false;
 snInit(false);
 {--------------------------------- LAUNCH -----------------------------------}
 Case focus of

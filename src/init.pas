@@ -66,7 +66,6 @@ begin
   CmdLine     := ReadBool('Interface', 'CmdLine',    CmdLine);
   DiskLine    := ReadBool('Interface', 'DiskLine',   DiskLine);
   HideHidden  := ReadBool('Interface', 'HideHidden', HideHidden);
-  snMouse     := ReadBool('Interface', 'Mouse',      snMouse);
   SaveOnExit  := ReadBool('Interface', 'SaveOnExit', SaveOnExit);
   bLoadDesktop := ReadBool('Interface', 'LoadDesktop', bLoadDesktop);
   BkSpUpDir   := ReadBool('Interface', 'BkSpUpDir',  BkSpUpDir);
@@ -135,7 +134,6 @@ begin
   WB('Interface', 'CmdLine',      CmdLine);
   WB('Interface', 'DiskLine',     DiskLine);
   WB('Interface', 'HideHidden',   HideHidden);
-  WB('Interface', 'Mouse',        snMouse);
   WB('Interface', 'SaveOnExit',   SaveOnExit);
   WB('Interface', 'LoadDesktop',  bLoadDesktop);
   WB('Interface', 'BkSpUpDir',    BkSpUpDir);
@@ -186,8 +184,6 @@ ContSys:
 
 WorkDir:=CurentDir; StartDir:=GetOf(ParamStr(0),_dir);
 if StartDir='' then StartDir:=CurentDir;
-
-Moused:=false;
 
 focus:=left; Lang:=eng;
 

@@ -134,7 +134,6 @@ var
   HalfMaxX, HalfMaxY: word;
   TextAttr: byte;
   SegB800: word;    { unused; retained for source compatibility }
-  Moused: boolean;
   { Optional idle callback invoked while rKey polls for input. }
   OnIdle: procedure;
   { Optional resize callback invoked when the terminal is resized. }
@@ -319,7 +318,6 @@ uses
 initialization
   rvActive     := false;
   SegB800      := 0;
-  Moused       := false;
   OnIdle       := nil;
   OnResize     := nil;
   needResize   := false;

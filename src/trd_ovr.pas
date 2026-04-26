@@ -1780,7 +1780,7 @@ end;
 
 Begin
 EditFileParam:=true; if ind=1 then EditFileParam:=false;
-CurOff; if Moused then MouseOff; x:=HalfMaxX; y:=HalfMaxY;
+CurOff; x:=HalfMaxX; y:=HalfMaxY;
 
 if EditFileParam then i:=y+4 else i:=y-0;
 
