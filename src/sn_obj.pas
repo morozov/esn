@@ -853,7 +853,10 @@ if (pos('c',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
   x:=posx+4+(m-length(s)) div 2;
   if (posx<>left) and clocked then r:=Fill(PanelW-9,#205) else r:=Fill(PanelW,#205);
   cmprint(pal.BkRama,pal.TxtRama,posx+1,posy,r);
-  cmprint(p,i,x,1,s);
+  if PanelType=pcPanel then
+    CMPrintU(p,i,x,1,s)
+  else
+    cmprint(p,i,x,1,s);
   CurOff;
 
   Case PanelType of
