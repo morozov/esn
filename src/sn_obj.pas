@@ -944,7 +944,7 @@ if (pos('n',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
         if place=left then nm:=pcNameLine(lp,m) else nm:=pcNameLine(rp,m);
        m:=0; for n:=1 to pctdirs+pctfiles do if pcdir^[n].mark then inc(m);
        if (infolines<=1)and(m<>0) then else
-       cmprint(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
+       CMPrintU(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
        cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,#186);
        cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,#186);
       END;

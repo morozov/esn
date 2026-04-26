@@ -19,20 +19,29 @@ Uses
 
 
 {============================================================================}
+{ Display width of a UTF-8 byte string, in terminal cells. Each
+  grapheme cluster contributes the width of its first codepoint
+  (CJK Wide → 2, ASCII/Cyrillic/Latin → 1), so surrogate pairs and
+  combining marks are not counted twice. }
+function dispWidth(const s: AnsiString): integer;
+begin
+  result := StringDisplayWidth(UTF8Decode(s));
+end;
+
 function pcNameLine(var p:TPanel; m:word):string;
 var nm,stemp:string;
 begin
          p.pcnn:=p.pcDir^[m].fname;
-         if p.pcnn[1]=' ' then delete(p.pcnn,1,1);
+         if (Length(p.pcnn)>0) and (p.pcnn[1]=' ') then delete(p.pcnn,1,1);
          if nospace(p.pcDir^[m].fext)<>'' then p.pcnn:=p.pcnn+'.'+p.pcDir^[m].fext;
-         p.pcnn:=p.pcnn+space(12-length(p.pcnn));
+         while dispWidth(p.pcnn)<12 do p.pcnn:=p.pcnn+' ';
          stemp:=extnum(strr(p.pcdir^[m].flength));
          if p.pcdir^[m].flength>9999999 then stemp:=extnum(strr(p.pcdir^[m].flength div 1000))+'K';
          if p.pcdir^[m].flength>999999999 then stemp:=extnum(strr(p.pcdir^[m].flength div 1000000))+'M';
-         if (p.pcdir^[m].flength<0) then stemp:=#16+'SUB-DIR'+#17;
-         if (p.pcdir^[m].flength<0)and(nospace(p.pcnn)='..') then stemp:=#17+'SUB-DIR'+#16;
+         if (p.pcdir^[m].flength<0) then stemp:='►SUB-DIR◄';
+         if (p.pcdir^[m].flength<0)and(nospace(p.pcnn)='..') then stemp:='◄SUB-DIR►';
          stemp:=changechar(stemp,' ',',');
-         stemp:=space(10-length(stemp))+stemp;
+         stemp:=space(10-dispWidth(stemp))+stemp;
          nm:=p.pcnn+' '+stemp;
 
          stemp:=LZ(p.pcdir^[m].fdt.day)+'-'+LZ(p.pcdir^[m].fdt.month)+'-'+copy(LZ(p.pcdir^[m].fdt.year),3,2);

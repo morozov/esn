@@ -21,11 +21,18 @@ type
     procedure TestColumnEntry_Cyrillic_OddLeft;
     procedure TestColumnEntry_Emoji_BMP_Width;
     procedure TestColumnEntry_Emoji_Astral_Width;
+
+    { ===== pcNameLine padding to 12 display cells ===== }
+    procedure TestNameLine_Cyrillic_PadToTwelve;
+    procedure TestNameLine_CJK_PadToTwelve;
   end;
 
 implementation
 
-uses pc, UnicodeVideo, SysUtils;
+uses pc, sn_obj, vars, UnicodeVideo, graphemebreakproperty, SysUtils;
+
+const
+  MaxEntries = 4;
 
 { Display-width helper used by the test asserts: defers to FPC's
   StringDisplayWidth, which iterates grapheme clusters and decodes
@@ -110,6 +117,95 @@ var
 begin
   s := PcColumnEntry('hi😀', 'txt', 13, 0);
   AssertEquals('astral emoji display width', 12, CellWidth(s));
+end;
+
+{ ===== pcNameLine tests =====
+  pcNameLine pads the file name to 12 display cells via dispWidth,
+  then appends size, date, time. We verify the *prefix* width: the
+  first 12 display cells must hold name + trailing spaces. }
+
+function MakePanel: TPanel;
+begin
+  {$push}{$notes off}
+  FillChar(result, SizeOf(result), 0);
+  {$pop}
+  result.PanelType := pcPanel;
+  GetMem(result.pcDir, MaxEntries * SizeOf(pcDirRec));
+  {$push}{$notes off}
+  FillChar(result.pcDir^, MaxEntries * SizeOf(pcDirRec), 0);
+  {$pop}
+end;
+
+procedure FreePanel(var p: TPanel);
+begin
+  FreeMem(p.pcDir, MaxEntries * SizeOf(pcDirRec));
+end;
+
+{ Return the prefix of UTF-8 string s whose display width equals w
+  cells. Used to extract the padded-name portion of pcNameLine's
+  result for verification. }
+function CellPrefix(const s: AnsiString; w: integer): AnsiString;
+var
+  us, picked, egc: UnicodeString;
+  acc, cw: integer;
+begin
+  us := UTF8Decode(s);
+  acc := 0;
+  picked := '';
+  for egc in TUnicodeStringExtendedGraphemeClustersEnumerator.Create(us) do
+  begin
+    cw := ExtendedGraphemeClusterDisplayWidth(egc);
+    if acc + cw > w then break;
+    picked := picked + egc;
+    Inc(acc, cw);
+    if acc = w then break;
+  end;
+  result := UTF8Encode(picked);
+end;
+
+procedure TUnicodeWidthTest.TestNameLine_Cyrillic_PadToTwelve;
+{ 'файл.txt' → name 'файл' (4 cells) + '.txt' (4 cells) = 8 cells;
+  pcNameLine pads to 12 cells with 4 spaces. Verify the 12-cell
+  prefix ends with at least one space. }
+var
+  p: TPanel;
+  line, prefix: string;
+begin
+  p := MakePanel;
+  try
+    p.pcDir^[1].fname := 'файл';
+    p.pcDir^[1].fext  := 'txt';
+    p.pcDir^[1].flength := 100;
+    line := pcNameLine(p, 1);
+    prefix := CellPrefix(line, 12);
+    AssertEquals('Cyrillic name prefix is 12 cells',
+                 12, CellWidth(prefix));
+    AssertEquals('Cyrillic name prefix trailing space',
+                 ' ', Copy(prefix, Length(prefix), 1));
+  finally
+    FreePanel(p);
+  end;
+end;
+
+procedure TUnicodeWidthTest.TestNameLine_CJK_PadToTwelve;
+{ '中文.txt' → name '中文' (4 cells) + '.txt' (4 cells) = 8 cells;
+  must be padded to 12. }
+var
+  p: TPanel;
+  line, prefix: string;
+begin
+  p := MakePanel;
+  try
+    p.pcDir^[1].fname := '中文';
+    p.pcDir^[1].fext  := 'txt';
+    p.pcDir^[1].flength := 100;
+    line := pcNameLine(p, 1);
+    prefix := CellPrefix(line, 12);
+    AssertEquals('CJK name prefix is 12 cells',
+                 12, CellWidth(prefix));
+  finally
+    FreePanel(p);
+  end;
 end;
 
 initialization
