@@ -16,7 +16,27 @@ BINDIR   := bin
 BINARY   := $(BINDIR)/esn
 MAIN     := $(SRCDIR)/esn.pas
 LIBDIR   := lib
-SOURCES  := $(wildcard $(SRCDIR)/*.pas) $(wildcard $(LIBDIR)/rv/*.pas) $(wildcard $(LIBDIR)/rv/*.inc)
+SOURCES  := $(wildcard $(SRCDIR)/*.pas) \
+            $(wildcard $(LIBDIR)/rv/*.pas) \
+            $(wildcard $(LIBDIR)/rv/*.inc) \
+            $(wildcard $(LIBDIR)/fpc/rtl-console/src/inc/*.inc) \
+            $(wildcard $(LIBDIR)/fpc/rtl-console/src/inc/*.pp) \
+            $(wildcard $(LIBDIR)/fpc/rtl-console/src/unix/*.pp) \
+            $(wildcard $(LIBDIR)/fpc/rtl-console/src/win/*.pp) \
+            $(wildcard $(LIBDIR)/fpc/rtl-unicode/src/inc/*.pp) \
+            $(wildcard $(LIBDIR)/fpc/rtl-unicode/src/inc/*.inc)
+
+# Vendored UnicodeVideo unit (lib/fpc/) — pick the platform driver.
+FPCVIDEO := -Fi$(LIBDIR)/fpc/rtl-console/src/inc \
+            -Fu$(LIBDIR)/fpc/rtl-unicode/src/inc \
+            -Fi$(LIBDIR)/fpc/rtl-unicode/src/inc
+ifeq ($(UNAME),Darwin)
+  FPCVIDEO += -Fu$(LIBDIR)/fpc/rtl-console/src/unix
+else ifeq ($(UNAME),Linux)
+  FPCVIDEO += -Fu$(LIBDIR)/fpc/rtl-console/src/unix
+else
+  FPCVIDEO += -Fu$(LIBDIR)/fpc/rtl-console/src/win
+endif
 
 .PHONY: all clean test unit-test integration-test
 
@@ -24,7 +44,7 @@ all: $(BINARY)
 
 $(BINARY): $(SOURCES)
 	@mkdir -p $(BINDIR)
-	$(FPC) $(FPCFLAGS) -B -FU$(BINDIR) -FE$(BINDIR) -Fu$(LIBDIR)/rv $(MAIN)
+	$(FPC) $(FPCFLAGS) -B -FU$(BINDIR) -FE$(BINDIR) -Fu$(LIBDIR)/rv $(FPCVIDEO) $(MAIN)
 
 test: unit-test integration-test
 

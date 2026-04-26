@@ -16,11 +16,19 @@ $LibDir  = Join-Path $Root 'lib'
 $BinDir  = Join-Path $Root 'bin'
 $Main    = Join-Path $SrcDir 'esn.pas'
 
+# Vendored UnicodeVideo unit (lib/fpc/) — Windows driver.
+$FpcVideo = @(
+  "-Fi$LibDir\fpc\rtl-console\src\inc",
+  "-Fu$LibDir\fpc\rtl-unicode\src\inc",
+  "-Fi$LibDir\fpc\rtl-unicode\src\inc",
+  "-Fu$LibDir\fpc\rtl-console\src\win"
+)
+
 if (!(Test-Path $BinDir)) {
   New-Item -ItemType Directory -Path $BinDir | Out-Null
 }
 
-& $FpcCmd @FpcFlags -B "-FU$BinDir" "-FE$BinDir" "-Fu$LibDir\rv" $Main
+& $FpcCmd @FpcFlags -B "-FU$BinDir" "-FE$BinDir" "-Fu$LibDir\rv" @FpcVideo $Main
 if ($LASTEXITCODE -ne 0) {
   exit $LASTEXITCODE
 }

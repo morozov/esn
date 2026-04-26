@@ -13,6 +13,18 @@ SRCDIR := ../../src
 LIBDIR := ../../lib
 RUNNER := run_tests
 
+# Vendored UnicodeVideo unit (lib/fpc/) — pick the platform driver.
+FPCVIDEO := -Fi$(LIBDIR)/fpc/rtl-console/src/inc \
+            -Fu$(LIBDIR)/fpc/rtl-unicode/src/inc \
+            -Fi$(LIBDIR)/fpc/rtl-unicode/src/inc
+ifeq ($(UNAME),Darwin)
+  FPCVIDEO += -Fu$(LIBDIR)/fpc/rtl-console/src/unix
+else ifeq ($(UNAME),Linux)
+  FPCVIDEO += -Fu$(LIBDIR)/fpc/rtl-console/src/unix
+else
+  FPCVIDEO += -Fu$(LIBDIR)/fpc/rtl-console/src/win
+endif
+
 .PHONY: all clean
 
 all: $(RUNNER)
@@ -21,7 +33,7 @@ all: $(RUNNER)
 SRCS := $(wildcard $(SRCDIR)/*.pas) $(wildcard $(LIBDIR)/rv/*.pas) $(wildcard $(LIBDIR)/rv/*.inc)
 
 $(RUNNER): run_tests.pas test_trd.pas test_tap.pas test_scl.pas test_pc.pas test_resize.pas $(SRCS)
-	$(FPC) $(FPCFLAGS) -Fu$(SRCDIR) -Fu$(LIBDIR)/rv -FE. run_tests.pas
+	$(FPC) $(FPCFLAGS) -Fu$(SRCDIR) -Fu$(LIBDIR)/rv $(FPCVIDEO) -FE. run_tests.pas
 
 clean:
 	rm -f $(RUNNER) *.o *.ppu *.res ppaslink.sh
