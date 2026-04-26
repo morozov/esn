@@ -30,9 +30,10 @@ endif
 all: $(RUNNER)
 	./$(RUNNER) --all
 
-SRCS := $(wildcard $(SRCDIR)/*.pas) $(wildcard $(LIBDIR)/rv/*.pas) $(wildcard $(LIBDIR)/rv/*.inc)
+TESTS := $(wildcard test_*.pas)
+SRCS  := $(wildcard $(SRCDIR)/*.pas) $(wildcard $(LIBDIR)/rv/*.pas) $(wildcard $(LIBDIR)/rv/*.inc)
 
-$(RUNNER): run_tests.pas test_trd.pas test_tap.pas test_scl.pas test_pc.pas test_resize.pas $(SRCS)
+$(RUNNER): run_tests.pas $(TESTS) $(SRCS)
 	$(FPC) $(FPCFLAGS) -Fu$(SRCDIR) -Fu$(LIBDIR)/rv $(FPCVIDEO) -FE. run_tests.pas
 
 clean:
