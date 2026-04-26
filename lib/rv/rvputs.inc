@@ -125,17 +125,16 @@ procedure cButton(bkA, txtA, bkSh, txtSh: byte; x, y: word;
   const s: string; active: boolean);
 var
   t: string;
+  w: integer;
 begin
   t := s;
-  if active then begin
-    t[1] := #16;   { ► }
-    t[Length(t)] := #17;  { ◄ }
-  end;
+  if active and (Length(t) >= 2) then
+    t := '►' + Copy(t, 2, Length(t) - 2) + '◄';
+  w := Length(s);
   CMPrint(bkA, txtA, x, y, t);
   { Shadow: one cell right, one cell below }
-  CMPrint(bkSh, txtSh, x + Length(t), y, #220);  { ▄ }
-  CMPrint(bkSh, txtSh, x + 1, y + 1,
-    StringOfChar(#223, Length(t)));  { ▀ }
+  CMPrint(bkSh, txtSh, x + word(w), y, '▄');
+  CMPrint(bkSh, txtSh, x + 1, y + 1, DupeString('▀', w));
 end;
 
 { ===== CCLen ===== }
@@ -195,10 +194,10 @@ begin
       cw := ExtendedGraphemeClusterDisplayWidth(us[i]);
       if cw <= 0 then cw := 1;
       if active then
-        CMPrintU(paper, ink, x, y, UTF8Encode(UnicodeString(us[i])))
+        CMPrint(paper, ink, x, y, UTF8Encode(UnicodeString(us[i])))
       else
-        CMPrintU(papermark, inkmark, x, y,
-                 UTF8Encode(UnicodeString(us[i])));
+        CMPrint(papermark, inkmark, x, y,
+                UTF8Encode(UnicodeString(us[i])));
       Inc(x, cw);
       Inc(i);
     end;
@@ -422,13 +421,10 @@ begin
       py + visibleCount + 3);
     if w_twosided then
       CMPrint(menu_bkNT, menu_txtNT, px, py + 2,
-        Chr(199) + StringOfChar(#196, inttemp + 6)
-        + Chr(182))
+        '╟' + DupeString('─', inttemp + 6) + '╢')
     else
       CMPrint(menu_bkNT, menu_txtNT, px, py + 2,
-        ' ' + Chr(195)
-        + StringOfChar(#196, inttemp + 4)
-        + Chr(180) + ' ');
+        ' ├' + DupeString('─', inttemp + 4) + '┤ ');
     CMPrint(menu_bkNT, menu_txtNT,
       px + (inttemp + 8) div 2
       - CCLen(menu_title) div 2,
@@ -586,9 +582,9 @@ if act=run then
   x2:=halfmaxx+round(total/2)+dx;
   sPutWin(x1,cm-3,x2,cm);
   cmprint(Blue,White,x1+5,cm-2,title);
-  cmprint(Blue,White,x1+5,cm-1,StringOfChar(#177,total));
+  cmprint(Blue,White,x1+5,cm-1,DupeString('▒',total));
  end;
 ops:=round((total/100)*per);
-mprint(x1+4+ops,cm-1,#$DB);
+mprint(x1+4+ops,cm-1,'█');
 UpdateScreen(false);
 end;

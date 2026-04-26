@@ -176,7 +176,7 @@ Begin
   C := CurLine;
 
   cmprint(0,15,3,gMaxY-1,
-    '['+strr(CurPos)+':'+strr(CurStrOfs)+']'+fill(10,#205));
+    '['+strr(CurPos)+':'+strr(CurStrOfs)+']'+fill(10,'═'));
   For L := 0 To ViewerHeight - 2 Do
    Begin
     If (L+CurPos)>T^.Count Then
@@ -246,12 +246,12 @@ Var
   a:integer;
   C: PStrings;
 Begin
-  cmprint(0,15,1,1,#201+fill(ScrWidth-2,#205)+#187);
+  cmprint(0,15,1,1,'╔'+fill(ScrWidth-2,'═')+'╗');
   for l:=2 to gMaxY-2 do begin
-    cmPrint(0,15,1,l,#186);
-    cmPrint(0,15,ScrWidth,l,#186);
+    cmPrint(0,15,1,l,'║');
+    cmPrint(0,15,ScrWidth,l,'║');
   end;
-  cmprint(0,15,1,gMaxY-1,#200+fill(ScrWidth-2,#205)+#188);
+  cmprint(0,15,1,gMaxY-1,'╚'+fill(ScrWidth-2,'═')+'╝');
 
   cmprint(0,15,3,1,
     '['+ChangeChar(ExtNum(strr(MaxAvail)),' ',',')+']');

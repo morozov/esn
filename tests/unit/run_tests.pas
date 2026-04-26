@@ -15,7 +15,8 @@ uses
   test_resize,
   test_insert,
   test_unicode_width,
-  test_infoline_clip;
+  test_infoline_clip,
+  test_drawbox_guard;
 
 var
   app: TTestRunner;

@@ -15,7 +15,7 @@ procedure CheckTapInsed;
 
 Implementation
 Uses
-     SysUtils, TRD, UnicodeVideo;
+     SysUtils, StrUtils, TRD, UnicodeVideo;
 
 {============================================================================}
 function tapNameLine(var p:TPanel; a:word):string;
@@ -43,7 +43,7 @@ begin
             end
            else
             begin
-             nm:=#177+'Data'+#177+#177+#177+#177+#177;
+             nm:='▒Data▒▒▒▒▒';
 
              stemp:=strr(p.trdDir^[a].tapflag);
              nm:=nm+space(11-length(stemp))+stemp;
@@ -175,8 +175,9 @@ for m:=1 to 256 do
   if buf^[1]<>0 then
    begin
     inc(p.taptfiles); inc(pos,2+w);
-    s:=#177+#177+#177+#177+#177+#177+#177+#177+#177+#177;
-    // s:=#176+#176+#176+#176+#176+#176+#176+#176+#176+#176;
+    { Data block has no real name; tapflag<>0 marks it.
+      Display layer (tapPDF, tapNameLine) renders ▒×10 placeholder. }
+    s:='';
     p.trddir^[p.taptfiles].param2:=0;
     p.trddir^[p.taptfiles].start:=0;
    end;
@@ -216,10 +217,13 @@ if n>fr-1+p.panelhi*p.Columns then n:=fr-1+p.panelhi*p.Columns;
 for i:=fr to n do
  begin
   ddx:=0;
-  name:=p.trdDir^[i].name;
+  if (i>1) and (p.trdDir^[i].tapflag<>0) then
+    name:=DupeString('▒',10)
+  else
+    name:=p.trdDir^[i].name;
   if i=1 then name:='<<'+space(dx+ddx-3) else
    begin
-    name:=name+space(dx+ddx-3-length(name));
+    name:=name+space(dx+ddx-3-CCLen(name));
     if p.trdDir^[i].tapflag=0 then
      case p.trdDir^[i].taptyp of
       0: name:=name+' P';
@@ -250,9 +254,9 @@ for i:=fr to n do
   if p.trddir^[i].mark then begin paper:=pal.bkST; ink:=pal.txtST; end;
   if p.focused and(i=p.from+p.f-1) then begin paper:=pal.bkCurNT; ink:=pal.txtCurNT; end;
   if p.focused and(i=p.from+p.f-1)and(p.trddir^[i].mark) then begin paper:=pal.bkCurST; ink:=pal.txtCurST; end;
-  if p.trddir^[i].mark then name[(dx+ddx-2)]:=#251;
-
   cmprint(paper,ink,px,py,name);
+  if p.trddir^[i].mark then
+    cmprint(paper, ink, px + dx + ddx - 3, py, '√');
 
   if p.Columns=1 then
     PaintRowSeps(p.PosX, p.PanelW, dx, py, paper, ink, pal.TxtRama);

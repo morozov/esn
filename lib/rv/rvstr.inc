@@ -89,14 +89,9 @@ begin
 end;
 {$pop}
 
-function Fill(len: byte; symb: char): string;
-var
-  f: byte;
-  p: string;
+function Fill(len: byte; const symb: string): string;
 begin
-  p := '';
-  for f := 1 to len do p := p + symb;
-  Fill := p;
+  Fill := DupeString(symb, len);
 end;
 
 function WithOut(s, chars: string): string;

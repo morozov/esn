@@ -368,7 +368,7 @@ if nospace(name)<>'' then
  {$I-}
   scputwin(pal.bkdRama,pal.txtdRama,halfmaxx-13,halfmaxy-4,halfmaxx+14,halfmaxy+2);
   cmprint(pal.bkdLabelST,pal.txtdLabelST,halfmaxx-10,halfmaxy-2,'Formating...');
-  cmprint(7,0,halfmaxx-10,halfmaxy-1,fill(23,#177));
+  cmprint(7,0,halfmaxx-10,halfmaxy-1,fill(23,'▒'));
 
   stemp:='File '+getof(name,_name)+'.fdd'+' alredy exist.'+#255+' Overwrite?';
   if checkdirfile(p.pcnd+getof(name,_name)+'.fdd')=0 then

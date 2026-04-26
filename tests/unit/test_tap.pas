@@ -214,10 +214,10 @@ procedure TTapTest.TestMDF_SampleEntry3_Name;
 begin
   FPanel.tapFile := FixDir + 'sample.tap';
   tapMDF(FPanel, FixDir + 'sample.tap');
-  { Data block name must be 10 × #177 (▒), not plain text "Data". }
-  AssertEquals('entry3 name len', 10, Length(TrdDir(3).name));
-  AssertEquals('entry3 name[1]', Ord(#177), Ord(TrdDir(3).name[1]));
-  AssertEquals('entry3 name[10]', Ord(#177), Ord(TrdDir(3).name[10]));
+  { Data blocks have no real name; tapflag<>0 marks them and the
+    display layer renders the ▒×10 placeholder. }
+  AssertEquals('entry3 name empty', '', TrdDir(3).name);
+  AssertTrue('entry3 is data block', TrdDir(3).tapflag <> 0);
 end;
 
 procedure TTapTest.TestMDF_SampleEntry3_Length;
@@ -243,20 +243,13 @@ begin
 end;
 
 procedure TTapTest.TestMDF_DataBlockName_IsShadeBlocks;
-{ Regression test: data block name must be 10 × #177 (CP437 ▒).
-  Previously the port stored plain text 'Data      ' which rendered
-  differently from the original's CP866 shade-block characters. }
-var
-  i: integer;
-  nm: string;
+{ Regression: data block must be flagged via tapflag<>0; the
+  visible ▒×10 placeholder is composed by the display layer. }
 begin
   FPanel.tapFile := FixDir + 'sample.tap';
   tapMDF(FPanel, FixDir + 'sample.tap');
-  nm := TrdDir(3).name;
-  AssertEquals('data name length', 10, Length(nm));
-  for i := 1 to 10 do
-    AssertEquals('data name[' + IntToStr(i) + ']=#177',
-      Ord(#177), Ord(nm[i]));
+  AssertTrue('data block flagged', TrdDir(3).tapflag <> 0);
+  AssertEquals('data block name empty', '', TrdDir(3).name);
 end;
 
 { ===== tapNameLine ===== }
@@ -282,15 +275,18 @@ begin
 end;
 
 procedure TTapTest.TestNameLine_Data_StartsWithShadeBlock;
-{ Regression: name line for data block must start with #177 (▒), not 'D'.
-  Original: nm := #177 + 'Data' + #177×5 + … }
+{ Regression: name line for data block must start with the shade
+  block ▒ glyph (U+2592), not 'D'. }
 var
   s: string;
+const
+  Shade: string = '▒';
 begin
   FPanel.tapFile := FixDir + 'sample.tap';
   tapMDF(FPanel, FixDir + 'sample.tap');
   s := tapNameLine(FPanel, 3);
-  AssertEquals('nameLine data[1]=#177', Ord(#177), Ord(s[1]));
+  AssertEquals('nameLine data starts with shade block',
+               Shade, Copy(s, 1, Length(Shade)));
 end;
 
 { ===== tapLoad ===== }

@@ -137,8 +137,8 @@ Case w of
    END;
 End;
 
-cmPrint(pal.bkRama,pal.txtRama,posx,posy+PanelLong-2,#186+space(pw)+#186);
-cmPrint(pal.bkRama,pal.txtRama,posx,posy+PanelLong-1,#200+fill(pw,#205)+#188);
+cmPrint(pal.bkRama,pal.txtRama,posx,posy+PanelLong-2,'║'+space(pw)+'║');
+cmPrint(pal.bkRama,pal.txtRama,posx,posy+PanelLong-1,'╚'+fill(pw,'═')+'╝');
 
 Case pt of
  trdPanel: s0:='Current TRD-file:';
@@ -168,7 +168,7 @@ if (p.PanelType=tapPanel)or(p.PanelType=sclPanel)or(p.PanelType=zxzPanel) then s
 
 StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,6,space(pw));
 
-InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,7,fill(16,#196),pw);
+InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,7,fill(16,'─'),pw);
 
 StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,8,space(pw));
 
@@ -185,7 +185,7 @@ InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,p
 
 StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,13,space(pw));
 
-InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,14,fill(16,#196),pw);
+InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,14,fill(16,'─'),pw);
 
 StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,15,space(pw));
 
@@ -443,9 +443,9 @@ for i:=fr to n do
   if p.focused and(i=p.from+p.f-1) then begin paper:=pal.bkCurNT; ink:=pal.txtCurNT; end;
   if p.focused and(i=p.from+p.f-1)and(p.trddir^[i].mark) then begin paper:=pal.bkCurST; ink:=pal.txtCurST; end;
 
-  if p.trddir^[i].mark then name[(dx+ddx-4)]:=#251;
-
   cmprint(paper,ink,px,py,name);
+  if p.trddir^[i].mark then
+    cmprint(paper, ink, px + dx + ddx - 5, py, '√');
   if p.Columns=1 then
     PaintRowSeps(p.PosX, p.PanelW, dx, py, paper, ink,
       pal.TxtRama);

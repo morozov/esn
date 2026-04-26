@@ -225,7 +225,7 @@ Uses
      main, sorting, sn_kbd, snviewer,
      trd, trd_ovr, scl_ovr, scl, tap_ovr, tap,
      fdi, fdi_ovr, fdd, fdd_ovr, zxzip, pc, pc_ovr,
-     UnicodeVideo, SysUtils
+     UnicodeVideo, SysUtils, StrUtils
      {$IFDEF WINDOWS}
      , Windows
      {$ENDIF}
@@ -380,14 +380,9 @@ if Place=Right then begin PosX:=GmaxX div 2+1; PanelW:=GmaxX-GmaxX div 2-2; end
 End;
 
 
-function Fill(n: integer; ch: char): AnsiString;
-var
-  s: AnsiString;
-  i: integer;
+function Fill(n: integer; const ch: AnsiString): AnsiString;
 begin
-  s := '';
-  for i := 1 to n do s := s + ch;
-  Fill := s;
+  Fill := DupeString(ch, n);
 end;
 
 function BuildHorizSep(panelW, columns: integer): AnsiString;
@@ -398,17 +393,17 @@ begin
   dh := panelW div 2;
   case columns of
     1: BuildHorizSep :=
-         #186 + Fill(cw - 1, #196) + #193 +
-         Fill(panelW - cw, #196) + #186;
+         '║' + Fill(cw - 1, '─') + '┴' +
+         Fill(panelW - cw, '─') + '║';
     2: BuildHorizSep :=
-         #186 + Fill(dh - 1, #196) + #193 +
-         Fill(panelW - dh, #196) + #186;
+         '║' + Fill(dh - 1, '─') + '┴' +
+         Fill(panelW - dh, '─') + '║';
     3: BuildHorizSep :=
-         #186 + Fill(cw - 1, #196) + #193 +
-         Fill(cw - 1, #196) + #193 +
-         Fill(panelW - 2 * cw, #196) + #186;
+         '║' + Fill(cw - 1, '─') + '┴' +
+         Fill(cw - 1, '─') + '┴' +
+         Fill(panelW - 2 * cw, '─') + '║';
   else
-    BuildHorizSep := #186 + Fill(panelW, #196) + #186;
+    BuildHorizSep := '║' + Fill(panelW, '─') + '║';
   end;
 end;
 
@@ -440,14 +435,14 @@ if Columns>3 then Columns:=3;
 
 if pos('0',parts)<>0 then if PanelType<>noPanel then
  begin
-  s:=#201+Fill(PanelW,#205)+#187;
+  s:='╔'+Fill(PanelW,'═')+'╗';
   if (posx<>1)and clocked then
-    s:=#201+Fill(PanelW-9,#205);
+    s:='╔'+Fill(PanelW-9,'═');
   cmprint(pal.BkRama,pal.TxtRama,posx,1, s);
-  s:=#186+Space(PanelW)+#186;
+  s:='║'+Space(PanelW)+'║';
   for i:=1 to PanelLong-2 do
     cmprint(pal.BkRama,pal.TxtRama,posx,1+i,s);
-  s:=#200+Fill(PanelW,#205)+#188;
+  s:='╚'+Fill(PanelW,'═')+'╝';
   cmprint(pal.BkRama,pal.TxtRama,posx,PanelLong,s);
  end;
 
@@ -457,9 +452,9 @@ if pos('1',parts)<>0 then if (PanelType>=1)and(PanelType<=10) then
   for i:=1 to PanelLong-InfoLines-3 do
    begin
           cmprint(pal.BkRama,pal.TxtRama,
-            posx+cw,1+i,#179);
+            posx+cw,1+i,'│');
           cmprint(pal.BkRama,pal.TxtRama,
-            posx+2*cw,1+i,#179);
+            posx+2*cw,1+i,'│');
    end;
 
   s:=BuildHorizSep(PanelW, Columns);
@@ -728,12 +723,12 @@ for i:=fr to n do
   if focused and(i=from+f-1)and(pcdir^[i].mark) then begin paper:=pal.bkCurST; ink:=pal.txtCurST; end;
   e:=' ';
   {$push}{$warnings off}
-  if ((pcdir^[i].fattr and faReadOnly)<> 0) then e:=#$B0;
-  if ((pcdir^[i].fattr and faHidden)  <> 0) then e:=#$B1;
-  if ((pcdir^[i].fattr and faSysFile) <> 0) then e:=#$B2;
+  if ((pcdir^[i].fattr and faReadOnly)<> 0) then e:='░';
+  if ((pcdir^[i].fattr and faHidden)  <> 0) then e:='▒';
+  if ((pcdir^[i].fattr and faSysFile) <> 0) then e:='▓';
   {$pop}
-  if pcdir^[i].mark then e:=chr(251);
-  CMPrintU(paper,ink,px,py,name);
+  if pcdir^[i].mark then e:='√';
+  cmprint(paper,ink,px,py,name);
   if e <> ' ' then
     cmprint(paper, ink, px + dx + integer(ddx) - 5, py, e);
 
@@ -851,12 +846,9 @@ if (pos('c',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
    end;
   if focused then begin p:=pal.bkNDactive; i:=pal.txtNDactive; end else begin p:=pal.bkNDpassive; i:=pal.txtNDpassive; end;
   x:=posx+4+(m-length(s)) div 2;
-  if (posx<>left) and clocked then r:=Fill(PanelW-9,#205) else r:=Fill(PanelW,#205);
+  if (posx<>left) and clocked then r:=Fill(PanelW-9,'═') else r:=Fill(PanelW,'═');
   cmprint(pal.BkRama,pal.TxtRama,posx+1,posy,r);
-  if PanelType=pcPanel then
-    CMPrintU(p,i,x,1,s)
-  else
-    cmprint(p,i,x,1,s);
+  cmprint(p,i,x,1,s);
   CurOff;
 
   Case PanelType of
@@ -865,7 +857,7 @@ if (pos('c',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
    fddPanel: cmprint(pal.BkRama,pal.TxtRama,posx+5,posy,'FDD');
   End;
 
-  if TRDOS3 then cmprint(pal.BkRama,pal.TxtRama,posx+2,1,'T3') else cmprint(pal.BkRama,pal.TxtRama,posx+2,1,#205#205);
+  if TRDOS3 then cmprint(pal.BkRama,pal.TxtRama,posx+2,1,'T3') else cmprint(pal.BkRama,pal.TxtRama,posx+2,1,'══');
   DrawClock;
   UpdateScreen(false);
  End;
@@ -879,13 +871,13 @@ if (pos('b',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
   for x:=1 to PanelHi+1 do
    begin
     p:=pal.bkRama; i:=pal.txtRama;
-    r:=#186;
+    r:='║';
     if focused then
      begin
-      r:=#177;
-      if x=1 then         begin p:=pal.bkBP; i:=pal.txtBP; r:=#30; end;
-      if x=PanelHi+1 then begin p:=pal.bkBP; i:=pal.txtBP; r:=#31; end;
-      if x=n+2 then begin p:=pal.bkBP; i:=pal.txtBP; r:=#254; end;
+      r:='▒';
+      if x=1 then         begin p:=pal.bkBP; i:=pal.txtBP; r:='▲'; end;
+      if x=PanelHi+1 then begin p:=pal.bkBP; i:=pal.txtBP; r:='▼'; end;
+      if x=n+2 then begin p:=pal.bkBP; i:=pal.txtBP; r:='■'; end;
      end;
     cmprint(p,i,posx+PanelW+1,posy+x,r);
    end;
@@ -900,7 +892,7 @@ if (pos('d',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
   {$ENDIF}
   if s <> '' then
    begin
-    cmprint(pal.bkDiskLineR,pal.txtDiskLineR,posx,PanelLong,#200+'[ ');
+    cmprint(pal.bkDiskLineR,pal.txtDiskLineR,posx,PanelLong,'╚'+'[ ');
     d := posx + 3;
     spaced := (length(s) * 2 + 5) <= PanelW;
     if length(pcnd) > 0 then activeCh := UpCase(pcnd[1]) else activeCh := #0;
@@ -926,13 +918,13 @@ if (pos('d',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
     q := d + 2;
     if q <= posx + PanelW then
       cmprint(pal.bkRama,pal.txtRama,q,PanelLong,
-        Fill(posx + PanelW + 1 - q, #205));
+        Fill(posx + PanelW + 1 - q, '═'));
    end
   else
    begin
-    cmprint(pal.bkRama,pal.txtRama,posx+1,PanelLong,Fill(PanelW,#205));
+    cmprint(pal.bkRama,pal.txtRama,posx+1,PanelLong,Fill(PanelW,'═'));
    end;
-  cmprint(pal.bkRama,pal.txtRama,posx+PanelW+1,PanelLong,#188);
+  cmprint(pal.bkRama,pal.txtRama,posx+PanelW+1,PanelLong,'╝');
  End;
 
 
@@ -947,9 +939,9 @@ if (pos('n',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
         if place=left then nm:=pcNameLine(lp,m) else nm:=pcNameLine(rp,m);
        m:=0; for n:=1 to pctdirs+pctfiles do if pcdir^[n].mark then inc(m);
        if (infolines<=1)and(m<>0) then else
-       CMPrintU(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
-       cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,#186);
-       cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,#186);
+       cmprint(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
+       cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,'║');
+       cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,'║');
       END;
    trdPanel:
       BEGIN
@@ -958,8 +950,8 @@ if (pos('n',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
          nm:='<<'+space(PanelW-2);
          if Index>1 then if place=left then nm:=trdNameLine(lp,Index) else nm:=trdNameLine(rp,Index);
          cmprint(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
-         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,#186);
-         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,#186);
+         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,'║');
+         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,'║');
         end;
       END;
    fdiPanel:
@@ -969,8 +961,8 @@ if (pos('n',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
          nm:='<<'+space(PanelW-2);
          if Index>1 then if place=left then nm:=fdiNameLine(lp,Index) else nm:=fdiNameLine(rp,Index);
          cmprint(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
-         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,#186);
-         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,#186);
+         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,'║');
+         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,'║');
         end;
       END;
    fddPanel:
@@ -980,8 +972,8 @@ if (pos('n',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
          nm:='<<'+space(PanelW-2);
          if Index>1 then if place=left then nm:=fddNameLine(lp,Index) else nm:=fddNameLine(rp,Index);
          cmprint(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
-         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,#186);
-         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,#186);
+         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,'║');
+         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,'║');
         end;
       END;
    tapPanel:
@@ -1002,8 +994,8 @@ if (pos('n',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
          nm:='<<'+space(PanelW-2);
          if Index>1 then if place=left then nm:=sclNameLine(lp,Index) else nm:=sclNameLine(rp,Index);
          cmprint(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
-         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,#186);
-         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,#186);
+         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,'║');
+         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,'║');
         end;
       END;
    zxzPanel:
@@ -1012,8 +1004,8 @@ if (pos('n',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
         begin
          if place=left then nm:=zxzNameLine(lp,Index) else nm:=zxzNameLine(rp,Index);
          cmprint(pal.bkCurLine,pal.txtCurLine,posx+1,PutFrom+PanelHi+1,nm);{}
-         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,#186);
-         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,#186);
+         cmPrint(pal.bkRama,pal.txtRama,posx,PutFrom+PanelHi+1,'║');
+         cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,PutFrom+PanelHi+1,'║');
         end;
 
        stemp:=space(PanelW);
@@ -1047,7 +1039,7 @@ if (pos('n',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
        x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
        if infolines>1 then
         StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);
-       cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
+       cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,'║');
         end;
       END;
   UpdateScreen(false);
@@ -1073,7 +1065,7 @@ if (pos('s',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
       x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
       if (m=0)and(infolines=1) then else
       StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);
-        cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
+        cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,'║');
      END;
   trdPanel:
      BEGIN
@@ -1090,7 +1082,7 @@ if (pos('s',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
       x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
       if (m=0)and(infolines=1) then else
       StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
+        cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,'║');
      END;
   fdiPanel:
      BEGIN
@@ -1107,7 +1099,7 @@ if (pos('s',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
       x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
       if (m=0)and(infolines=1) then else
       StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
+        cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,'║');
      END;
   fddPanel:
      BEGIN
@@ -1124,7 +1116,7 @@ if (pos('s',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
       x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
       if (m=0)and(infolines=1) then else
       StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
+        cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,'║');
      END;
   tapPanel:
      BEGIN
@@ -1146,7 +1138,7 @@ if (pos('s',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
       nm:=space(i)+stemp; nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
       if (m=0)and(infolines=1) then else
       StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
+        cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,'║');
      END;
   sclPanel:
      BEGIN
@@ -1163,7 +1155,7 @@ if (pos('s',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
       x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
       if (m=0)and(infolines=1) then else
       StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
+        cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,'║');
      END;
   zxzPanel:
      BEGIN
@@ -1185,7 +1177,7 @@ if (pos('s',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
        3: y:=putfrom+panelhi+3;
       End;
       StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,x,y,nm);
-      cmPrint(pal.bkRama,pal.txtRama,posx,y,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,#186);
+      cmPrint(pal.bkRama,pal.txtRama,posx,y,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y,'║');
      END;
   End;
   UpdateScreen(false);
@@ -1206,7 +1198,7 @@ if (pos('f',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
         nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
         x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
         StatusLineColor(pal.bkFreeLineNT,pal.txtFreeLineNT,pal.bkFreeLineST,pal.txtFreeLineST,x,y+1,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y+1,#186);
+        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y+1,'║');
        end;
      END;
   trdPanel,fdiPanel,fddPanel:
@@ -1221,7 +1213,7 @@ if (pos('f',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
         nm:=space(i)+stemp; nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
         x:=posx+1; if InfoLines<=1 then y:=PutFrom+PanelHi+1 else y:=PutFrom+PanelHi+2;
         StatusLineColor(pal.bkFreeLineNT,pal.txtFreeLineNT,pal.bkFreeLineST,pal.txtFreeLineST,x,y+1,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y+1,#186);
+        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y+1,'║');
        end;
      END;
   sclPanel:
@@ -1234,7 +1226,7 @@ if (pos('f',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
         i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
         nm:=space(i)+stemp; nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
         StatusLineColor(pal.bkFreeLineNT,pal.txtFreeLineNT,pal.bkFreeLineST,pal.txtFreeLineST,x,y+1,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y+1,#186);
+        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y+1,'║');
        end;
      END;
   tapPanel:
@@ -1252,7 +1244,7 @@ if (pos('f',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
         i:=PanelW div 2-(length(without(stemp,'~`'))div 2); if i<0 then i:=0;
         nm:=space(i)+stemp; nm:=nm+space(abs(PanelW-CClen(nm))); if CClen(nm)>PanelW then delete(nm,PanelW+1+8,10);
         StatusLineColor(pal.bkFreeLineNT,pal.txtFreeLineNT,pal.bkFreeLineST,pal.txtFreeLineST,x,y+1,nm);{}
-        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,#186); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y+1,#186);
+        cmPrint(pal.bkRama,pal.txtRama,posx,y+1,'║'); cmPrint(pal.bkRama,pal.txtRama,posx+PanelW+1,y+1,'║');
        end;
      END;
   End;
@@ -1731,7 +1723,7 @@ Case PanelType of
           HalfMaxX - 24, HalfMaxY - 4,
           HalfMaxX + 25, HalfMaxY - 3 + 6);
         cmcentre(pal.bkdRama, pal.txtdRama,
-          HalfMaxY - 4, #205' Information ');
+          HalfMaxY - 4, '═ Information ');
         StatusLineColor(
           pal.bkdLabelST, pal.txtdLabelST,
           pal.bkdLabelNT, pal.txtdLabelNT,
@@ -2045,10 +2037,10 @@ var
       winX1 + (winX2 - winX1 + 1 - 4) div 2, winY1 + 1, 'Disk');
 
     if firstVisible > 1 then
-      CMPrint(pal.bkdRama, pal.txtdRama, winX1 + lineW, topRow, #24);
+      CMPrint(pal.bkdRama, pal.txtdRama, winX1 + lineW, topRow, '↑');
     if firstVisible + visibleCount - 1 < dcnt then
       CMPrint(pal.bkdRama, pal.txtdRama, winX1 + lineW,
-        topRow + visibleCount - 1, #25);
+        topRow + visibleCount - 1, '↓');
 
     for k := 1 to visibleCount do begin
       idx := firstVisible + k - 1;

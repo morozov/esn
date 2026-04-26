@@ -24,13 +24,55 @@ const
     $0B, $02, $03, $04, $05, $06, $07, $08, $09, $0A
   );
 
-  { CP437 box-drawing characters (byte values) }
-  boxTL  = #201;  { ╔ }
-  boxTR  = #187;  { ╗ }
-  boxBL  = #200;  { ╚ }
-  boxBR  = #188;  { ╝ }
-  boxV   = #186;  { ║ }
-  boxH   = #205;  { ═ }
+  boxTL: AnsiString = '╔';
+  boxTR: AnsiString = '╗';
+  boxBL: AnsiString = '╚';
+  boxBR: AnsiString = '╝';
+  boxV:  AnsiString = '║';
+  boxH:  AnsiString = '═';
+
+  { CP437 graphical glyphs for byte values that are control codes
+    in ASCII (0x00–0x1F, 0x7F).  In the original DOS text mode,
+    each cell of the BIOS framebuffer was a glyph index into the
+    character ROM, so these bytes rendered as their CP437 shapes.
+    A modern terminal would interpret them as control codes; we
+    rewrite them at the cell-write boundary to keep the visual
+    behaviour and avoid letting ESC/BEL/BS escape into the output
+    stream. }
+  cp437ControlGlyph: array[0..31] of WideChar = (
+    ' ',      { 00 NUL — blank }
+    #$263A,   { 01 ☺ }
+    #$263B,   { 02 ☻ }
+    #$2665,   { 03 ♥ }
+    #$2666,   { 04 ♦ }
+    #$2663,   { 05 ♣ }
+    #$2660,   { 06 ♠ }
+    #$2022,   { 07 • }
+    #$25D8,   { 08 ◘ }
+    #$25CB,   { 09 ○ }
+    #$25D9,   { 0A ◙ }
+    #$2642,   { 0B ♂ }
+    #$2640,   { 0C ♀ }
+    #$266A,   { 0D ♪ }
+    #$266B,   { 0E ♫ }
+    #$263C,   { 0F ☼ }
+    #$25BA,   { 10 ► }
+    #$25C4,   { 11 ◄ }
+    #$2195,   { 12 ↕ }
+    #$203C,   { 13 ‼ }
+    #$00B6,   { 14 ¶ }
+    #$00A7,   { 15 § }
+    #$25AC,   { 16 ▬ }
+    #$21A8,   { 17 ↨ }
+    #$2191,   { 18 ↑ }
+    #$2193,   { 19 ↓ }
+    #$2192,   { 1A → }
+    #$2190,   { 1B ← }
+    #$221F,   { 1C ∟ }
+    #$2194,   { 1D ↔ }
+    #$25B2,   { 1E ▲ }
+    #$25BC    { 1F ▼ }
+  );
 
 type
   TSavedWin = record
@@ -122,46 +164,6 @@ end;
 
 { ===== Internal helpers ===== }
 
-{ CP437 mapping for ASCII control bytes 0x00..0x1F. iconv treats
-  these as control characters and passes them through unchanged,
-  but in CP437 the same bytes are printable glyphs (•, ▲, ↑, …).
-  Table copied verbatim from FPC's `convert_lowascii_to_Unicode`
-  (lib/fpc/rtl-console/src/inc/video.inc). }
-const
-  cp437LowAscii: array[#0..#31] of WideChar = (
-    #8199, #9786, #9787, #9829, #9830, #9827, #9824, #8226,
-    #9688, #9675, #9689, #9794, #9792, #9834, #9835, #9788,
-    #9658, #9668, #8597, #8252, #0182, #0167, #9644, #8616,
-    #8593, #8595, #8594, #8592, #8735, #8596, #9650, #9660
-  );
-
-{ Write one cell to EnhancedVideoBuf; (x,y) are 1-based.
-  c is interpreted as CP437; low-ASCII (≤#31) and #127 use the
-  hand-rolled table above, the rest go through iconv (cwstring)
-  via CP437 codepage tagging. }
-procedure SetCell(x, y: word; attr: byte; c: char);
-var
-  offset: longword;
-  raw: RawByteString;
-  egc: UnicodeString;
-begin
-  if (x < 1) or (y < 1) or
-     (x > ScreenWidth) or (y > ScreenHeight) then
-    exit;
-  offset := longword(y - 1) * ScreenWidth + longword(x - 1);
-  if c <= #31 then
-    egc := cp437LowAscii[c]
-  else if c = #127 then
-    egc := #$2302
-  else
-  begin
-    raw := c;
-    SetCodePage(raw, 437, false);
-    egc := UnicodeString(raw);
-  end;
-  EnhancedVideoBuf[offset].ExtendedGraphemeCluster := egc;
-  EnhancedVideoBuf[offset].Attribute := attr;
-end;
 
 { Return scan code for an ASCII character. }
 function charScan(c: char): byte;
@@ -188,23 +190,20 @@ end;
 { Draw a double-line box; fills interior with spaces. }
 procedure DrawBox(paper, ink: byte; x1, y1, x2, y2: word);
 var
-  attr: byte;
-  i: integer;
+  i, innerW: integer;
 begin
-  attr := (paper shl 4) or (ink and $0F);
-  { Interior rows: ║ spaces ║ }
-  for i := y1 to y2 do
-    CMPrint(paper, ink, x1, i, boxV + Space(x2 - x1 - 1) + boxV);
-  { Top / bottom horizontal bars }
-  for i := x1 + 1 to x2 - 1 do begin
-    SetCell(i, y1, attr, boxH);
-    SetCell(i, y2, attr, boxH);
-  end;
-  { Corners }
-  SetCell(x1, y1, attr, boxTL);
-  SetCell(x2, y1, attr, boxTR);
-  SetCell(x1, y2, attr, boxBL);
-  SetCell(x2, y2, attr, boxBR);
+  { Inverted coordinates: the parameters are word, so x2-x1 / y2-y1
+    underflow to huge positives when the bounds are reversed.  Bail
+    out instead of painting a degenerate box at unrelated rows. }
+  if (y2 < y1) or (x2 < x1) then exit;
+  innerW := x2 - x1 - 1;
+  if innerW < 0 then innerW := 0;
+  CMPrint(paper, ink, x1, y1,
+          boxTL + DupeString(boxH, innerW) + boxTR);
+  for i := y1 + 1 to y2 - 1 do
+    CMPrint(paper, ink, x1, i, boxV + Space(innerW) + boxV);
+  CMPrint(paper, ink, x1, y2,
+          boxBL + DupeString(boxH, innerW) + boxBR);
 end;
 
 { Save a screen region to the win stack. Coordinates are 1-based,
@@ -249,18 +248,9 @@ end;
 procedure CMPrint(paper, ink, x, y: word; const s: string);
 var
   attr: byte;
-  i: integer;
-begin
-  attr := (byte(paper) shl 4) or (byte(ink) and $0F);
-  for i := 1 to Length(s) do
-    SetCell(x + word(i) - 1, y, attr, s[i]);
-end;
-
-procedure CMPrintU(paper, ink, x, y: word; const s: AnsiString);
-var
-  attr: byte;
   i, cw: integer;
   col: word;
+  ch: WideChar;
   us: UnicodeString;
   raw: RawByteString;
   offset: longword;
@@ -272,15 +262,18 @@ begin
   col := x;
   for i := 1 to Length(us) do
   begin
-    cw := ExtendedGraphemeClusterDisplayWidth(us[i]);
+    ch := us[i];
+    if ch < #$20 then ch := cp437ControlGlyph[Ord(ch)]
+    else if ch = #$7F then ch := #$2302; { ⌂ }
+    cw := ExtendedGraphemeClusterDisplayWidth(ch);
+    if cw <= 0 then cw := 1;
     if (col >= 1) and (col <= ScreenWidth) and
        (y >= 1) and (y <= ScreenHeight) then
     begin
       offset := longword(y - 1) * ScreenWidth + longword(col - 1);
-      EnhancedVideoBuf[offset].ExtendedGraphemeCluster := us[i];
+      EnhancedVideoBuf[offset].ExtendedGraphemeCluster := ch;
       EnhancedVideoBuf[offset].Attribute := attr;
     end;
-    if cw <= 0 then cw := 1;
     Inc(col, cw);
   end;
 end;
@@ -329,9 +322,9 @@ begin
   if cw > integer(dx) then
     CMPrint(paper, ink, posX + integer(dx), py,
       Space(cw - integer(dx)));
-  CMPrint(paper, sepInk, posX + cw, py, #179);
+  CMPrint(paper, sepInk, posX + cw, py, '│');
   CMPrint(paper, ink, posX + cw + 1, py, Space(cw - 1));
-  CMPrint(paper, sepInk, posX + 2 * cw, py, #179);
+  CMPrint(paper, sepInk, posX + 2 * cw, py, '│');
   CMPrint(paper, ink, posX + 2 * cw + 1, py,
     Space(panelW - 2 * cw));
 end;

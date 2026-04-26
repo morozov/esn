@@ -6,7 +6,8 @@ unit rv;
 interface
 
 uses
-  UnicodeVideo, graphemebreakproperty, Keyboard, Mouse, SysUtils, DateUtils;
+  UnicodeVideo, graphemebreakproperty, Keyboard, Mouse,
+  SysUtils, DateUtils, StrUtils;
 
 { ===== CGA color constants ===== }
 const
@@ -151,13 +152,9 @@ procedure DrawBox(paper, ink: byte; x1, y1, x2, y2: word);
 procedure Colour(paper, ink: byte);
 procedure Print(x, y: word; const s: string);
 procedure MPrint(x, y: word; const s: string);
-{ Input is interpreted as CP437. Each input byte maps to one
-  cell. }
-procedure CMPrint(paper, ink, x, y: word; const s: string);
 { Input is interpreted as UTF-8. Each decoded codepoint maps to
-  one cell. Use for content that may contain non-CP437
-  codepoints (filenames, user-entered text). }
-procedure CMPrintU(paper, ink, x, y: word; const s: AnsiString);
+  one cell; CJK and other wide codepoints occupy two cells. }
+procedure CMPrint(paper, ink, x, y: word; const s: string);
 procedure PrintSelf(paper, ink: byte; x, y, len: word);
 procedure CurOn;
 procedure CurOff;
@@ -258,7 +255,7 @@ function ConsoleText(const s: string): string;
 function NoSpace(s: string): string;
 function NoSpaceLR(s: string): string;
 function Vall(tempein: string): longint;
-function Fill(len: byte; symb: char): string;
+function Fill(len: byte; const symb: string): string;
 function WithOut(s, chars: string): string;
 function CLen(s: string): integer;
 function LZ(w: word): string;

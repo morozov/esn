@@ -32,7 +32,7 @@ function  trdWriteLabel(const path: string;
 
 Implementation
 
-Uses palette, Main_Ovr, UnicodeVideo, Keyboard,
+Uses palette, Main_Ovr, UnicodeVideo, Keyboard, StrUtils,
 SCL, SCL_Ovr, FDD, FDD_Ovr, FDI, FDI_Ovr, TAP, TAP_Ovr, ZXZIP, pc_ovr;
 
 function strlo(s: string): string;
@@ -47,8 +47,8 @@ begin nospace := Trim(s); end;
 function nospaceLR(s: string): string;
 begin nospaceLR := Trim(s); end;
 
-function fill(len: byte; symb: char): string;
-begin fill := StringOfChar(symb, len); end;
+function fill(len: byte; const symb: AnsiString): string;
+begin fill := DupeString(symb, len); end;
 
 function readkey: char;
 var kb: word;
@@ -615,7 +615,7 @@ if nospace(name)<>'' then
  {$I-}
   scputwin(pal.bkdRama,pal.txtdRama,halfmaxx-13,halfmaxy-4,halfmaxx+14,halfmaxy+2);
   cmprint(pal.bkdLabelST,pal.txtdLabelST,halfmaxx-10,halfmaxy-2,'Formating...');
-  cmprint(7,0,halfmaxx-10,halfmaxy-1,fill(23,#177));
+  cmprint(7,0,halfmaxx-10,halfmaxy-1,fill(23,'▒'));
 
   stemp:='File '+getof(name,_name)+'.trd'+' alredy exist.'+#255+' Overwrite?';
   if checkdirfile(p.pcnd+getof(name,_name)+'.trd')=0 then
@@ -1799,7 +1799,7 @@ mPrint(x+1,y-1,'1st Free Sec.');
 
 if EditFileParam then
  Begin
-  mPrint(x-18,y-0,#204+StringOfChar(#205,36)+#185);
+  mPrint(x-18,y-0,'╠'+DupeString('═',36)+'╣');
   mPrint(x-14,y+1,'File Name      Start Length Line');
 
   mPrint(x-16,y+3,'1st Track');

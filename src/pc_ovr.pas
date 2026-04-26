@@ -46,9 +46,9 @@ for i:=1 to length(s) do
   if s[i]=#4 then s[i]:='4';
   if s[i]=#5 then s[i]:='5';
   if s[i]=#6 then s[i]:='6';
-  if s[i]=#7 then s[i]:='7';
-  if s[i]=#8 then s[i]:='8';
-  if s[i]=#9 then s[i]:='9';
+  if s[i]=#7  then s[i]:='7';
+  if s[i]=#8  then s[i]:='8';
+  if s[i]=#9  then s[i]:='9';
   if s[i]=#10 then s[i]:='A';
   if s[i]=#11 then s[i]:='B';
   if s[i]=#12 then s[i]:='C';
@@ -426,7 +426,7 @@ var
         + Space(20));
     CMPrint(pal.bkdStatic, pal.txtdStatic,
       HalfMaxX - 18, HalfMaxY - 2,
-      Fill(37, #177));
+      Fill(37, '▒'));
     UpdateScreen(false);
 
     if (cmflag = _F6) and
@@ -454,7 +454,7 @@ var
         HalfMaxX - 20, HalfMaxY - 2, vert[fcvert]);
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX - 18, HalfMaxY - 2,
-        Fill(Round(j / 2.7), #$DB));
+        Fill(Round(j / 2.7), '█'));
       stemp := StrR(j) + '%';
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX + 20, HalfMaxY - 2,
@@ -463,7 +463,7 @@ var
         HalfMaxX - 20, HalfMaxY + 1, vert[cvert]);
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX - 18, HalfMaxY + 1,
-        Fill(Round(i / 2.7), #$DB));
+        Fill(Round(i / 2.7), '█'));
       stemp := StrR(i) + '%';
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX + 20, HalfMaxY + 1,
@@ -547,7 +547,7 @@ var
         vert[fcvert]);
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX - 18, HalfMaxY - 2,
-        Fill(Round(j / 2.7), #$DB));
+        Fill(Round(j / 2.7), '█'));
       stemp := StrR(j) + '%';
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX + 20, HalfMaxY - 2,
@@ -557,7 +557,7 @@ var
         vert[cvert]);
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX - 18, HalfMaxY + 1,
-        Fill(Round(i / 2.7), #$DB));
+        Fill(Round(i / 2.7), '█'));
       stemp := StrR(i) + '%';
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX + 20, HalfMaxY + 1,
@@ -745,7 +745,7 @@ BEGIN { pc2pc }
     + ' bytes ');
   CMPrint(pal.bkdStatic, pal.txtdStatic,
     HalfMaxX - 18, HalfMaxY + 1,
-    Fill(37, #177));
+    Fill(37, '▒'));
   UpdateScreen(false);
 
   was := 0;

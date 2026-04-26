@@ -87,8 +87,8 @@ Case w of
    END;
 End;
 
-cmPrint(pal.bkRama,pal.txtRama,posx,posy+PanelLong-2,#186+space(pw)+#186);
-cmPrint(pal.bkRama,pal.txtRama,posx,posy+PanelLong-1,#200+fill(pw,#205)+#188);
+cmPrint(pal.bkRama,pal.txtRama,posx,posy+PanelLong-2,'║'+space(pw)+'║');
+cmPrint(pal.bkRama,pal.txtRama,posx,posy+PanelLong-1,'╚'+fill(pw,'═')+'╝');
 
 InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,
   posx+1,2,'Current directory: ',pw);
@@ -129,7 +129,7 @@ for i:=8 to 12 do
   StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,i,space(pw));
 
 InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,
-  posx+1,13,fill(16,#196),pw);
+  posx+1,13,fill(16,'─'),pw);
 
 for i:=14 to 19 do
   StatusLineColor(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,posx+1,i,space(pw));
@@ -148,7 +148,7 @@ for m:=pctdirs+1 to pctdirs+pctfiles do
 if i>0 then
  begin
   InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,
-    posx+1,19,fill(16,#196),pw);
+    posx+1,19,fill(16,'─'),pw);
   s0:='~`'+strr(i)+'~` block'+eb(i)+' selected in ~`'+strr(l)+'~` Hob file'+ewfiles(l);
   i:=p.putfrom+p.panelhi+1+(p.InfoLines-2);
   StatusLineColor(pal.bkSelectedNT,pal.txtSelectedNT,pal.bkSelectedST,pal.txtSelectedST,posx+1,i-1,space(pw));
