@@ -3,6 +3,9 @@ program run_tests;
 {$mode objfpc}{$H+}
 
 uses
+  {$IFDEF UNIX}
+  cwstring,
+  {$ENDIF}
   consoletestrunner,
   test_trd,
   test_tap,

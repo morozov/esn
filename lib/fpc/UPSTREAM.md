@@ -193,6 +193,28 @@ shows on Linux/macOS but blanks on Windows.  ESN's primary content
 practice.  A real fix would require a ConPTY VT-sequence path and
 is out of scope for this slice.
 
+#### P4 — Suppress upstream-origin warnings/notes for `-Sewn`
+
+ESN compiles with `-Sewn` (treat warnings AND notes as errors). The
+vendored sources emit a known set of upstream-origin diagnostics
+that would otherwise fail the build. Suppressions are added at the
+top of each affected file using `{$WARNINGS OFF}` / `{$NOTES OFF}`
+/ `{$HINTS OFF}` (broad scope) or `{$warn N off}` (targeted).
+
+- `lib/fpc/rtl-console/src/unix/unixkvmbase.pp`: targeted —
+  `{$warn 5043 off}` for `fpgetenv` deprecation.
+- `lib/fpc/rtl-console/src/unix/unicodevideo.pp`: broad —
+  `{$WARNINGS OFF}{$NOTES OFF}{$HINTS OFF}`. The targeted form
+  (`{$warn N off}`) was tried but did not silence the diagnostics
+  at this file's compile boundary; broad suppression works.
+- `lib/fpc/rtl-unicode/src/inc/graphemebreakproperty.pp`: targeted
+  — `{$warn 4045 off}` for the range-comparison-always-true on
+  `graphemebreakproperty_code.inc`.
+
+This is a metadata-only patch (no logic changes). On refresh, drop
+these directives, recompile, and re-add for whatever set of IDs the
+new upstream emits.
+
 ## Build integration
 
 Consumers point FPC at this tree via:

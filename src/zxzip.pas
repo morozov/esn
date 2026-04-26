@@ -15,7 +15,7 @@ function  zxzSave(p:TPanel):boolean;
 Procedure zxzExtract(sp:TPanel);
 
 Implementation
-Uses Video;
+Uses UnicodeVideo;
 
 {============================================================================}
 function zxzNameLine(var p:TPanel; a:byte):string;

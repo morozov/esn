@@ -225,7 +225,7 @@ Uses
      main, sorting, sn_kbd, snviewer,
      trd, trd_ovr, scl_ovr, scl, tap_ovr, tap,
      fdi, fdi_ovr, fdd, fdd_ovr, zxzip, pc, pc_ovr,
-     Video, SysUtils
+     UnicodeVideo, SysUtils
      {$IFDEF WINDOWS}
      , Windows
      {$ENDIF}

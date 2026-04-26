@@ -27,7 +27,7 @@ function  itHobeta(name:string; var rec:hobrec):boolean;
 Implementation
 Uses
      FDI,SCL,FDD,TAP,ZXZIP,
-     palette, rv, crc, Main_Ovr, Video;
+     palette, rv, crc, Main_Ovr, UnicodeVideo;
 
 
 {============================================================================}

@@ -19,7 +19,7 @@ procedure fddMakeImage(var p:TPanel; BootOnly:boolean);
 
 Implementation
 
-uses SysUtils, Video;
+uses SysUtils, UnicodeVideo;
 
 {============================================================================}
 Procedure fddInfoPanel(w:byte);

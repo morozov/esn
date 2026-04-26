@@ -6,7 +6,7 @@ Function IntView(fname:string):byte;
 
 Implementation
 
-uses RV, palette, main, Main_Ovr, Video;
+uses RV, palette, main, Main_Ovr, UnicodeVideo;
 
 function MaxAvail: longint;
 begin MaxAvail := High(longint); end;

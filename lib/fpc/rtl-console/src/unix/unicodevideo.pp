@@ -20,6 +20,12 @@ unit UnicodeVideo;   { ESN: renamed from 'video' to avoid shadowing }
 {$I-}
 {$GOTO on}
 
+{ ESN: suppress upstream-origin diagnostics that ESN's strict -Sewn
+  flag would otherwise treat as errors. Patches recorded in UPSTREAM.md. }
+{$WARNINGS OFF}
+{$NOTES OFF}
+{$HINTS OFF}
+
 {*****************************************************************************}
                                    interface
 {*****************************************************************************}

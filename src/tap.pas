@@ -15,7 +15,7 @@ procedure CheckTapInsed;
 
 Implementation
 Uses
-     SysUtils, TRD, Video;
+     SysUtils, TRD, UnicodeVideo;
 
 {============================================================================}
 function tapNameLine(var p:TPanel; a:word):string;

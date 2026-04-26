@@ -32,7 +32,7 @@ function  trdWriteLabel(const path: string;
 
 Implementation
 
-Uses palette, Main_Ovr, Video, Keyboard,
+Uses palette, Main_Ovr, UnicodeVideo, Keyboard,
 SCL, SCL_Ovr, FDD, FDD_Ovr, FDI, FDI_Ovr, TAP, TAP_Ovr, ZXZIP, pc_ovr;
 
 function strlo(s: string): string;

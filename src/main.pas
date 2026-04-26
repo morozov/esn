@@ -39,7 +39,7 @@ Implementation
 Uses
      RV,
      Vars, sn_Mem, sn_Obj, Palette,
-     Main_Ovr, SysUtils, Video;
+     Main_Ovr, SysUtils, UnicodeVideo;
 
 
 {============================================================================}

@@ -18,6 +18,10 @@
 unit UnixKvmBase;
 {$ENDIF FPC_DOTTEDUNITS}
 
+{ ESN: suppress upstream-origin diagnostics that ESN's strict -Sewn
+  flag would otherwise treat as errors. Patches recorded in UPSTREAM.md. }
+{$warn 5043 off}  { Symbol deprecated (fpgetenv) }
+
 {*****************************************************************************}
                                    interface
 {*****************************************************************************}

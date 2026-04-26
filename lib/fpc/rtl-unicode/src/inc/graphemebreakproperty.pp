@@ -34,6 +34,10 @@ unit graphemebreakproperty;
 
 {$MODE objfpc}
 
+{ ESN: suppress upstream-origin diagnostics that ESN's strict -Sewn
+  flag would otherwise treat as errors. Patches recorded in UPSTREAM.md. }
+{$warn 4045 off}  { Range comparison always true (graphemebreakproperty_code.inc) }
+
 interface
 
 type

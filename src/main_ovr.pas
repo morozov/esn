@@ -22,7 +22,7 @@ Procedure CtrlLPressed;
 
 implementation
 
-uses rv, palette, Video, SysUtils,
+uses rv, palette, UnicodeVideo, SysUtils,
      main, sn_Obj, sn_mem, trd,
      init, Keyboard, pc;
 

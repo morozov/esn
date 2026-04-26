@@ -29,7 +29,7 @@ procedure fddPDF(var p:TPanel; fr:integer);
 
 Implementation
 
-uses Video;
+uses UnicodeVideo;
 
 {============================================================================}
 function  fddNameLine(var p:TPanel; a:word):string;

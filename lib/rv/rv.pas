@@ -6,7 +6,7 @@ unit rv;
 interface
 
 uses
-  Video, Keyboard, Mouse, SysUtils, DateUtils;
+  UnicodeVideo, Keyboard, Mouse, SysUtils, DateUtils;
 
 { ===== CGA color constants ===== }
 const
