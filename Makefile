@@ -1,7 +1,10 @@
 FPC      := fpc
 export COMPILE_DATE := $(shell date '+%a, %d %b %Y at %H:%M:%S %Z')
 export VERSION      ?= 1.15-dev
-FPCFLAGS := -Sd -O2 -gl -Sc -Sm -Sewn -vewnhi
+# -Fcutf8: source codepage is UTF-8 (literals tagged CP_UTF8).
+# -vm4104,4105: silence implicit AnsiString<->UnicodeString
+# conversion warnings during the gradual UnicodeString migration.
+FPCFLAGS := -Sd -O2 -gl -Sc -Sm -Sewn -vewnhi -Fcutf8 -vm4104,4105
 
 # On macOS, point FPC at the active SDK so the linker can find libSystem.
 UNAME := $(shell uname)

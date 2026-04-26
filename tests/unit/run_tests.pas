@@ -14,7 +14,8 @@ uses
   test_pc,
   test_resize,
   test_insert,
-  test_unicode_width;
+  test_unicode_width,
+  test_infoline_clip;
 
 var
   app: TTestRunner;

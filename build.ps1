@@ -8,7 +8,10 @@ $ErrorActionPreference = 'Stop'
 $FpcCmd           = (Get-Command $Fpc -ErrorAction Stop).Source
 $env:COMPILE_DATE = (Get-Date).ToString('ddd, dd MMM yyyy "at" HH:mm:ss K')
 $env:VERSION      = $Version
-$FpcFlags         = @('-Sd', '-O2', '-gl', '-Sc', '-Sm', '-Sewn', '-vewnhi')
+# -Fcutf8: source codepage is UTF-8 (literals tagged CP_UTF8).
+# -vm4104,4105: silence implicit AnsiString<->UnicodeString
+# conversion warnings during the gradual UnicodeString migration.
+$FpcFlags         = @('-Sd', '-O2', '-gl', '-Sc', '-Sm', '-Sewn', '-vewnhi', '-Fcutf8', '-vm4104,4105')
 
 $Root    = Split-Path -Parent $MyInvocation.MyCommand.Path
 $SrcDir  = Join-Path $Root 'src'
