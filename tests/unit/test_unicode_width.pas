@@ -49,6 +49,12 @@ type
     procedure TestCButton_CJK_ShadowMatchesDisplayWidth;
     procedure TestCButton_AstralFirstCluster_NotSplit;
     procedure TestCButton_SingleClusterActive_WrapsWithArrows;
+
+    { ===== PathFit: cell-aware path truncation ===== }
+    procedure TestPathFit_AsciiUnderTrigger_Unchanged;
+    procedure TestPathFit_AsciiOverTrigger_Truncates;
+    procedure TestPathFit_Cyrillic_NoMidByteSplit;
+    procedure TestPathFit_CJK_TruncatesByCells;
   end;
 
 implementation
@@ -532,6 +538,59 @@ begin
     UnicodeString('◄'), EnhancedVideoBuf[2].ExtendedGraphemeCluster);
 
   SetLength(EnhancedVideoBuf, 0);
+end;
+
+{ ===== PathFit tests ===== }
+
+procedure TUnicodeWidthTest.TestPathFit_AsciiUnderTrigger_Unchanged;
+{ When display width <= triggerCells, PathFit returns the input
+  unchanged. }
+begin
+  AssertEquals('short ASCII path is returned verbatim',
+               '/tmp', PathFit('/tmp', 29, 4, 23));
+end;
+
+procedure TUnicodeWidthTest.TestPathFit_AsciiOverTrigger_Truncates;
+{ ASCII path longer than triggerCells gets truncated.  When
+  leadCells + 3 + tailCells > triggerCells, PathFit caps tail so
+  the result fits triggerCells. trigger=29, lead=4, tail=23 →
+  budget=26, lead stays 4, tail capped to 22, result=29 cells. }
+var
+  fit: string;
+begin
+  fit := PathFit('/usr/local/share/applications/foo', 29, 4, 23);
+  AssertEquals('truncated ASCII width = trigger',
+               29, Length(fit));
+  AssertEquals('truncated ASCII has lead-...-tail shape',
+               '/usr...share/applications/foo', fit);
+end;
+
+procedure TUnicodeWidthTest.TestPathFit_Cyrillic_NoMidByteSplit;
+{ Byte-based copy(s,1,4) on '/файл/...' would cut '/фа' as 4 bytes
+  (/, 0xD1 0x84, 0xD0) and split the next Cyrillic codepoint between
+  its lead and continuation byte.  PathFit must take 4 *cells*:
+  '/фай' = 4 codepoints = 4 cells, all intact. }
+var
+  fit, lead: string;
+begin
+  fit := PathFit('/файл-cyrillic-path/long-tail.txt', 29, 4, 23);
+  lead := Copy(fit, 1, Pos('...', fit) - 1);
+  AssertEquals('Cyrillic lead is /фай (4 cells, cluster-safe)',
+               '/фай', lead);
+end;
+
+procedure TUnicodeWidthTest.TestPathFit_CJK_TruncatesByCells;
+{ '/中文-path/...' — '中' is 2 cells.  PathFit(s, 29, 4, 23) takes
+  4 cells: '/' (1) + '中' (2) = 3 cells; cluster '文' (2 cells) would
+  push to 5, breaks.  So lead = '/中' (3 cells, on cluster boundary). }
+var
+  result, lead: string;
+begin
+  result := PathFit('/中文-test-with-very-long-tail-segment.txt',
+                    29, 4, 23);
+  lead := Copy(result, 1, Pos('...', result) - 1);
+  AssertEquals('CJK lead stops at cluster boundary',
+               '/中', lead);
 end;
 
 initialization

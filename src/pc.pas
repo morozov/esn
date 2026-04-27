@@ -11,6 +11,24 @@ Function  DirSize(path:string; priory:byte; var size:int64; var UserOut:boolean;
 function PcColumnEntry(const fname, fext: string;
                        dx, ddx: integer): string;
 
+{ Display width of a UTF-8 byte string, in terminal cells. }
+function dispWidth(const s: AnsiString): integer;
+
+{ If display width of s exceeds triggerCells, return
+  (first leadCells cells) + '...' + (last tailCells cells)
+  truncated on grapheme-cluster boundaries.  Otherwise return s
+  unchanged.  All measurements are in display cells, not bytes; safe
+  for UTF-8 input that contains multi-byte sequences. }
+function PathFit(const s: AnsiString;
+                 triggerCells, leadCells, tailCells: integer): AnsiString;
+
+{ Pick a path display fitting pw cells for the directory line of the
+  PC info panel.  Wide enough for a meaningful lead-...-tail layout
+  (pw >= 12) defers to PathFit; tighter panels drop the ellipsis and
+  show the trailing path so the user still sees the leaf they are
+  in, instead of '...' or an empty string. }
+function FitInfoPath(const s: AnsiString; pw: integer): AnsiString;
+
 Implementation
 Uses
      SysUtils, UnicodeVideo, graphemebreakproperty, Keyboard, RV,
@@ -26,6 +44,97 @@ Uses
 function dispWidth(const s: AnsiString): integer;
 begin
   result := StringDisplayWidth(UTF8Decode(s));
+end;
+
+{ Return prefix of us occupying at most w display cells, on
+  cluster boundary. }
+function CellPrefix(const us: UnicodeString; w: integer): UnicodeString;
+var
+  egc: UnicodeString;
+  acc, cw: integer;
+begin
+  acc := 0;
+  result := '';
+  for egc in TUnicodeStringExtendedGraphemeClustersEnumerator.Create(us) do
+  begin
+    cw := ExtendedGraphemeClusterDisplayWidth(egc);
+    if acc + cw > w then break;
+    result := result + egc;
+    Inc(acc, cw);
+  end;
+end;
+
+{ Return suffix of us occupying at most w display cells, on
+  cluster boundary. }
+function CellSuffix(const us: UnicodeString; w: integer): UnicodeString;
+var
+  clusters: array of UnicodeString;
+  widths: array of integer;
+  egc: UnicodeString;
+  i, total, n: integer;
+begin
+  n := 0;
+  for egc in TUnicodeStringExtendedGraphemeClustersEnumerator.Create(us) do
+  begin
+    SetLength(clusters, n + 1);
+    SetLength(widths, n + 1);
+    clusters[n] := egc;
+    widths[n] := ExtendedGraphemeClusterDisplayWidth(egc);
+    Inc(n);
+  end;
+  total := 0;
+  i := n - 1;
+  while (i >= 0) and (total + widths[i] <= w) do
+  begin
+    Inc(total, widths[i]);
+    Dec(i);
+  end;
+  result := '';
+  for i := i + 1 to n - 1 do
+    result := result + clusters[i];
+end;
+
+function PathFit(const s: AnsiString;
+                 triggerCells, leadCells, tailCells: integer): AnsiString;
+var
+  us: UnicodeString;
+  budget: integer;
+begin
+  if dispWidth(s) <= triggerCells then
+  begin
+    PathFit := s;
+    exit;
+  end;
+  if leadCells < 0 then leadCells := 0;
+  if tailCells < 0 then tailCells := 0;
+  us := UTF8Decode(s);
+  { When trigger is too narrow for even "...", drop the ellipsis
+    and clip to a plain cell prefix. }
+  if triggerCells < 3 then
+  begin
+    PathFit := UTF8Encode(CellPrefix(us, triggerCells));
+    exit;
+  end;
+  { Cap lead/tail so lead + 3 + tail <= triggerCells.  Lead wins
+    when both can't fit; the remainder goes to tail. }
+  budget := triggerCells - 3;
+  if leadCells + tailCells > budget then
+  begin
+    if leadCells > budget then leadCells := budget;
+    tailCells := budget - leadCells;
+  end;
+  PathFit := UTF8Encode(CellPrefix(us, leadCells)) + '...' +
+             UTF8Encode(CellSuffix(us, tailCells));
+end;
+
+function FitInfoPath(const s: AnsiString; pw: integer): AnsiString;
+begin
+  if pw >= 12 then
+    FitInfoPath := PathFit(s, pw - 9, 4, pw - 8)
+  else if dispWidth(s) > pw then
+    FitInfoPath := UTF8Encode(CellSuffix(UTF8Decode(s), pw))
+  else
+    FitInfoPath := s;
 end;
 
 function pcNameLine(var p:TPanel; m:word):string;
@@ -96,7 +205,9 @@ InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,
 
 s0:=pcnd;
 if treec<>1 then s0:=copy(pcnd,1,length(pcnd)-1);
-if length(s0)>pw-9 then s0:=copy(s0,1,4)+'...'+copy(s0,length(s0)-(pw-14),pw-8);
+{ Cast pw to integer before passing so a tiny PanelW doesn't
+  underflow word arithmetic. }
+s0:=FitInfoPath(s0, integer(pw));
 s0:='~`'+s0+'~`';
 InfoLine(pal.bkDiskInfoNT,pal.txtDiskInfoNT,pal.bkDiskInfoST,pal.txtDiskInfoST,
   posx+1,3,s0,pw);

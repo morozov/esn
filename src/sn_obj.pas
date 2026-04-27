@@ -820,17 +820,13 @@ if (pos('c',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
    fddPanel: s:=' '+nospaceLR(zxDisk.DiskLabel)+' ';
    zxzPanel: s:=' '+nospaceLR(zxDisk.DiskLabel)+' ';
   End;
-  { Width available for the title between the left-corner ═══ overlay and
+  { Cells available for the title between the left-corner ═══ overlay and
     either the clock (clocked right panel) or the right-corner overlay. }
   if (posx<>left) and clocked then m:=PanelW-12 else m:=PanelW-6;
   if m<8 then m:=8;
-  if length(s)>m then
-   begin
-    d:=m-7;
-    s:=copy(s,1,4)+'...'+copy(s,length(s)-d+1,d);
-   end;
+  s:=PathFit(s,m,4,m-7);
   if focused then begin p:=pal.bkNDactive; i:=pal.txtNDactive; end else begin p:=pal.bkNDpassive; i:=pal.txtNDpassive; end;
-  x:=posx+4+(m-length(s)) div 2;
+  x:=posx+4+(m-dispWidth(s)) div 2;
   if (posx<>left) and clocked then r:=Fill(PanelW-9,'═') else r:=Fill(PanelW,'═');
   cmprint(pal.BkRama,pal.TxtRama,posx+1,posy,r);
   cmprint(p,i,x,1,s);
