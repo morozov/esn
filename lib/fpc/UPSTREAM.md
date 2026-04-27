@@ -215,6 +215,36 @@ This is a metadata-only patch (no logic changes). On refresh, drop
 these directives, recompile, and re-add for whatever set of IDs the
 new upstream emits.
 
+#### P5 — `rtl-console/src/inc/video.inc` : count regional-indicator pairs as 2 cells
+
+`ExtendedGraphemeClusterDisplayWidth` measures by the first
+codepoint's East Asian Width and falls back to 1 for everything
+else (a `{ todo: handle emoji + modifiers }` lives at the same
+spot upstream).  A regional-indicator pair (`U+1F1E6..U+1F1FF`,
+twice) is a single grapheme cluster that terminals render as a
+2-cell flag glyph; each RIS has EAW=Neutral on its own, so the
+upstream code returns 1 for the cluster.  ESN's column math then
+under-counts by one cell for every flag emoji, shifting the size
+column right and breaking the column-1/2 separator on that row.
+
+**Fix**: ESN-added branch right after the surrogate-pair decode of
+the first codepoint.  When `FirstCodePoint` is in the RIS range
+and the cluster has at least four codeunits whose codeunits 3-4
+form a surrogate pair decoding to another RIS, return 2 directly.
+Otherwise fall through to the EAW-based path.
+
+This is a logic *addition*, not a modification of upstream lines.
+On refresh:
+
+1. Check whether upstream has resolved the
+   `{ todo: handle emoji + modifiers }` (RIS pair, ZWJ sequence,
+   variation-selector emoji presentation, etc.).
+2. If yes, drop this patch and re-evaluate ESN's expectations.
+3. If no, re-apply this block.
+
+Verification: `TestCCLen_Emoji_RegionalIndicatorFlag` asserts
+`CCLen('🇺🇸') = 2`.
+
 ## Build integration
 
 Consumers point FPC at this tree via:

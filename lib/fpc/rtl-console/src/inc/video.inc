@@ -677,7 +677,7 @@ end;
 
 function ExtendedGraphemeClusterDisplayWidth(const EGC: UnicodeString): Integer;
 var
-  FirstCodePoint: UCS4Char;
+  FirstCodePoint, SecondCodePoint: UCS4Char;
 begin
   if Length(EGC) > 0 then
     begin
@@ -686,6 +686,24 @@ begin
          (Ord(EGC[2])>=$DC00) and (Ord(EGC[2])<=$DFFF) then
         begin
           FirstCodePoint := $10000+((FirstCodePoint-$D800) shl 10) or (Ord(EGC[2])-$DC00);
+        end;
+      { Regional-indicator pair (RIS+RIS, both U+1F1E6..U+1F1FF) is
+        a single grapheme cluster that terminals render as a 2-cell
+        flag glyph. Each RIS has EAW=Neutral, so the per-codepoint
+        path below would return 1 and miscount column width. Each
+        RIS is a surrogate pair, so the second RIS occupies code
+        units 3-4 of the cluster. }
+      if (FirstCodePoint>=$1F1E6) and (FirstCodePoint<=$1F1FF) and (Length(EGC)>=4) and
+         (Ord(EGC[3])>=$D800) and (Ord(EGC[3])<=$DBFF) and
+         (Ord(EGC[4])>=$DC00) and (Ord(EGC[4])<=$DFFF) then
+        begin
+          SecondCodePoint := $10000 +
+            (((UCS4Char(Ord(EGC[3]))-$D800) shl 10) or (Ord(EGC[4])-$DC00));
+          if (SecondCodePoint>=$1F1E6) and (SecondCodePoint<=$1F1FF) then
+            begin
+              Result := 2;
+              exit;
+            end;
         end;
       { todo: handle emoji + modifiers }
       case GetEastAsianWidth(FirstCodePoint) of

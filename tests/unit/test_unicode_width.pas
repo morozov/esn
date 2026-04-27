@@ -301,12 +301,12 @@ end;
 procedure TUnicodeWidthTest.TestCCLen_Emoji_RegionalIndicatorFlag;
 { '🇺🇸' = RI U+1F1FA + RI U+1F1F8. The two regional indicators
   cluster into a single flag glyph that terminals render in 2
-  cells. FPC's StringDisplayWidth uses the first codepoint's East
-  Asian Width (U+1F1FA, EAW=N → 1 cell) and does not yet recognize
-  RI-pair emoji presentation (same `todo: handle emoji + modifiers`
-  in video.inc). Asserting 1 documents the current behavior. }
+  cells. Stock FPC's ExtendedGraphemeClusterDisplayWidth measured
+  by the first codepoint's East Asian Width (RIS = Neutral → 1) and
+  miscounted; the vendored function recognises RIS+RIS pairs and
+  returns 2. See lib/fpc/UPSTREAM.md (P5). }
 begin
-  AssertEquals('US flag', 1, CCLen('🇺🇸'));
+  AssertEquals('US flag', 2, CCLen('🇺🇸'));
 end;
 
 procedure TUnicodeWidthTest.TestCMPrint_WideChar_ClearsTrailingCell;
