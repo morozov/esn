@@ -225,7 +225,7 @@ Uses
      main, sorting, sn_kbd, snviewer,
      trd, trd_ovr, scl_ovr, scl, tap_ovr, tap,
      fdi, fdi_ovr, fdd, fdd_ovr, zxzip, pc, pc_ovr,
-     UnicodeVideo, SysUtils, StrUtils
+     UnicodeVideo, SysUtils
      {$IFDEF WINDOWS}
      , Windows
      {$ENDIF}
@@ -379,11 +379,6 @@ if Place=Right then begin PosX:=GmaxX div 2+1; PanelW:=GmaxX-GmaxX div 2-2; end
                else PanelW:=GmaxX div 2-2;
 End;
 
-
-function Fill(n: integer; const ch: AnsiString): AnsiString;
-begin
-  Fill := DupeString(ch, n);
-end;
 
 function BuildHorizSep(panelW, columns: integer): AnsiString;
 var

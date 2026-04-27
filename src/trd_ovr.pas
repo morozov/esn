@@ -32,7 +32,7 @@ function  trdWriteLabel(const path: string;
 
 Implementation
 
-Uses palette, Main_Ovr, UnicodeVideo, Keyboard, StrUtils,
+Uses palette, Main_Ovr, UnicodeVideo, Keyboard,
 SCL, SCL_Ovr, FDD, FDD_Ovr, FDI, FDI_Ovr, TAP, TAP_Ovr, ZXZIP, pc_ovr;
 
 function strlo(s: string): string;
@@ -47,8 +47,6 @@ begin nospace := Trim(s); end;
 function nospaceLR(s: string): string;
 begin nospaceLR := Trim(s); end;
 
-function fill(len: integer; const symb: AnsiString): string;
-begin fill := DupeString(symb, len); end;
 
 function readkey: char;
 var kb: word;
@@ -1799,7 +1797,7 @@ mPrint(x+1,y-1,'1st Free Sec.');
 
 if EditFileParam then
  Begin
-  mPrint(x-18,y-0,'╠'+DupeString('═',36)+'╣');
+  mPrint(x-18,y-0,'╠'+Fill(36,'═')+'╣');
   mPrint(x-14,y+1,'File Name      Start Length Line');
 
   mPrint(x-16,y+3,'1st Track');

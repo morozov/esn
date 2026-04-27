@@ -89,9 +89,16 @@ begin
 end;
 {$pop}
 
-function Fill(len: integer; const symb: string): string;
+function Fill(len: integer; const symb: UnicodeString): UnicodeString;
+var
+  i, m, sl: integer;
 begin
-  Fill := DupeString(symb, len);
+  sl := Length(symb);
+  if (len <= 0) or (sl = 0) then begin Fill := ''; exit; end;
+  SetLength(Fill, len * sl);
+  for i := 0 to len - 1 do
+    for m := 1 to sl do
+      Fill[i * sl + m] := symb[m];
 end;
 
 function WithOut(s, chars: string): string;

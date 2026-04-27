@@ -36,6 +36,19 @@ type
     procedure TestCCLen_Emoji_SkinToneModifier;
     procedure TestCCLen_Emoji_ZWJSequence;
     procedure TestCCLen_Emoji_RegionalIndicatorFlag;
+
+    { ===== CMPrint trailing-cell handling for wide chars ===== }
+    procedure TestCMPrint_WideChar_ClearsTrailingCell;
+    procedure TestCMPrint_AstralEmoji_StoredAsCluster;
+
+    { ===== StatusLineColor advances by display width ===== }
+    procedure TestStatusLineColor_CJK_AdvancesByDisplayWidth;
+
+    { ===== Helpers measure by display width, not code units ===== }
+    procedure TestCmCentre_CJK_CentersByCells;
+    procedure TestCButton_CJK_ShadowMatchesDisplayWidth;
+    procedure TestCButton_AstralFirstCluster_NotSplit;
+    procedure TestCButton_SingleClusterActive_WrapsWithArrows;
   end;
 
 implementation
@@ -294,6 +307,231 @@ procedure TUnicodeWidthTest.TestCCLen_Emoji_RegionalIndicatorFlag;
   in video.inc). Asserting 1 documents the current behavior. }
 begin
   AssertEquals('US flag', 1, CCLen('🇺🇸'));
+end;
+
+procedure TUnicodeWidthTest.TestCMPrint_WideChar_ClearsTrailingCell;
+{ When CMPrint writes a wide char (display width 2) at column N, it
+  must also clear the trailing cell at column N+1.  Otherwise stale
+  content from prior renders at the same screen position remains
+  visible through the wide glyph's overlay area, producing phantom
+  characters between adjacent wide glyphs. }
+var
+  W, H: integer;
+begin
+  W := 10;
+  H := 1;
+  ScreenWidth := W;
+  ScreenHeight := H;
+  SetLength(EnhancedVideoBuf, longword(W) * longword(H));
+
+  { Pre-populate cell 1 (offset 0) and cell 2 (offset 1) with stale
+    content to simulate a prior render. }
+  EnhancedVideoBuf[0].ExtendedGraphemeCluster := 'X';
+  EnhancedVideoBuf[0].Attribute := $07;
+  EnhancedVideoBuf[1].ExtendedGraphemeCluster := 'r';
+  EnhancedVideoBuf[1].Attribute := $07;
+
+  { Write a wide char at col 1.  CMPrint must overwrite cell 1 with
+    the wide char AND clear cell 2 (its trailing half). }
+  CMPrint(0, 7, 1, 1, '中');
+
+  AssertEquals('Leading cell holds wide char',
+    UnicodeString('中'), EnhancedVideoBuf[0].ExtendedGraphemeCluster);
+  AssertEquals('Trailing cell cleared',
+    UnicodeString(''), EnhancedVideoBuf[1].ExtendedGraphemeCluster);
+
+  SetLength(EnhancedVideoBuf, 0);
+end;
+
+procedure TUnicodeWidthTest.TestCMPrint_AstralEmoji_StoredAsCluster;
+{ Astral codepoints (U+10000+) are encoded as a UTF-16 surrogate pair.
+  CMPrint must store the pair as a single grapheme cluster in one
+  cell, not two cells of bare surrogate halves.
+
+  Note: this asserts only the buffer state.  The Windows display
+  path (lib/fpc/rtl-console/src/win/unicodevideo.pp:SysUpdateScreen)
+  packs each cell into a single TCharInfo WideChar and substitutes
+  ' ' for any cluster longer than 1 codeunit, so astral codepoints
+  blank out on Windows.  Unix renders them via OutData and shows
+  the full cluster.  See lib/fpc/UPSTREAM.md (caveat under P3). }
+var
+  W, H: integer;
+  emoji: UnicodeString;
+begin
+  W := 10;
+  H := 1;
+  ScreenWidth := W;
+  ScreenHeight := H;
+  SetLength(EnhancedVideoBuf, longword(W) * longword(H));
+
+  emoji := UTF8Decode('😀');  { U+1F600 = surrogate pair D83D DE00 }
+  CMPrint(0, 7, 1, 1, emoji);
+
+  AssertEquals('Cell holds full surrogate pair (2 codeunits)',
+    2, Length(EnhancedVideoBuf[0].ExtendedGraphemeCluster));
+  AssertEquals('Cell cluster equals input emoji',
+    emoji, EnhancedVideoBuf[0].ExtendedGraphemeCluster);
+  AssertEquals('Trailing cell cleared',
+    UnicodeString(''), EnhancedVideoBuf[1].ExtendedGraphemeCluster);
+
+  SetLength(EnhancedVideoBuf, 0);
+end;
+
+procedure TUnicodeWidthTest.TestStatusLineColor_CJK_AdvancesByDisplayWidth;
+{ StatusLineColor renders a string with `~`-toggle markers between
+  alternating color regions.  The fix: emit each marker-bounded run
+  as a single CMPrint call so the per-cluster grapheme iteration
+  inside CMPrint applies, and advance x by StringDisplayWidth of the
+  whole segment — not by UTF-16 code-unit count.  Two regressions
+  this test would catch:
+
+    1. Astral emoji '😀' (U+1F600) is a surrogate pair.  The old
+       per-code-unit loop stored two lone surrogates in two cells.
+       The fix stores the full cluster in one cell and clears the
+       trailing cell.
+
+    2. The marker toggle after the emoji must land x at cell 3, so
+       'X' (mark color) and 'y' (normal) follow the wide glyph
+       without overwriting it. }
+var
+  W, H: integer;
+  s: UnicodeString;
+begin
+  W := 20;
+  H := 1;
+  ScreenWidth := W;
+  ScreenHeight := H;
+  SetLength(EnhancedVideoBuf, longword(W) * longword(H));
+
+  s := UTF8Decode('😀~`X~`y');
+  StatusLineColor(0, 7, 4, 14, 1, 1, s);
+
+  AssertEquals('Cell 1 holds full astral cluster',
+    2, Length(EnhancedVideoBuf[0].ExtendedGraphemeCluster));
+  AssertEquals('Cell 2 cleared as wide trailing',
+    UnicodeString(''), EnhancedVideoBuf[1].ExtendedGraphemeCluster);
+  AssertEquals('Cell 3 holds X (mark color region)',
+    UnicodeString('X'), EnhancedVideoBuf[2].ExtendedGraphemeCluster);
+  AssertEquals('Cell 4 holds y (back to normal color)',
+    UnicodeString('y'), EnhancedVideoBuf[3].ExtendedGraphemeCluster);
+
+  SetLength(EnhancedVideoBuf, 0);
+end;
+
+procedure TUnicodeWidthTest.TestCmCentre_CJK_CentersByCells;
+{ cmCentre must measure the input by display width (cells), not by
+  UTF-16 code-unit length.  '中文' is 2 codepoints / 2 codeunits but
+  occupies 4 cells.  With HalfMaxX = 40 (screen width 80), the
+  centred draw must start at x = 1 + (40 - 2) = 39, so cell 39 holds
+  '中' (leading half) and cell 41 holds '文'.  Old `Length(s) div 2 = 1`
+  arithmetic put it at cell 40, which would land asymmetrically. }
+var
+  W, H: integer;
+begin
+  W := 80;
+  H := 1;
+  ScreenWidth := W;
+  ScreenHeight := H;
+  GmaxX := W;
+  HalfMaxX := W div 2;
+  SetLength(EnhancedVideoBuf, longword(W) * longword(H));
+
+  cmCentre(0, 7, 1, UTF8Decode('中文'));
+
+  AssertEquals('Cell 39 holds first CJK glyph (centred by cells)',
+    UnicodeString('中'), EnhancedVideoBuf[38].ExtendedGraphemeCluster);
+  AssertEquals('Cell 41 holds second CJK glyph',
+    UnicodeString('文'), EnhancedVideoBuf[40].ExtendedGraphemeCluster);
+
+  SetLength(EnhancedVideoBuf, 0);
+end;
+
+procedure TUnicodeWidthTest.TestCButton_CJK_ShadowMatchesDisplayWidth;
+{ cButton's shadow row is `Fill(w, '▀')`.  The shadow must span the
+  visible label's display width, not its code-unit count.  Inactive
+  '中a' = 3 cells (CJK 2 + ASCII 1).  The '▄' shadow corner lands at
+  x + 3, and the bottom row holds 3 '▀' cells. }
+var
+  W, H, x: integer;
+begin
+  W := 20;
+  H := 3;
+  ScreenWidth := W;
+  ScreenHeight := H;
+  SetLength(EnhancedVideoBuf, longword(W) * longword(H));
+
+  x := 1;
+  cButton(0, 7, 0, 8, x, 1, UTF8Decode('中a'), false);
+
+  { Shadow corner at (x + w, y) = (4, 1). }
+  AssertEquals('Shadow corner at x + display-width',
+    UnicodeString('▄'),
+    EnhancedVideoBuf[longword(0) * W + 3].ExtendedGraphemeCluster);
+  { Shadow row cells at y+1: x+1=2, x+2=3, x+3=4. }
+  AssertEquals('Shadow row cell 1',
+    UnicodeString('▀'),
+    EnhancedVideoBuf[longword(1) * W + 1].ExtendedGraphemeCluster);
+  AssertEquals('Shadow row cell 2',
+    UnicodeString('▀'),
+    EnhancedVideoBuf[longword(1) * W + 2].ExtendedGraphemeCluster);
+  AssertEquals('Shadow row cell 3',
+    UnicodeString('▀'),
+    EnhancedVideoBuf[longword(1) * W + 3].ExtendedGraphemeCluster);
+
+  SetLength(EnhancedVideoBuf, 0);
+end;
+
+procedure TUnicodeWidthTest.TestCButton_SingleClusterActive_WrapsWithArrows;
+{ With one grapheme cluster the active path can't replace both
+  ends; wrap the input between the arrow markers instead so the
+  button still reads as active. }
+var
+  W, H: integer;
+begin
+  W := 10;
+  H := 2;
+  ScreenWidth := W;
+  ScreenHeight := H;
+  SetLength(EnhancedVideoBuf, longword(W) * longword(H));
+
+  cButton(0, 7, 0, 8, 1, 1, UTF8Decode('X'), true);
+
+  AssertEquals('Cell 1 holds left arrow marker',
+    UnicodeString('►'), EnhancedVideoBuf[0].ExtendedGraphemeCluster);
+  AssertEquals('Cell 2 holds the original cluster',
+    UnicodeString('X'), EnhancedVideoBuf[1].ExtendedGraphemeCluster);
+  AssertEquals('Cell 3 holds right arrow marker',
+    UnicodeString('◄'), EnhancedVideoBuf[2].ExtendedGraphemeCluster);
+
+  SetLength(EnhancedVideoBuf, 0);
+end;
+
+procedure TUnicodeWidthTest.TestCButton_AstralFirstCluster_NotSplit;
+{ When active=true cButton replaces the first and last grapheme
+  clusters with arrow markers ('►' and '◄').  An astral emoji
+  '😀' is a surrogate pair (2 codeunits).  Old code used
+  `Copy(t, 2, Length(t)-2)` which would split the pair, leaving a
+  lone low surrogate as the first cluster of the middle.  Cluster-
+  aware replace must yield exactly '►X◄' for input '😀X😀'. }
+var
+  W, H: integer;
+begin
+  W := 10;
+  H := 2;
+  ScreenWidth := W;
+  ScreenHeight := H;
+  SetLength(EnhancedVideoBuf, longword(W) * longword(H));
+
+  cButton(0, 7, 0, 8, 1, 1, UTF8Decode('😀X😀'), true);
+
+  AssertEquals('Cell 1 holds left arrow marker',
+    UnicodeString('►'), EnhancedVideoBuf[0].ExtendedGraphemeCluster);
+  AssertEquals('Cell 2 holds preserved middle cluster',
+    UnicodeString('X'), EnhancedVideoBuf[1].ExtendedGraphemeCluster);
+  AssertEquals('Cell 3 holds right arrow marker',
+    UnicodeString('◄'), EnhancedVideoBuf[2].ExtendedGraphemeCluster);
+
+  SetLength(EnhancedVideoBuf, 0);
 end;
 
 initialization

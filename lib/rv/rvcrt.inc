@@ -24,12 +24,12 @@ const
     $0B, $02, $03, $04, $05, $06, $07, $08, $09, $0A
   );
 
-  boxTL: AnsiString = '╔';
-  boxTR: AnsiString = '╗';
-  boxBL: AnsiString = '╚';
-  boxBR: AnsiString = '╝';
-  boxV:  AnsiString = '║';
-  boxH:  AnsiString = '═';
+  boxTL: UnicodeString = '╔';
+  boxTR: UnicodeString = '╗';
+  boxBL: UnicodeString = '╚';
+  boxBR: UnicodeString = '╝';
+  boxV:  UnicodeString = '║';
+  boxH:  UnicodeString = '═';
 
   { CP437 graphical glyphs for byte values that are control codes
     in ASCII (0x00–0x1F, 0x7F).  In the original DOS text mode,
@@ -40,38 +40,38 @@ const
     behaviour and avoid letting ESC/BEL/BS escape into the output
     stream. }
   cp437ControlGlyph: array[0..31] of WideChar = (
-    ' ',      { 00 NUL — blank }
-    #$263A,   { 01 ☺ }
-    #$263B,   { 02 ☻ }
-    #$2665,   { 03 ♥ }
-    #$2666,   { 04 ♦ }
-    #$2663,   { 05 ♣ }
-    #$2660,   { 06 ♠ }
-    #$2022,   { 07 • }
-    #$25D8,   { 08 ◘ }
-    #$25CB,   { 09 ○ }
-    #$25D9,   { 0A ◙ }
-    #$2642,   { 0B ♂ }
-    #$2640,   { 0C ♀ }
-    #$266A,   { 0D ♪ }
-    #$266B,   { 0E ♫ }
-    #$263C,   { 0F ☼ }
-    #$25BA,   { 10 ► }
-    #$25C4,   { 11 ◄ }
-    #$2195,   { 12 ↕ }
-    #$203C,   { 13 ‼ }
-    #$00B6,   { 14 ¶ }
-    #$00A7,   { 15 § }
-    #$25AC,   { 16 ▬ }
-    #$21A8,   { 17 ↨ }
-    #$2191,   { 18 ↑ }
-    #$2193,   { 19 ↓ }
-    #$2192,   { 1A → }
-    #$2190,   { 1B ← }
-    #$221F,   { 1C ∟ }
-    #$2194,   { 1D ↔ }
-    #$25B2,   { 1E ▲ }
-    #$25BC    { 1F ▼ }
+    ' ',  { 00 NUL — blank }
+    '☺',  { 01 }
+    '☻',  { 02 }
+    '♥',  { 03 }
+    '♦',  { 04 }
+    '♣',  { 05 }
+    '♠',  { 06 }
+    '•',  { 07 }
+    '◘',  { 08 }
+    '○',  { 09 }
+    '◙',  { 0A }
+    '♂',  { 0B }
+    '♀',  { 0C }
+    '♪',  { 0D }
+    '♫',  { 0E }
+    '☼',  { 0F }
+    '►',  { 10 }
+    '◄',  { 11 }
+    '↕',  { 12 }
+    '‼',  { 13 }
+    '¶',  { 14 }
+    '§',  { 15 }
+    '▬',  { 16 }
+    '↨',  { 17 }
+    '↑',  { 18 }
+    '↓',  { 19 }
+    '→',  { 1A }
+    '←',  { 1B }
+    '∟',  { 1C }
+    '↔',  { 1D }
+    '▲',  { 1E }
+    '▼'   { 1F }
   );
 
 type
@@ -199,11 +199,11 @@ begin
   innerW := x2 - x1 - 1;
   if innerW < 0 then innerW := 0;
   CMPrint(paper, ink, x1, y1,
-          boxTL + DupeString(boxH, innerW) + boxTR);
+          boxTL + Fill(innerW, boxH) + boxTR);
   for i := y1 + 1 to y2 - 1 do
     CMPrint(paper, ink, x1, i, boxV + Space(innerW) + boxV);
   CMPrint(paper, ink, x1, y2,
-          boxBL + DupeString(boxH, innerW) + boxBR);
+          boxBL + Fill(innerW, boxH) + boxBR);
 end;
 
 { Save a screen region to the win stack. Coordinates are 1-based,
@@ -245,50 +245,51 @@ begin
   TextAttr := (paper shl 4) or (ink and $0F);
 end;
 
-procedure CMPrint(paper, ink, x, y: word; const s: string);
+procedure CMPrint(paper, ink, x, y: word; const s: UnicodeString);
 var
   attr: byte;
-  i, cw: integer;
+  cw, j: integer;
   col: word;
-  ch: WideChar;
-  us: UnicodeString;
-  raw: RawByteString;
+  cluster, glyph: UnicodeString;
   offset: longword;
 begin
   attr := (byte(paper) shl 4) or (byte(ink) and $0F);
-  raw := s;
-  SetCodePage(raw, CP_UTF8, false);
-  us := UnicodeString(raw);
   col := x;
-  for i := 1 to Length(us) do
+  for cluster in
+    TUnicodeStringExtendedGraphemeClustersEnumerator.Create(s) do
   begin
-    ch := us[i];
-    if ch < #$20 then ch := cp437ControlGlyph[Ord(ch)]
-    else if ch = #$7F then ch := #$2302; { ⌂ }
-    cw := ExtendedGraphemeClusterDisplayWidth(ch);
+    glyph := cluster;
+    if Length(glyph) = 1 then
+      if glyph[1] < #$20 then glyph := cp437ControlGlyph[Ord(glyph[1])]
+      else if glyph[1] = #$7F then glyph := '⌂';
+    cw := ExtendedGraphemeClusterDisplayWidth(glyph);
     if cw <= 0 then cw := 1;
     if (col >= 1) and (col <= ScreenWidth) and
        (y >= 1) and (y <= ScreenHeight) then
     begin
       offset := longword(y - 1) * ScreenWidth + longword(col - 1);
-      EnhancedVideoBuf[offset].ExtendedGraphemeCluster := ch;
+      EnhancedVideoBuf[offset].ExtendedGraphemeCluster := glyph;
       EnhancedVideoBuf[offset].Attribute := attr;
+      { Wide chars (cw>1) span multiple cells.  Clear the trailing
+        cells so stale content from a previous render at the same
+        position doesn't bleed through where the wide glyph
+        visually overlays. }
+      for j := 1 to cw - 1 do
+        if col + word(j) <= ScreenWidth then
+        begin
+          offset := longword(y - 1) * ScreenWidth +
+                    longword(col - 1 + word(j));
+          EnhancedVideoBuf[offset].ExtendedGraphemeCluster := '';
+          EnhancedVideoBuf[offset].Attribute := attr;
+        end;
     end;
     Inc(col, cw);
   end;
 end;
 
-procedure MPrint(x, y: word; const s: string);
+procedure MPrint(x, y: word; const s: UnicodeString);
 begin
   CMPrint(TextAttr shr 4, TextAttr and $0F, x, y, s);
-end;
-
-procedure Print(x, y: word; const s: string);
-begin
-  MPrint(x, y, s);
-  curX := x + word(Length(s));
-  curY := y;
-  SetCursorPos(curX - 1, curY - 1);
 end;
 
 procedure PrintSelf(paper, ink: byte; x, y, len: word);

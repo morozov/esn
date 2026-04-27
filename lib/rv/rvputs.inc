@@ -68,11 +68,11 @@ end;
 
 { ===== Dialog helpers ===== }
 
-procedure cmCentre(paper, ink: byte; y: word; const s: string);
+procedure cmCentre(paper, ink: byte; y: word; const s: UnicodeString);
 var
   x: integer;
 begin
-  x := 1 + (HalfMaxX - (Length(s) div 2));
+  x := 1 + (HalfMaxX - (StringDisplayWidth(s) div 2));
   CMPrint(paper, ink, x, y, s);
 end;
 
@@ -80,10 +80,29 @@ end;
   markers.  focus=1 -> start in normal color; focus<>1 -> start
   in selected color. }
 procedure cStatusBar(bkNT, txtNT, bkST, txtST, focus: byte;
-  const s: string);
+  const s: UnicodeString);
 var
   f, x: integer;
   norm: boolean;
+  segment: UnicodeString;
+
+  procedure FlushSegment;
+  var
+    cw: integer;
+  begin
+    if (segment = '') or (x > GmaxX) then begin
+      segment := '';
+      exit;
+    end;
+    cw := StringDisplayWidth(segment);
+    if norm then
+      CMPrint(bkNT, txtNT, x, GmaxY, segment)
+    else
+      CMPrint(bkST, txtST, x, GmaxY, segment);
+    Inc(x, cw);
+    segment := '';
+  end;
+
 begin
   { Leading space color depends on focus;
     text always starts normal. }
@@ -94,12 +113,12 @@ begin
   norm := true;
   f := 1;
   x := 2;
+  segment := '';
   while f <= Length(s) do begin
-    if x > GmaxX then
-      break;
     { Detect ~` toggle marker (both chars consumed, no output) }
     if (s[f] = '~') and (f < Length(s)) and
        (s[f + 1] = '`') then begin
+      FlushSegment;
       norm := not norm;
       Inc(f, 2);
       continue;
@@ -109,59 +128,77 @@ begin
       Inc(f);
       continue;
     end;
-    if norm then
-      CMPrint(bkNT, txtNT, x, GmaxY, s[f])
-    else
-      CMPrint(bkST, txtST, x, GmaxY, s[f]);
-    Inc(x);
+    segment := segment + s[f];
     Inc(f);
   end;
+  FlushSegment;
   if x <= GmaxX then
-    CMPrint(bkNT, txtNT, x, GmaxY, Space(GmaxX - x + 1));
+    CMPrint(bkNT, txtNT, x, GmaxY, Fill(GmaxX - x + 1, ' '));
   UpdateScreen(false);
 end;
 
 procedure cButton(bkA, txtA, bkSh, txtSh: byte; x, y: word;
-  const s: string; active: boolean);
+  const s: UnicodeString; active: boolean);
 var
-  t: string;
-  w: integer;
+  t, egc, middle: UnicodeString;
+  i, clusters, w: integer;
 begin
   t := s;
-  if active and (Length(t) >= 2) then
-    t := '►' + Copy(t, 2, Length(t) - 2) + '◄';
-  w := Length(s);
+  if active then begin
+    { Active style overwrites the first and last grapheme clusters
+      with '►' and '◄'.  The caller therefore needs to supply a
+      sacrificial cluster at each end (typically a space) for the
+      arrows to consume; the inner content is preserved verbatim.
+      Cluster-aware so a surrogate pair or combining sequence at an
+      end is not split. }
+    clusters := 0;
+    for egc in
+      TUnicodeStringExtendedGraphemeClustersEnumerator.Create(t) do
+      Inc(clusters);
+    if clusters >= 2 then begin
+      middle := '';
+      i := 0;
+      for egc in
+        TUnicodeStringExtendedGraphemeClustersEnumerator.Create(t) do
+      begin
+        Inc(i);
+        if (i > 1) and (i < clusters) then
+          middle := middle + egc;
+      end;
+      t := '►' + middle + '◄';
+    end else
+      { 0 or 1 clusters: wrap whatever is there with both markers
+        so the button still reads as active. }
+      t := '►' + t + '◄';
+  end;
+  w := StringDisplayWidth(t);
   CMPrint(bkA, txtA, x, y, t);
   { Shadow: one cell right, one cell below }
   CMPrint(bkSh, txtSh, x + word(w), y, '▄');
-  CMPrint(bkSh, txtSh, x + 1, y + 1, DupeString('▀', w));
+  CMPrint(bkSh, txtSh, x + 1, y + 1, Fill(w, '▀'));
 end;
 
 { ===== CCLen ===== }
 
-{ Display width (terminal cells) of a `~`-marker UTF-8 string,
-  ignoring the `~` and `` ` `` markers themselves. Strips markers
-  first, then defers to StringDisplayWidth so that surrogate pairs,
+{ Display width (terminal cells) of a `~`-marker string, ignoring
+  the `~` and `` ` `` markers themselves. Strips markers first,
+  then defers to StringDisplayWidth so that surrogate pairs,
   combining marks, and emoji ZWJ sequences count as one cluster. }
-function CCLen(const s: string): integer;
+function CCLen(const s: UnicodeString): integer;
 var
   i: integer;
-  us, stripped: UnicodeString;
-  raw: RawByteString;
+  stripped: UnicodeString;
 begin
-  raw := s;
-  SetCodePage(raw, CP_UTF8, false);
-  us := UnicodeString(raw);
   stripped := '';
   i := 1;
-  while i <= Length(us) do begin
-    if (us[i] = '~') and (i < Length(us)) and
-       (us[i + 1] = '`') then
+  while i <= Length(s) do begin
+    if (s[i] = '~') and (i < Length(s)) and
+       (s[i + 1] = '`') then
       Inc(i, 2)
-    else if us[i] = '`' then
+    else if s[i] = '`' then
       Inc(i)
     else begin
-      stripped := stripped + us[i];
+      stripped := stripped + s[i];
       Inc(i);
     end;
   end;
@@ -171,37 +208,41 @@ end;
 { ===== StatusLineColor ===== }
 
 procedure StatusLineColor(paper, ink, papermark, inkmark,
-  x, y: integer; const s: string);
+  x, y: integer; const s: UnicodeString);
 var
-  i, cw: integer;
-  us: UnicodeString;
-  raw: RawByteString;
+  i: integer;
   active: boolean;
+  segment: UnicodeString;
+
+  procedure FlushSegment;
+  begin
+    if segment = '' then exit;
+    if active then
+      CMPrint(paper, ink, x, y, segment)
+    else
+      CMPrint(papermark, inkmark, x, y, segment);
+    Inc(x, StringDisplayWidth(segment));
+    segment := '';
+  end;
+
 begin
-  raw := s;
-  SetCodePage(raw, CP_UTF8, false);
-  us := UnicodeString(raw);
   active := true;
   i := 1;
-  while i <= Length(us) do begin
-    if (us[i] = '~') and (i < Length(us)) and
-       (us[i + 1] = '`') then begin
+  segment := '';
+  while i <= Length(s) do begin
+    if (s[i] = '~') and (i < Length(s)) and
+       (s[i + 1] = '`') then begin
+      FlushSegment;
       active := not active;
       Inc(i, 2);
-    end else if us[i] = '`' then begin
+    end else if s[i] = '`' then begin
       Inc(i);
     end else begin
-      cw := ExtendedGraphemeClusterDisplayWidth(us[i]);
-      if cw <= 0 then cw := 1;
-      if active then
-        CMPrint(paper, ink, x, y, UTF8Encode(UnicodeString(us[i])))
-      else
-        CMPrint(papermark, inkmark, x, y,
-                UTF8Encode(UnicodeString(us[i])));
-      Inc(x, cw);
+      segment := segment + s[i];
       Inc(i);
     end;
   end;
+  FlushSegment;
 end;
 
 { ===== CStatusLineColor ===== }
@@ -210,18 +251,30 @@ end;
   (40 chars), filling the interior columns with the given colors.
   txt2 unused. }
 procedure CStatusLineColor(bk, txt1, txt2: byte; y: word;
-  const s: string);
+  const s: UnicodeString);
 var
   x, w: word;
-  line: string;
+  line, fit, egc: UnicodeString;
+  fitW, cw: integer;
 begin
   { Suppress unused param warning }
   if txt2 = 0 then ;
   w := 38;
   line := s;
-  while Length(line) < w do line := ' ' + line + ' ';
-  if Length(line) > w then
-    line := Copy(line, 1, w);
+  while StringDisplayWidth(line) < w do line := ' ' + line + ' ';
+  if StringDisplayWidth(line) > w then
+  begin
+    fitW := 0; fit := '';
+    for egc in
+      TUnicodeStringExtendedGraphemeClustersEnumerator.Create(line) do
+    begin
+      cw := ExtendedGraphemeClusterDisplayWidth(egc);
+      if fitW + cw > w then break;
+      fit := fit + egc;
+      Inc(fitW, cw);
+    end;
+    line := fit;
+  end;
   x := HalfMaxX - (w div 2) + 1;
   CMPrint(bk, txt1, x, y, line);
   UpdateScreen(false);
@@ -421,10 +474,10 @@ begin
       py + visibleCount + 3);
     if w_twosided then
       CMPrint(menu_bkNT, menu_txtNT, px, py + 2,
-        '╟' + DupeString('─', inttemp + 6) + '╢')
+        '╟' + Fill(inttemp + 6, '─') + '╢')
     else
       CMPrint(menu_bkNT, menu_txtNT, px, py + 2,
-        ' ├' + DupeString('─', inttemp + 4) + '┤ ');
+        ' ├' + Fill(inttemp + 4, '─') + '┤ ');
     CMPrint(menu_bkNT, menu_txtNT,
       px + (inttemp + 8) div 2
       - CCLen(menu_title) div 2,
@@ -554,13 +607,13 @@ begin
 end;
 
 procedure InfoLine(bkNT,txtNT,bkST,txtST:byte;
-                   x:word; y:integer; s0:string;
+                   x:word; y:integer; s0:UnicodeString;
                    pw:integer);
-var s:string; leadW:integer;
+var s:UnicodeString; leadW:integer;
 begin
   leadW:=(pw-CCLen(s0)) div 2;
   if leadW<0 then leadW:=0;
-  s:=space(leadW)+s0;
+  s:=Fill(leadW,' ')+s0;
   while CClen(s)<pw do s:=s+' ';
   if CClen(s)>pw then s:=ClipToCells(s,pw);
   StatusLineColor(bkNT,txtNT,bkST,txtST,x,y,s);
