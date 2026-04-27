@@ -320,6 +320,15 @@ var
   cw: integer;
 begin
   cw := (panelW + 1) div 3;
+  if cw < integer(dx) then begin
+    { Panel too narrow for cols=3-style guides to fit alongside
+      the cols=1 name area; the would-be separator at posX+cw lands
+      inside the name.  Drop the guides and fill the gap right of
+      the name with spaces. }
+    CMPrint(paper, ink, posX + integer(dx), py,
+      Space(panelW - integer(dx) + 1));
+    exit;
+  end;
   if cw > integer(dx) then
     CMPrint(paper, ink, posX + integer(dx), py,
       Space(cw - integer(dx)));

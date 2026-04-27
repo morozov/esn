@@ -55,6 +55,9 @@ type
     procedure TestPathFit_AsciiOverTrigger_Truncates;
     procedure TestPathFit_Cyrillic_NoMidByteSplit;
     procedure TestPathFit_CJK_TruncatesByCells;
+
+    { ===== PaintRowSeps narrow-panel guard ===== }
+    procedure TestPaintRowSeps_NarrowPanel_NoNameOverwrite;
   end;
 
 implementation
@@ -591,6 +594,42 @@ begin
   lead := Copy(result, 1, Pos('...', result) - 1);
   AssertEquals('CJK lead stops at cluster boundary',
                '/中', lead);
+end;
+
+{ ===== PaintRowSeps narrow-panel test ===== }
+
+procedure TUnicodeWidthTest.TestPaintRowSeps_NarrowPanel_NoNameOverwrite;
+{ When the panel is narrow enough that cw=(panelW+1) div 3 < dx, the
+  cols=3-style separator at posX+cw lands inside the name area.
+  PaintRowSeps must skip drawing the cw/2cw guides and fill the gap
+  with spaces instead, so the trailing cell of the name is not
+  overwritten by '│'. }
+var
+  W, H, i: integer;
+begin
+  W := 40;
+  H := 1;
+  ScreenWidth := W;
+  ScreenHeight := H;
+  SetLength(EnhancedVideoBuf, longword(W) * longword(H));
+  { Pre-fill cells so we can detect any unexpected write. }
+  for i := 0 to W - 1 do
+  begin
+    EnhancedVideoBuf[i].ExtendedGraphemeCluster := 'N';
+    EnhancedVideoBuf[i].Attribute := $07;
+  end;
+
+  { panelW = 35, cw = (35+1) div 3 = 12, dx = 13.  cw < dx → narrow case.
+    Original code wrote '│' at posX+cw = 1+12 = 13 (offset 12), which
+    is the trailing cell of a 12-cell name at posX+1..posX+12. }
+  PaintRowSeps(1, 35, 13, 1, 0, 7, 7);
+
+  AssertTrue('Cell at posX+cw=13 (offset 12) is not overwritten with sep',
+    EnhancedVideoBuf[12].ExtendedGraphemeCluster <> '│');
+  AssertEquals('First cell after name (offset 13) is filled with space',
+    UnicodeString(' '), EnhancedVideoBuf[13].ExtendedGraphemeCluster);
+
+  SetLength(EnhancedVideoBuf, 0);
 end;
 
 initialization
