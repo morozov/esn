@@ -250,7 +250,6 @@ function LeftStr(const s: string; n: byte): string;
 function RightStr(const s: string; n: byte): string;
 function LeftPad(s: string; n: byte): string;
 function RightPad(s: string; n: byte): string;
-function ConsoleText(const s: string): string;
 function NoSpace(s: string): string;
 function NoSpaceLR(s: string): string;
 function Vall(tempein: string): longint;
@@ -318,6 +317,12 @@ uses
 { ===== Initialization / finalization ===== }
 
 initialization
+  {$IFDEF WINDOWS}
+  { AnsiString/UnicodeString conversions use UTF-8.  cwstring does
+    the equivalent on Unix. }
+  DefaultSystemCodePage := CP_UTF8;
+  SetMultiByteConversionCodePage(CP_UTF8);
+  {$ENDIF}
   rvActive     := false;
   SegB800      := 0;
   OnIdle       := nil;

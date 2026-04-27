@@ -598,11 +598,11 @@ var
 
   procedure CopyFileScan(scanPath: string);
   var
-    sr: TSearchRec;
-    s: string;
+    sr: TUnicodeSearchRec;
+    s, srName: string;
   begin
     if FindFirst(
-         IncludeTrailingPathDelimiter(scanPath) + '*',
+         UnicodeString(IncludeTrailingPathDelimiter(scanPath)) + '*',
          faAnyFile, sr) = 0 then begin
       repeat
         {$push}{$warnings off}
@@ -612,14 +612,12 @@ var
             SysUtils.FindClose(sr);
             exit;
           end;
-          s := IncludeTrailingPathDelimiter(scanPath)
-            + sr.Name;
+          srName := UTF8Encode(sr.Name);
+          s := IncludeTrailingPathDelimiter(scanPath) + srName;
           Delete(s, 1, Length(string(sp^.pcnd)));
           copyfile(
-            IncludeTrailingPathDelimiter(scanPath)
-              + sr.Name,
-            IncludeTrailingPathDelimiter(tPath)
-              + s);
+            IncludeTrailingPathDelimiter(scanPath) + srName,
+            IncludeTrailingPathDelimiter(tPath) + s);
           if userOut then begin
             SysUtils.FindClose(sr);
             exit;
@@ -632,11 +630,11 @@ var
 
   procedure CopyDirScan(scanPath: string);
   var
-    sr: TSearchRec;
-    s: string;
+    sr: TUnicodeSearchRec;
+    s, srName: string;
   begin
     if FindFirst(
-         IncludeTrailingPathDelimiter(scanPath) + '*',
+         UnicodeString(IncludeTrailingPathDelimiter(scanPath)) + '*',
          faAnyFile, sr) = 0 then begin
       repeat
         if ((sr.Attr and faDirectory) = faDirectory)
@@ -646,24 +644,22 @@ var
             SysUtils.FindClose(sr);
             exit;
           end;
+          srName := UTF8Encode(sr.Name);
           CopyDirScan(
-            IncludeTrailingPathDelimiter(scanPath)
-              + sr.Name);
+            IncludeTrailingPathDelimiter(scanPath) + srName);
           if userOut then begin
             SysUtils.FindClose(sr);
             exit;
           end;
           CopyFileScan(
-            IncludeTrailingPathDelimiter(scanPath)
-              + sr.Name);
+            IncludeTrailingPathDelimiter(scanPath) + srName);
           if userOut then begin
             SysUtils.FindClose(sr);
             exit;
           end;
           if cmflag = _F6 then begin
             {$I-}
-            RmDir(IncludeTrailingPathDelimiter(
-              scanPath) + sr.Name);
+            RmDir(IncludeTrailingPathDelimiter(scanPath) + srName);
             {$I+}
             if IOResult <> 0 then ;
           end;
@@ -788,15 +784,16 @@ END;
 {============================================================================}
 procedure pcDeleteEntry(const path: string);
 var
-  sr: TSearchRec;
+  sr: TUnicodeSearchRec;
 begin
   if DirectoryExists(path) then begin
     if SysUtils.FindFirst(
-      IncludeTrailingPathDelimiter(path) + '*', faAnyFile, sr) = 0 then begin
+      UnicodeString(IncludeTrailingPathDelimiter(path)) + '*',
+      faAnyFile, sr) = 0 then begin
       repeat
         if (sr.Name <> '.') and (sr.Name <> '..') then
           pcDeleteEntry(
-            IncludeTrailingPathDelimiter(path) + sr.Name);
+            IncludeTrailingPathDelimiter(path) + UTF8Encode(sr.Name));
       until SysUtils.FindNext(sr) <> 0;
       SysUtils.FindClose(sr);
     end;

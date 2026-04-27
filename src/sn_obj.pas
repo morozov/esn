@@ -507,13 +507,13 @@ end;
 {============================================================================}
 procedure TPanel.pcMDF(path: string);
 var
-  sr: TSearchRec;
+  sr: TUnicodeSearchRec;
   fnew: pcDirRec;
   i, j, pcinsed: integer;
   dt: TDateTime;
   y, mo, d, h, mi, s, ms2: word;
   savedMarks: array[1..MaxFiles] of word;  { CRC16 of fname+'.'+fext }
-  nd: string;
+  nd, nameU: string;
 begin
   {$push}{$hints off}{$notes off}
   FillChar(fnew, SizeOf(fnew), 0);
@@ -557,7 +557,7 @@ GetTreeC(pcnd);
   end;  {$push}{$warnings off}{$hints off}{$notes off}
   FillChar(fnew, SizeOf(fnew), 0);
   if SysUtils.FindFirst(
-       IncludeTrailingPathDelimiter(pcnd) + '*',
+       UnicodeString(IncludeTrailingPathDelimiter(pcnd) + '*'),
        faAnyFile, sr) = 0 then begin
     repeat
       if sr.Name = '.' then begin
@@ -590,20 +590,15 @@ GetTreeC(pcnd);
       fnew.fdt.hour  := h;
       fnew.fdt.min   := mi;
       fnew.fdt.sec   := s;
-      if sr.Name = '..' then begin
-        fnew.fname    := ' ..';
-        fnew.fext     := '';
-        fnew.fullname := '..';
-      end else begin
-        fnew.fname    := ChangeFileExt(sr.Name, '');
-        fnew.fext     := Copy(ExtractFileExt(sr.Name), 2, MaxInt);
-        fnew.fullname := sr.Name;
-      end;
+      nameU := UTF8Encode(sr.Name);
+      fnew.fname    := ChangeFileExt(nameU, '');
+      fnew.fext     := Copy(ExtractFileExt(nameU), 2, MaxInt);
+      fnew.fullname := nameU;
       fnew.flength  := sr.Size;
       fnew.fattr    := sr.Attr;
       fnew.mark     := false;
       if (sr.Attr and faDirectory) <> 0 then begin
-        if HideHidden and (sr.Name <> '..') then begin
+        if HideHidden then begin
           if (sr.Attr and faHidden) = 0 then begin
             Inc(pctdirs);
             pcAdd(fnew, true, pctdirs + pctfiles);
@@ -623,11 +618,6 @@ GetTreeC(pcnd);
           Inc(pctfiles);
           pcAdd(fnew, false, pctdirs + pctfiles);
    end;
-   end;
-
-      if (sr.Name = '..') and (TreeC = 1) then begin
-        Dec(pctdirs);
-        if pctdirs < 0 then pctdirs := 0;
    end;
 
       if pctdirs + pctfiles > MaxFiles - 10 then

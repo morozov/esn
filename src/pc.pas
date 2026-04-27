@@ -212,10 +212,10 @@ function DirSize(path: string; priory: byte;
 
   procedure FileScan(const scanPath: string);
 Var
-    sr: TSearchRec;
+    sr: TUnicodeSearchRec;
     ke: TKeyEvent;
    begin
-    if FindFirst(IncludeTrailingPathDelimiter(scanPath)
+    if FindFirst(UnicodeString(IncludeTrailingPathDelimiter(scanPath))
                  + '*', faAnyFile, sr) = 0 then begin
       repeat
         if not sys then begin
@@ -238,10 +238,10 @@ end;
 
   procedure DirScan(const scanPath: string);
   var
-    sr: TSearchRec;
+    sr: TUnicodeSearchRec;
     ke: TKeyEvent;
     begin
-    if FindFirst(IncludeTrailingPathDelimiter(scanPath)
+    if FindFirst(UnicodeString(IncludeTrailingPathDelimiter(scanPath))
                  + '*', faAnyFile, sr) = 0 then begin
       repeat
         if ((sr.Attr and faDirectory) = faDirectory) and
@@ -256,9 +256,9 @@ end;
 end;
      if UserOut then break;
           DirScan(IncludeTrailingPathDelimiter(scanPath)
-                  + sr.Name);
+                  + UTF8Encode(sr.Name));
           FileScan(IncludeTrailingPathDelimiter(scanPath)
-                   + sr.Name);
+                   + UTF8Encode(sr.Name));
     end;
       until FindNext(sr) <> 0;
       SysUtils.FindClose(sr);
