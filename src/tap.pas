@@ -155,7 +155,7 @@ for m:=1 to 256 do
   read(fb,b); read(fb,b1); w:=b+256*b1;  read(fb,csf);{}
   if EOF(fb) then break;{}
 
-  getmem(buf,w-2); p.trdDir^[p.taptfiles+1].offset:=pos+3;
+  getmem(buf,w-1); p.trdDir^[p.taptfiles+1].offset:=pos+3;
   seek(f,pos+2); blockread(f,buf^,w-1);
   for i:=2 to w-1 do csf:=csf xor buf^[i];
   seek(fb,pos+w+1); read(fb,cs);
@@ -188,7 +188,7 @@ for m:=1 to 256 do
   p.trddir^[p.taptfiles].taptyp:=buf^[2];
   p.trddir^[p.taptfiles].mark:=false;
 
-  freemem(buf,w-2);
+  freemem(buf,w-1);
  end;
 if ioresult<>0 then; close(fb); if ioresult<>0 then; close(f);
 {$I+}
