@@ -841,17 +841,18 @@ if (pos('c',LowerCase(parts))<>0)or(pos('A',parts)<>0) then if (PanelType>=1)and
    fddPanel: s:=' '+nospaceLR(zxDisk.DiskLabel)+' ';
    zxzPanel: s:=' '+nospaceLR(zxDisk.DiskLabel)+' ';
   End;
-  if length(s)>29 then s:=copy(s,1,4)+'...'+copy(s,length(s)-22,23);
-  if focused then begin p:=pal.bkNDactive; i:=pal.txtNDactive; end else begin p:=pal.bkNDpassive; i:=pal.txtNDpassive; end;
-  {if TRDOS3 then cmprint(BkRama,TxtRama,lp.posx+2,lp.posy,'T3');{}
-  x:=length(s)div 2; if length(s)>x*2 then inc(x); x:=posx+PanelW div 2+1-x;
-  r:=Fill(PanelW,#205);
-  if posx<>left then if clocked then
+  { Width available for the title between the left-corner ═══ overlay and
+    either the clock (clocked right panel) or the right-corner overlay. }
+  if (posx<>left) and clocked then m:=PanelW-12 else m:=PanelW-6;
+  if m<8 then m:=8;
+  if length(s)>m then
    begin
-    r:=Fill(PanelW-9,#205);
-    if x+length(s)>posx+PanelW-8 then
-    begin d:=x+length(s)-(posx+PanelW-8); s:=copy(s,1,4)+'...'+copy(s,8+d,30); end;
+    d:=m-7;
+    s:=copy(s,1,4)+'...'+copy(s,length(s)-d+1,d);
    end;
+  if focused then begin p:=pal.bkNDactive; i:=pal.txtNDactive; end else begin p:=pal.bkNDpassive; i:=pal.txtNDpassive; end;
+  x:=posx+4+(m-length(s)) div 2;
+  if (posx<>left) and clocked then r:=Fill(PanelW-9,#205) else r:=Fill(PanelW,#205);
   cmprint(pal.BkRama,pal.TxtRama,posx+1,posy,r);
   cmprint(p,i,x,1,s);
   CurOff;

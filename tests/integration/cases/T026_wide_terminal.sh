@@ -3,7 +3,10 @@
 # Tests: spec/15-terminal-resize.md — dialog centering and panel layout at
 #        non-80-column widths.
 #
-# Runs the same assertions at three sizes:
+# Runs the same assertions at four sizes:
+#   50×25     — narrow enough that the working-directory title cannot fit
+#               between the panel's corner decorations; verifies the four
+#               panel corners survive the cramped title.
 #   120×30    — moderately wide
 #   420×120   — exposes byte overflow in coordinate math (panel PosX > 255,
 #               column positions > 255)
@@ -39,6 +42,7 @@ run() {
   # produced stray ║ at posx+~243 and missing ║ at the true right edges.)
   local info_row=$(( _ROWS - 2 ))
   local mid_col=$(( _COLS / 2 ))
+  local right_start=$(( mid_col + 1 ))
   if [[ "$_tag" == "xwide" ]]; then
     log_skip "${CASE_ID}_${_tag}_01_left_info_rborder" \
       "blocked by FPC bug"
@@ -52,6 +56,18 @@ run() {
       "$info_row" "$_COLS" 1 1 "║" \
       "Right panel info-row right border ║ at col $_COLS row $info_row"
   fi
+
+  # Top corners that must always be present: the right panel's top-right
+  # cell is intentionally occupied by the clock, so it's not asserted here.
+  assert_rect_text "${CASE_ID}_${_tag}_01_left_top_lcorner" \
+    1 1 1 1 "╔" \
+    "Left panel top-left corner ╔ at col 1 row 1"
+  assert_rect_text "${CASE_ID}_${_tag}_01_left_top_rcorner" \
+    1 "$mid_col" 1 1 "╗" \
+    "Left panel top-right corner ╗ at col $mid_col row 1"
+  assert_rect_text "${CASE_ID}_${_tag}_01_right_top_lcorner" \
+    1 "$right_start" 1 1 "╔" \
+    "Right panel top-left corner ╔ at col $right_start row 1"
 
   # -----------------------------------------------------------------------
   step 2 "WillCopyMove dialog (F5) is centered at ${_COLS}-column width"
@@ -83,7 +99,7 @@ teardown() {
   :
 }
 
-for _params in "120 30 narrow" "420 120 wide" "1000 40 xwide"; do
+for _params in "50 25 xnarrow" "120 30 narrow" "420 120 wide" "1000 40 xwide"; do
   read -r _COLS _ROWS _tag <<< "$_params"
   run_case "$CASE_ID" "$CASE_DESC @ ${_COLS}x${_ROWS}"
 done
