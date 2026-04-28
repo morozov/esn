@@ -2073,7 +2073,10 @@ begin
   end;
 
   CurOff;
-  sel := 1;
+  sel := 0;
+  if Length(p^.pcnd) > 0 then
+    sel := DriveIndexByLetter(UpCase(p^.pcnd[1]));
+  if sel = 0 then sel := 1;
   lineW := p^.PanelW - 3;
   if lineW > 34 then lineW := 34;
   if lineW < 20 then lineW := 20;
@@ -2089,6 +2092,8 @@ begin
   topRow := winY1 + 2;
   lineW := winX2 - winX1 - 1;
   firstVisible := 1;
+  if sel >= firstVisible + visibleCount then
+    firstVisible := sel - visibleCount + 1;
 
   Main.CancelSB;
   scPutWin(pal.bkdRama, pal.txtdRama, winX1, winY1, winX2, winY2);
