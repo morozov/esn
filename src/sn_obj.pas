@@ -2011,33 +2011,52 @@ var
   var
     k, idx: byte;
     diskInfo, diskSize: string;
+    bkBody, txtBody, txtLetter: byte;
+    innerW, frameY: integer;
   begin
-    Colour(pal.bkdRama, pal.txtdRama);
-    DrawBox(pal.bkdRama, pal.txtdRama, winX1, winY1, winX2, winY2);
-    CMPrint(pal.bkdRama, pal.txtdRama,
+    innerW := winX2 - winX1 - 1;
+    if innerW < 0 then innerW := 0;
+    CMPrint(pal.bkMenuNT, pal.txtMenuNT, winX1, winY1,
+      '┌' + Fill(innerW, '─') + '┐');
+    for frameY := winY1 + 1 to winY2 - 1 do
+      CMPrint(pal.bkMenuNT, pal.txtMenuNT, winX1, frameY,
+        '│' + Space(innerW) + '│');
+    CMPrint(pal.bkMenuNT, pal.txtMenuNT, winX1, winY2,
+      '└' + Fill(innerW, '─') + '┘');
+    CMPrint(pal.bkMenuNT, pal.txtMenuNT,
       winX1 + (winX2 - winX1 + 1 - 4) div 2, winY1 + 1, 'Disk');
 
-    if firstVisible > 1 then
-      CMPrint(pal.bkdRama, pal.txtdRama, winX1 + lineW, topRow, '↑');
-    if firstVisible + visibleCount - 1 < dcnt then
-      CMPrint(pal.bkdRama, pal.txtdRama, winX1 + lineW,
-        topRow + visibleCount - 1, '↓');
+    CMPrint(pal.bkMenuNT, pal.txtMenuNT, winX1, winY1 + 2,
+      '├' + Fill(innerW, '─') + '┤');
 
     for k := 1 to visibleCount do begin
       idx := firstVisible + k - 1;
       row := topRow + k - 1;
       freeB := DiskFreePath(drives[idx] + ':\');
       diskSize := ChangeChar(FormatFreeBytes(freeB), '.', ',');
-      diskInfo := ' ' + drives[idx] + ': Local   '
+      diskInfo := ': Local   '
         + RightPad(diskSize, 7) + '  ' + driveNames[idx];
-      if Length(diskInfo) > lineW - 1 then
-        diskInfo := Copy(diskInfo, 1, lineW - 1);
-      while Length(diskInfo) < lineW - 1 do
+      if Length(diskInfo) > lineW - 3 then
+        diskInfo := Copy(diskInfo, 1, lineW - 3);
+      while Length(diskInfo) < lineW - 3 do
         diskInfo := diskInfo + ' ';
-      if idx = sel then
-        CMPrint(pal.bkdPoleST, pal.txtdPoleST, winX1 + 1, row, diskInfo)
-      else
-        CMPrint(pal.bkdPoleNT, pal.txtdPoleNT, winX1 + 1, row, diskInfo);
+      if idx = sel then begin
+        bkBody := pal.bkMenuMarkNT;
+        txtBody := pal.txtMenuMarkNT;
+        txtLetter := pal.txtMenuMarkST;
+      end else begin
+        bkBody := pal.bkMenuNT;
+        txtBody := pal.txtMenuNT;
+        txtLetter := pal.txtMenuST;
+      end;
+      CMPrint(bkBody, txtBody, winX1 + 1, row, ' ');
+      CMPrint(bkBody, txtLetter, winX1 + 2, row, drives[idx]);
+      CMPrint(bkBody, txtBody, winX1 + 3, row, diskInfo);
+      if (k = 1) and (firstVisible > 1) then
+        CMPrint(bkBody, txtBody, winX1 + lineW, row, '↑');
+      if (k = visibleCount)
+        and (firstVisible + visibleCount - 1 < dcnt) then
+        CMPrint(bkBody, txtBody, winX1 + lineW, row, '↓');
     end;
     UpdateScreen(false);
   end;
@@ -2084,19 +2103,23 @@ begin
   winX2 := winX1 + lineW + 1;
   if winX2 > p^.PosX + p^.PanelW then winX2 := p^.PosX + p^.PanelW;
   winY1 := p^.PutFrom + 1;
-  visibleCount := p^.PanelHi - 4;
+  visibleCount := p^.PanelHi - 5;
   if visibleCount < 3 then visibleCount := 3;
   if visibleCount > dcnt then visibleCount := dcnt;
-  winY2 := winY1 + visibleCount + 2;
+  winY2 := winY1 + visibleCount + 3;
   if winY2 > GmaxY - 1 then winY2 := GmaxY - 1;
-  topRow := winY1 + 2;
+  topRow := winY1 + 3;
+  if winY2 <= topRow then
+    visibleCount := 0
+  else if visibleCount > winY2 - topRow then
+    visibleCount := winY2 - topRow;
   lineW := winX2 - winX1 - 1;
   firstVisible := 1;
   if sel >= firstVisible + visibleCount then
     firstVisible := sel - visibleCount + 1;
 
   Main.CancelSB;
-  scPutWin(pal.bkdRama, pal.txtdRama, winX1, winY1, winX2, winY2);
+  scPutWin(pal.bkMenuNT, pal.txtMenuNT, winX1, winY1, winX2, winY2);
   while true do begin
     DrawMenu;
     key := rKey;
