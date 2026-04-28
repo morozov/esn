@@ -1,6 +1,9 @@
 {$mode objfpc}{$H+}
 Program Easy_Spectrum_Navigator;
 Uses
+      {$IFDEF UNIX}
+      cwstring,
+      {$ENDIF}
       RV,
       Vars, Init, sn_Obj, Main, Palette;
 
@@ -17,7 +20,6 @@ end;
 
 RvInit;
 ApplyVGAPalette;
-snMouse:=false;
 snInit(false);
 {--------------------------------- LAUNCH -----------------------------------}
 Case focus of

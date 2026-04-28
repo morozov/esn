@@ -15,7 +15,7 @@ function  zxzSave(p:TPanel):boolean;
 Procedure zxzExtract(sp:TPanel);
 
 Implementation
-Uses Video;
+Uses UnicodeVideo;
 
 {============================================================================}
 function zxzNameLine(var p:TPanel; a:byte):string;
@@ -178,9 +178,9 @@ for i:=fr to n do
   if p.focused and(i=p.from+p.f-1) then begin paper:=pal.bkCurNT; ink:=pal.txtCurNT; end;
   if p.focused and(i=p.from+p.f-1)and(p.trddir^[i].mark) then begin paper:=pal.bkCurST; ink:=pal.txtCurST; end;
 
-  if p.trddir^[i].mark then name[(dx+ddx-4)]:=#251;
-
   cmprint(paper,ink,px,py,name);
+  if p.trddir^[i].mark then
+    cmprint(paper, ink, px + dx + ddx - 5, py, '√');
 
   if p.Columns=1 then
     PaintRowSeps(p.PosX, p.PanelW, dx, py, paper, ink, pal.TxtRama);

@@ -22,7 +22,7 @@ Procedure CtrlLPressed;
 
 implementation
 
-uses rv, palette, Video, SysUtils,
+uses rv, palette, UnicodeVideo, SysUtils,
      main, sn_Obj, sn_mem, trd,
      init, Keyboard, pc;
 
@@ -195,11 +195,11 @@ if scanf_visible>length(scanf_str) then scanf_visible:=length(scanf_str);
 if skip then
                   begin
   cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+0,'( )'+a1);
-  cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+1,'('#7')'+a2);
+  cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+1,'(•)'+a2);
  end
 else
                     begin
-  cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+0,'('#7')'+a1);
+  cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+0,'(•)'+a1);
   cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+1,'( )'+a2);
                     end;
 
@@ -223,11 +223,11 @@ if inRadio then begin
     if skip then
                   begin
       cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x+1,halfmaxy+0,' ');
-      cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x+1,halfmaxy+1,#7);
+      cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x+1,halfmaxy+1,'•');
      end
     else
                     begin
-      cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x+1,halfmaxy+0,#7);
+      cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x+1,halfmaxy+0,'•');
       cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x+1,halfmaxy+1,' ');
                     end;
     curon;
@@ -237,14 +237,14 @@ if inRadio then begin
   if (kb=_Up)or(kb=Pad8) then
                   begin
     skip:=false;
-    cmprint(pal.bkdPoleST,pal.txtdPoleST,x,halfmaxy+0,'('#7')'+a1);
+    cmprint(pal.bkdPoleST,pal.txtdPoleST,x,halfmaxy+0,'(•)'+a1);
     cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+1,'( )'+a2);
                   end;
   if (kb=_Down)or(kb=Pad2) then
                   begin
     skip:=true;
     cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+0,'( )'+a1);
-    cmprint(pal.bkdPoleST,pal.txtdPoleST,x,halfmaxy+1,'('#7')'+a2);
+    cmprint(pal.bkdPoleST,pal.txtdPoleST,x,halfmaxy+1,'(•)'+a2);
                     end;
   continue;
                   end;
@@ -277,11 +277,11 @@ if kb=_Tab then
   if skip then
                   begin
     cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+0,'( )'+a1);
-    cmprint(pal.bkdPoleST,pal.txtdPoleST,x,halfmaxy+1,'('#7')'+a2);
+    cmprint(pal.bkdPoleST,pal.txtdPoleST,x,halfmaxy+1,'(•)'+a2);
    end
   else
                     begin
-    cmprint(pal.bkdPoleST,pal.txtdPoleST,x,halfmaxy+0,'('#7')'+a1);
+    cmprint(pal.bkdPoleST,pal.txtdPoleST,x,halfmaxy+0,'(•)'+a1);
     cmprint(pal.bkdPoleNT,pal.txtdPoleNT,x,halfmaxy+1,'( )'+a2);
                     end;
   inRadio:=true;

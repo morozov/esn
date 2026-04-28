@@ -1,5 +1,6 @@
 FPC      := fpc
-FPCFLAGS := -Sd -O2 -gl -Sc -Sm -Sewn -vewnhi
+# See top-level Makefile for -Fcutf8 / -vm4104,4105 rationale.
+FPCFLAGS := -Sd -O2 -gl -Sc -Sm -Sewn -vewnhi -Fcutf8 -vm4104,4105
 
 UNAME := $(shell uname)
 ifeq ($(UNAME),Darwin)
@@ -13,15 +14,28 @@ SRCDIR := ../../src
 LIBDIR := ../../lib
 RUNNER := run_tests
 
+# Vendored UnicodeVideo unit (lib/fpc/) — pick the platform driver.
+FPCVIDEO := -Fi$(LIBDIR)/fpc/rtl-console/src/inc \
+            -Fu$(LIBDIR)/fpc/rtl-unicode/src/inc \
+            -Fi$(LIBDIR)/fpc/rtl-unicode/src/inc
+ifeq ($(UNAME),Darwin)
+  FPCVIDEO += -Fu$(LIBDIR)/fpc/rtl-console/src/unix
+else ifeq ($(UNAME),Linux)
+  FPCVIDEO += -Fu$(LIBDIR)/fpc/rtl-console/src/unix
+else
+  FPCVIDEO += -Fu$(LIBDIR)/fpc/rtl-console/src/win
+endif
+
 .PHONY: all clean
 
 all: $(RUNNER)
 	./$(RUNNER) --all
 
-SRCS := $(wildcard $(SRCDIR)/*.pas) $(wildcard $(LIBDIR)/rv/*.pas) $(wildcard $(LIBDIR)/rv/*.inc)
+TESTS := $(wildcard test_*.pas)
+SRCS  := $(wildcard $(SRCDIR)/*.pas) $(wildcard $(LIBDIR)/rv/*.pas) $(wildcard $(LIBDIR)/rv/*.inc)
 
-$(RUNNER): run_tests.pas test_trd.pas test_tap.pas test_scl.pas test_pc.pas test_resize.pas $(SRCS)
-	$(FPC) $(FPCFLAGS) -Fu$(SRCDIR) -Fu$(LIBDIR)/rv -FE. run_tests.pas
+$(RUNNER): run_tests.pas $(TESTS) $(SRCS)
+	$(FPC) $(FPCFLAGS) -Fu$(SRCDIR) -Fu$(LIBDIR)/rv $(FPCVIDEO) -FE. run_tests.pas
 
 clean:
 	rm -f $(RUNNER) *.o *.ppu *.res ppaslink.sh

@@ -46,9 +46,9 @@ for i:=1 to length(s) do
   if s[i]=#4 then s[i]:='4';
   if s[i]=#5 then s[i]:='5';
   if s[i]=#6 then s[i]:='6';
-  if s[i]=#7 then s[i]:='7';
-  if s[i]=#8 then s[i]:='8';
-  if s[i]=#9 then s[i]:='9';
+  if s[i]=#7  then s[i]:='7';
+  if s[i]=#8  then s[i]:='8';
+  if s[i]=#9  then s[i]:='9';
   if s[i]=#10 then s[i]:='A';
   if s[i]=#11 then s[i]:='B';
   if s[i]=#12 then s[i]:='C';
@@ -426,7 +426,7 @@ var
         + Space(20));
     CMPrint(pal.bkdStatic, pal.txtdStatic,
       HalfMaxX - 18, HalfMaxY - 2,
-      Fill(37, #177));
+      Fill(37, '▒'));
     UpdateScreen(false);
 
     if (cmflag = _F6) and
@@ -454,7 +454,7 @@ var
         HalfMaxX - 20, HalfMaxY - 2, vert[fcvert]);
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX - 18, HalfMaxY - 2,
-        Fill(Round(j / 2.7), #$DB));
+        Fill(Round(j / 2.7), '█'));
       stemp := StrR(j) + '%';
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX + 20, HalfMaxY - 2,
@@ -463,7 +463,7 @@ var
         HalfMaxX - 20, HalfMaxY + 1, vert[cvert]);
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX - 18, HalfMaxY + 1,
-        Fill(Round(i / 2.7), #$DB));
+        Fill(Round(i / 2.7), '█'));
       stemp := StrR(i) + '%';
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX + 20, HalfMaxY + 1,
@@ -547,7 +547,7 @@ var
         vert[fcvert]);
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX - 18, HalfMaxY - 2,
-        Fill(Round(j / 2.7), #$DB));
+        Fill(Round(j / 2.7), '█'));
       stemp := StrR(j) + '%';
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX + 20, HalfMaxY - 2,
@@ -557,7 +557,7 @@ var
         vert[cvert]);
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX - 18, HalfMaxY + 1,
-        Fill(Round(i / 2.7), #$DB));
+        Fill(Round(i / 2.7), '█'));
       stemp := StrR(i) + '%';
       CMPrint(pal.bkdStatic, pal.txtdStatic,
         HalfMaxX + 20, HalfMaxY + 1,
@@ -598,11 +598,11 @@ var
 
   procedure CopyFileScan(scanPath: string);
   var
-    sr: TSearchRec;
-    s: string;
+    sr: TUnicodeSearchRec;
+    s, srName: string;
   begin
     if FindFirst(
-         IncludeTrailingPathDelimiter(scanPath) + '*',
+         UnicodeString(IncludeTrailingPathDelimiter(scanPath)) + '*',
          faAnyFile, sr) = 0 then begin
       repeat
         {$push}{$warnings off}
@@ -612,14 +612,12 @@ var
             SysUtils.FindClose(sr);
             exit;
           end;
-          s := IncludeTrailingPathDelimiter(scanPath)
-            + sr.Name;
+          srName := UTF8Encode(sr.Name);
+          s := IncludeTrailingPathDelimiter(scanPath) + srName;
           Delete(s, 1, Length(string(sp^.pcnd)));
           copyfile(
-            IncludeTrailingPathDelimiter(scanPath)
-              + sr.Name,
-            IncludeTrailingPathDelimiter(tPath)
-              + s);
+            IncludeTrailingPathDelimiter(scanPath) + srName,
+            IncludeTrailingPathDelimiter(tPath) + s);
           if userOut then begin
             SysUtils.FindClose(sr);
             exit;
@@ -632,11 +630,11 @@ var
 
   procedure CopyDirScan(scanPath: string);
   var
-    sr: TSearchRec;
-    s: string;
+    sr: TUnicodeSearchRec;
+    s, srName: string;
   begin
     if FindFirst(
-         IncludeTrailingPathDelimiter(scanPath) + '*',
+         UnicodeString(IncludeTrailingPathDelimiter(scanPath)) + '*',
          faAnyFile, sr) = 0 then begin
       repeat
         if ((sr.Attr and faDirectory) = faDirectory)
@@ -646,24 +644,22 @@ var
             SysUtils.FindClose(sr);
             exit;
           end;
+          srName := UTF8Encode(sr.Name);
           CopyDirScan(
-            IncludeTrailingPathDelimiter(scanPath)
-              + sr.Name);
+            IncludeTrailingPathDelimiter(scanPath) + srName);
           if userOut then begin
             SysUtils.FindClose(sr);
             exit;
           end;
           CopyFileScan(
-            IncludeTrailingPathDelimiter(scanPath)
-              + sr.Name);
+            IncludeTrailingPathDelimiter(scanPath) + srName);
           if userOut then begin
             SysUtils.FindClose(sr);
             exit;
           end;
           if cmflag = _F6 then begin
             {$I-}
-            RmDir(IncludeTrailingPathDelimiter(
-              scanPath) + sr.Name);
+            RmDir(IncludeTrailingPathDelimiter(scanPath) + srName);
             {$I+}
             if IOResult <> 0 then ;
           end;
@@ -745,7 +741,7 @@ BEGIN { pc2pc }
     + ' bytes ');
   CMPrint(pal.bkdStatic, pal.txtdStatic,
     HalfMaxX - 18, HalfMaxY + 1,
-    Fill(37, #177));
+    Fill(37, '▒'));
   UpdateScreen(false);
 
   was := 0;
@@ -788,15 +784,16 @@ END;
 {============================================================================}
 procedure pcDeleteEntry(const path: string);
 var
-  sr: TSearchRec;
+  sr: TUnicodeSearchRec;
 begin
   if DirectoryExists(path) then begin
     if SysUtils.FindFirst(
-      IncludeTrailingPathDelimiter(path) + '*', faAnyFile, sr) = 0 then begin
+      UnicodeString(IncludeTrailingPathDelimiter(path)) + '*',
+      faAnyFile, sr) = 0 then begin
       repeat
         if (sr.Name <> '.') and (sr.Name <> '..') then
           pcDeleteEntry(
-            IncludeTrailingPathDelimiter(path) + sr.Name);
+            IncludeTrailingPathDelimiter(path) + UTF8Encode(sr.Name));
       until SysUtils.FindNext(sr) <> 0;
       SysUtils.FindClose(sr);
     end;

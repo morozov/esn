@@ -34,23 +34,25 @@ end;
 
 procedure RestScr;
 var
-  w: TSavedWin;
-  src: PWord;
   row, col: integer;
-  ofs: longword;
+  k, ofs: longword;
+  x1, y1, x2, y2: word;
 begin
   if winTop = 0 then
     exit;
-  w := winStack[winTop];
-  src := PWord(w.buf);
-  for row := w.y1 - 1 to w.y2 - 1 do
-    for col := w.x1 - 1 to w.x2 - 1 do begin
+  x1 := winStack[winTop].x1;
+  y1 := winStack[winTop].y1;
+  x2 := winStack[winTop].x2;
+  y2 := winStack[winTop].y2;
+  k := 0;
+  for row := y1 - 1 to y2 - 1 do
+    for col := x1 - 1 to x2 - 1 do begin
       ofs := longword(row) * ScreenWidth + longword(col);
       if ofs < longword(ScreenWidth) * ScreenHeight then
-        VideoBuf^[ofs] := src^;
-      Inc(src);
+        EnhancedVideoBuf[ofs] := winStack[winTop].buf[k];
+      Inc(k);
     end;
-  FreeMem(winStack[winTop].buf, winStack[winTop].bufSize);
+  SetLength(winStack[winTop].buf, 0);
   Dec(winTop);
   UpdateScreen(false);
   DrawClock;
@@ -59,18 +61,18 @@ end;
 procedure FlushWinStack;
 begin
   while winTop > 0 do begin
-    FreeMem(winStack[winTop].buf, winStack[winTop].bufSize);
+    SetLength(winStack[winTop].buf, 0);
     Dec(winTop);
   end;
 end;
 
 { ===== Dialog helpers ===== }
 
-procedure cmCentre(paper, ink: byte; y: word; const s: string);
+procedure cmCentre(paper, ink: byte; y: word; const s: UnicodeString);
 var
   x: integer;
 begin
-  x := 1 + (HalfMaxX - (Length(s) div 2));
+  x := 1 + (HalfMaxX - (StringDisplayWidth(s) div 2));
   CMPrint(paper, ink, x, y, s);
 end;
 
@@ -78,10 +80,29 @@ end;
   markers.  focus=1 -> start in normal color; focus<>1 -> start
   in selected color. }
 procedure cStatusBar(bkNT, txtNT, bkST, txtST, focus: byte;
-  const s: string);
+  const s: UnicodeString);
 var
   f, x: integer;
   norm: boolean;
+  segment: UnicodeString;
+
+  procedure FlushSegment;
+  var
+    cw: integer;
+  begin
+    if (segment = '') or (x > GmaxX) then begin
+      segment := '';
+      exit;
+    end;
+    cw := StringDisplayWidth(segment);
+    if norm then
+      CMPrint(bkNT, txtNT, x, GmaxY, segment)
+    else
+      CMPrint(bkST, txtST, x, GmaxY, segment);
+    Inc(x, cw);
+    segment := '';
+  end;
+
 begin
   { Leading space color depends on focus;
     text always starts normal. }
@@ -92,12 +113,12 @@ begin
   norm := true;
   f := 1;
   x := 2;
+  segment := '';
   while f <= Length(s) do begin
-    if x > GmaxX then
-      break;
     { Detect ~` toggle marker (both chars consumed, no output) }
     if (s[f] = '~') and (f < Length(s)) and
        (s[f + 1] = '`') then begin
+      FlushSegment;
       norm := not norm;
       Inc(f, 2);
       continue;
@@ -107,42 +128,68 @@ begin
       Inc(f);
       continue;
     end;
-    if norm then
-      CMPrint(bkNT, txtNT, x, GmaxY, s[f])
-    else
-      CMPrint(bkST, txtST, x, GmaxY, s[f]);
-    Inc(x);
+    segment := segment + s[f];
     Inc(f);
   end;
+  FlushSegment;
   if x <= GmaxX then
-    CMPrint(bkNT, txtNT, x, GmaxY, Space(GmaxX - x + 1));
+    CMPrint(bkNT, txtNT, x, GmaxY, Fill(GmaxX - x + 1, ' '));
   UpdateScreen(false);
 end;
 
 procedure cButton(bkA, txtA, bkSh, txtSh: byte; x, y: word;
-  const s: string; active: boolean);
+  const s: UnicodeString; active: boolean);
 var
-  t: string;
+  t, egc, middle: UnicodeString;
+  i, clusters, w: integer;
 begin
   t := s;
   if active then begin
-    t[1] := #16;   { ► }
-    t[Length(t)] := #17;  { ◄ }
+    { Active style overwrites the first and last grapheme clusters
+      with '►' and '◄'.  The caller therefore needs to supply a
+      sacrificial cluster at each end (typically a space) for the
+      arrows to consume; the inner content is preserved verbatim.
+      Cluster-aware so a surrogate pair or combining sequence at an
+      end is not split. }
+    clusters := 0;
+    for egc in
+      TUnicodeStringExtendedGraphemeClustersEnumerator.Create(t) do
+      Inc(clusters);
+    if clusters >= 2 then begin
+      middle := '';
+      i := 0;
+      for egc in
+        TUnicodeStringExtendedGraphemeClustersEnumerator.Create(t) do
+      begin
+        Inc(i);
+        if (i > 1) and (i < clusters) then
+          middle := middle + egc;
+      end;
+      t := '►' + middle + '◄';
+    end else
+      { 0 or 1 clusters: wrap whatever is there with both markers
+        so the button still reads as active. }
+      t := '►' + t + '◄';
   end;
+  w := StringDisplayWidth(t);
   CMPrint(bkA, txtA, x, y, t);
   { Shadow: one cell right, one cell below }
-  CMPrint(bkSh, txtSh, x + Length(t), y, #220);  { ▄ }
-  CMPrint(bkSh, txtSh, x + 1, y + 1,
-    StringOfChar(#223, Length(t)));  { ▀ }
+  CMPrint(bkSh, txtSh, x + word(w), y, '▄');
+  CMPrint(bkSh, txtSh, x + 1, y + 1, Fill(w, '▀'));
 end;
 
 { ===== CCLen ===== }
 
-function CCLen(const s: string): integer;
+{ Display width (terminal cells) of a `~`-marker string, ignoring
+  the `~` and `` ` `` markers themselves. Strips markers first,
+  then defers to StringDisplayWidth so that surrogate pairs,
+  combining marks, and emoji ZWJ sequences count as one cluster. }
+function CCLen(const s: UnicodeString): integer;
 var
-  i, n: integer;
+  i: integer;
+  stripped: UnicodeString;
 begin
-  n := 0;
+  stripped := '';
   i := 1;
   while i <= Length(s) do begin
     if (s[i] = '~') and (i < Length(s)) and
@@ -151,39 +198,51 @@ begin
     else if s[i] = '`' then
       Inc(i)
     else begin
-      Inc(n);
+      stripped := stripped + s[i];
       Inc(i);
     end;
   end;
-  CCLen := n;
+  CCLen := StringDisplayWidth(stripped);
 end;
 
 { ===== StatusLineColor ===== }
 
 procedure StatusLineColor(paper, ink, papermark, inkmark,
-  x, y: integer; const s: string);
+  x, y: integer; const s: UnicodeString);
 var
-  f: integer;
-  col: boolean;
+  i: integer;
+  active: boolean;
+  segment: UnicodeString;
+
+  procedure FlushSegment;
+  begin
+    if segment = '' then exit;
+    if active then
+      CMPrint(paper, ink, x, y, segment)
+    else
+      CMPrint(papermark, inkmark, x, y, segment);
+    Inc(x, StringDisplayWidth(segment));
+    segment := '';
+  end;
+
 begin
-  col := true;
-  f := 1;
-  while f <= Length(s) do begin
-    if (s[f] = '~') and (f < Length(s)) and
-       (s[f + 1] = '`') then begin
-      col := not col;
-      Inc(f, 2);
-    end else if s[f] = '`' then begin
-      Inc(f);
+  active := true;
+  i := 1;
+  segment := '';
+  while i <= Length(s) do begin
+    if (s[i] = '~') and (i < Length(s)) and
+       (s[i + 1] = '`') then begin
+      FlushSegment;
+      active := not active;
+      Inc(i, 2);
+    end else if s[i] = '`' then begin
+      Inc(i);
     end else begin
-      if col then
-        CMPrint(paper, ink, x, y, s[f])
-      else
-        CMPrint(papermark, inkmark, x, y, s[f]);
-      Inc(x);
-      Inc(f);
+      segment := segment + s[i];
+      Inc(i);
     end;
   end;
+  FlushSegment;
 end;
 
 { ===== CStatusLineColor ===== }
@@ -192,18 +251,30 @@ end;
   (40 chars), filling the interior columns with the given colors.
   txt2 unused. }
 procedure CStatusLineColor(bk, txt1, txt2: byte; y: word;
-  const s: string);
+  const s: UnicodeString);
 var
   x, w: word;
-  line: string;
+  line, fit, egc: UnicodeString;
+  fitW, cw: integer;
 begin
   { Suppress unused param warning }
   if txt2 = 0 then ;
   w := 38;
   line := s;
-  while Length(line) < w do line := ' ' + line + ' ';
-  if Length(line) > w then
-    line := Copy(line, 1, w);
+  while StringDisplayWidth(line) < w do line := ' ' + line + ' ';
+  if StringDisplayWidth(line) > w then
+  begin
+    fitW := 0; fit := '';
+    for egc in
+      TUnicodeStringExtendedGraphemeClustersEnumerator.Create(line) do
+    begin
+      cw := ExtendedGraphemeClusterDisplayWidth(egc);
+      if fitW + cw > w then break;
+      fit := fit + egc;
+      Inc(fitW, cw);
+    end;
+    line := fit;
+  end;
   x := HalfMaxX - (w div 2) + 1;
   CMPrint(bk, txt1, x, y, line);
   UpdateScreen(false);
@@ -370,8 +441,8 @@ begin
   for f := 2 to menu_Total do
     if CCLen(menu_Name[f]) > inttemp then
       inttemp := CCLen(menu_Name[f]);
-  if Length(menu_title) > inttemp then
-    inttemp := Length(menu_title);
+  if CCLen(menu_title) > inttemp then
+    inttemp := CCLen(menu_title);
   if inttemp > 65 then inttemp := 65;
 
   { Pad item names to equal width }
@@ -403,16 +474,13 @@ begin
       py + visibleCount + 3);
     if w_twosided then
       CMPrint(menu_bkNT, menu_txtNT, px, py + 2,
-        Chr(199) + StringOfChar(#196, inttemp + 6)
-        + Chr(182))
+        '╟' + Fill(inttemp + 6, '─') + '╢')
     else
       CMPrint(menu_bkNT, menu_txtNT, px, py + 2,
-        ' ' + Chr(195)
-        + StringOfChar(#196, inttemp + 4)
-        + Chr(180) + ' ');
+        ' ├' + Fill(inttemp + 4, '─') + '┤ ');
     CMPrint(menu_bkNT, menu_txtNT,
       px + (inttemp + 8) div 2
-      - Length(menu_title) div 2,
+      - CCLen(menu_title) div 2,
       py + 1, menu_title);
   end;
 
@@ -489,18 +557,65 @@ begin
   until false;
 end;
 
-procedure InfoLine(bkNT,txtNT,bkST,txtST:byte;
-                   x:word; y:integer; s0:string;
-                   pw:integer);
-var s:string; half:integer;
+{ Clip a `~`-marker-tagged string to pw display cells.  The
+  `~`+`` ` `` toggles and lone `` ` `` are zero-width and pass
+  through; visible content is iterated by grapheme cluster and
+  truncated on a cluster boundary. }
+function ClipToCells(const s: UnicodeString; pw: integer): UnicodeString;
+var
+  i, acc, cw: integer;
+  egc, chunk: UnicodeString;
+  done: boolean;
 begin
-  half:=pw div 2;
-  s:=space(half-(length(without(s0,'~`'))div 2));
-  if length(s)<0 then s:='';
-  s:=s+s0;
+  if pw <= 0 then begin Result := ''; exit; end;
+  Result := '';
+  acc := 0;
+  i := 1;
+  done := false;
+  while (i <= Length(s)) and (not done) do
+  begin
+    if (s[i] = '~') and (i < Length(s)) and (s[i+1] = '`') then
+    begin
+      Result := Result + '~`';
+      Inc(i, 2);
+    end
+    else if s[i] = '`' then
+    begin
+      Result := Result + '`';
+      Inc(i);
+    end
+    else
+    begin
+      chunk := '';
+      while i <= Length(s) do
+      begin
+        if (s[i] = '~') and (i < Length(s)) and (s[i+1] = '`') then break;
+        if s[i] = '`' then break;
+        chunk := chunk + s[i];
+        Inc(i);
+      end;
+      for egc in
+        TUnicodeStringExtendedGraphemeClustersEnumerator.Create(chunk) do
+      begin
+        cw := ExtendedGraphemeClusterDisplayWidth(egc);
+        if acc + cw > pw then begin done := true; break; end;
+        Result := Result + egc;
+        Inc(acc, cw);
+      end;
+    end;
+  end;
+end;
+
+procedure InfoLine(bkNT,txtNT,bkST,txtST:byte;
+                   x:word; y:integer; s0:UnicodeString;
+                   pw:integer);
+var s:UnicodeString; leadW:integer;
+begin
+  leadW:=(pw-CCLen(s0)) div 2;
+  if leadW<0 then leadW:=0;
+  s:=Fill(leadW,' ')+s0;
   while CClen(s)<pw do s:=s+' ';
-  if CClen(s)>pw then
-    s:=copy(s,1,pw+length(s)-CClen(s));
+  if CClen(s)>pw then s:=ClipToCells(s,pw);
   StatusLineColor(bkNT,txtNT,bkST,txtST,x,y,s);
 end;
 
@@ -520,9 +635,9 @@ if act=run then
   x2:=halfmaxx+round(total/2)+dx;
   sPutWin(x1,cm-3,x2,cm);
   cmprint(Blue,White,x1+5,cm-2,title);
-  cmprint(Blue,White,x1+5,cm-1,StringOfChar(#177,total));
+  cmprint(Blue,White,x1+5,cm-1,DupeString('▒',total));
  end;
 ops:=round((total/100)*per);
-mprint(x1+4+ops,cm-1,#$DB);
+mprint(x1+4+ops,cm-1,'█');
 UpdateScreen(false);
 end;

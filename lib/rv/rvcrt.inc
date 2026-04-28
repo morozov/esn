@@ -24,19 +24,60 @@ const
     $0B, $02, $03, $04, $05, $06, $07, $08, $09, $0A
   );
 
-  { CP437 box-drawing characters (byte values) }
-  boxTL  = #201;  { ╔ }
-  boxTR  = #187;  { ╗ }
-  boxBL  = #200;  { ╚ }
-  boxBR  = #188;  { ╝ }
-  boxV   = #186;  { ║ }
-  boxH   = #205;  { ═ }
+  boxTL: UnicodeString = '╔';
+  boxTR: UnicodeString = '╗';
+  boxBL: UnicodeString = '╚';
+  boxBR: UnicodeString = '╝';
+  boxV:  UnicodeString = '║';
+  boxH:  UnicodeString = '═';
+
+  { CP437 graphical glyphs for byte values that are control codes
+    in ASCII (0x00–0x1F, 0x7F).  In the original DOS text mode,
+    each cell of the BIOS framebuffer was a glyph index into the
+    character ROM, so these bytes rendered as their CP437 shapes.
+    A modern terminal would interpret them as control codes; we
+    rewrite them at the cell-write boundary to keep the visual
+    behaviour and avoid letting ESC/BEL/BS escape into the output
+    stream. }
+  cp437ControlGlyph: array[0..31] of WideChar = (
+    ' ',  { 00 NUL — blank }
+    '☺',  { 01 }
+    '☻',  { 02 }
+    '♥',  { 03 }
+    '♦',  { 04 }
+    '♣',  { 05 }
+    '♠',  { 06 }
+    '•',  { 07 }
+    '◘',  { 08 }
+    '○',  { 09 }
+    '◙',  { 0A }
+    '♂',  { 0B }
+    '♀',  { 0C }
+    '♪',  { 0D }
+    '♫',  { 0E }
+    '☼',  { 0F }
+    '►',  { 10 }
+    '◄',  { 11 }
+    '↕',  { 12 }
+    '‼',  { 13 }
+    '¶',  { 14 }
+    '§',  { 15 }
+    '▬',  { 16 }
+    '↨',  { 17 }
+    '↑',  { 18 }
+    '↓',  { 19 }
+    '→',  { 1A }
+    '←',  { 1B }
+    '∟',  { 1C }
+    '↔',  { 1D }
+    '▲',  { 1E }
+    '▼'   { 1F }
+  );
 
 type
   TSavedWin = record
     x1, y1, x2, y2: word;
-    buf: pointer;
-    bufSize: longword;
+    buf: TEnhancedVideoBuf;
   end;
 
 { ===== Module-level state ===== }
@@ -123,17 +164,6 @@ end;
 
 { ===== Internal helpers ===== }
 
-{ Write one cell to VideoBuf; (x,y) are 1-based. }
-procedure SetCell(x, y: word; attr: byte; c: char);
-var
-  offset: longword;
-begin
-  if (x < 1) or (y < 1) or
-     (x > ScreenWidth) or (y > ScreenHeight) then
-    exit;
-  offset := longword(y - 1) * ScreenWidth + longword(x - 1);
-  VideoBuf^[offset] := (word(attr) shl 8) or word(Ord(c));
-end;
 
 { Return scan code for an ASCII character. }
 function charScan(c: char): byte;
@@ -160,23 +190,20 @@ end;
 { Draw a double-line box; fills interior with spaces. }
 procedure DrawBox(paper, ink: byte; x1, y1, x2, y2: word);
 var
-  attr: byte;
-  i: integer;
+  i, innerW: integer;
 begin
-  attr := (paper shl 4) or (ink and $0F);
-  { Interior rows: ║ spaces ║ }
-  for i := y1 to y2 do
-    CMPrint(paper, ink, x1, i, boxV + Space(x2 - x1 - 1) + boxV);
-  { Top / bottom horizontal bars }
-  for i := x1 + 1 to x2 - 1 do begin
-    SetCell(i, y1, attr, boxH);
-    SetCell(i, y2, attr, boxH);
-  end;
-  { Corners }
-  SetCell(x1, y1, attr, boxTL);
-  SetCell(x2, y1, attr, boxTR);
-  SetCell(x1, y2, attr, boxBL);
-  SetCell(x2, y2, attr, boxBR);
+  { Inverted coordinates: the parameters are word, so x2-x1 / y2-y1
+    underflow to huge positives when the bounds are reversed.  Bail
+    out instead of painting a degenerate box at unrelated rows. }
+  if (y2 < y1) or (x2 < x1) then exit;
+  innerW := x2 - x1 - 1;
+  if innerW < 0 then innerW := 0;
+  CMPrint(paper, ink, x1, y1,
+          boxTL + Fill(innerW, boxH) + boxTR);
+  for i := y1 + 1 to y2 - 1 do
+    CMPrint(paper, ink, x1, i, boxV + Space(innerW) + boxV);
+  CMPrint(paper, ink, x1, y2,
+          boxBL + Fill(innerW, boxH) + boxBR);
 end;
 
 { Save a screen region to the win stack. Coordinates are 1-based,
@@ -184,9 +211,8 @@ end;
 procedure SaveRegion(x1, y1, x2, y2: word);
 var
   w, h: word;
-  sz: longword;
-  dst: PWord;
   row, col: integer;
+  k: longword;
 begin
   if winTop >= maxWinStack then
     exit;
@@ -202,14 +228,13 @@ begin
   winStack[winTop].y2 := y2;
   w := x2 - x1 + 1;
   h := y2 - y1 + 1;
-  sz := longword(w) * longword(h) * SizeOf(TVideoCell);
-  winStack[winTop].bufSize := sz;
-  GetMem(winStack[winTop].buf, sz);
-  dst := PWord(winStack[winTop].buf);
+  SetLength(winStack[winTop].buf, longword(w) * longword(h));
+  k := 0;
   for row := y1 - 1 to y2 - 1 do
     for col := x1 - 1 to x2 - 1 do begin
-      dst^ := VideoBuf^[row * ScreenWidth + col];
-      Inc(dst);
+      winStack[winTop].buf[k] :=
+        EnhancedVideoBuf[row * ScreenWidth + col];
+      Inc(k);
     end;
 end;
 
@@ -220,27 +245,51 @@ begin
   TextAttr := (paper shl 4) or (ink and $0F);
 end;
 
-procedure CMPrint(paper, ink, x, y: word; const s: string);
+procedure CMPrint(paper, ink, x, y: word; const s: UnicodeString);
 var
   attr: byte;
-  i: integer;
+  cw, j: integer;
+  col: word;
+  cluster, glyph: UnicodeString;
+  offset: longword;
 begin
   attr := (byte(paper) shl 4) or (byte(ink) and $0F);
-  for i := 1 to Length(s) do
-    SetCell(x + word(i) - 1, y, attr, s[i]);
+  col := x;
+  for cluster in
+    TUnicodeStringExtendedGraphemeClustersEnumerator.Create(s) do
+  begin
+    glyph := cluster;
+    if Length(glyph) = 1 then
+      if glyph[1] < #$20 then glyph := cp437ControlGlyph[Ord(glyph[1])]
+      else if glyph[1] = #$7F then glyph := '⌂';
+    cw := ExtendedGraphemeClusterDisplayWidth(glyph);
+    if cw <= 0 then cw := 1;
+    if (col >= 1) and (col <= ScreenWidth) and
+       (y >= 1) and (y <= ScreenHeight) then
+    begin
+      offset := longword(y - 1) * ScreenWidth + longword(col - 1);
+      EnhancedVideoBuf[offset].ExtendedGraphemeCluster := glyph;
+      EnhancedVideoBuf[offset].Attribute := attr;
+      { Wide chars (cw>1) span multiple cells.  Clear the trailing
+        cells so stale content from a previous render at the same
+        position doesn't bleed through where the wide glyph
+        visually overlays. }
+      for j := 1 to cw - 1 do
+        if col + word(j) <= ScreenWidth then
+        begin
+          offset := longword(y - 1) * ScreenWidth +
+                    longword(col - 1 + word(j));
+          EnhancedVideoBuf[offset].ExtendedGraphemeCluster := '';
+          EnhancedVideoBuf[offset].Attribute := attr;
+        end;
+    end;
+    Inc(col, cw);
+  end;
 end;
 
-procedure MPrint(x, y: word; const s: string);
+procedure MPrint(x, y: word; const s: UnicodeString);
 begin
   CMPrint(TextAttr shr 4, TextAttr and $0F, x, y, s);
-end;
-
-procedure Print(x, y: word; const s: string);
-begin
-  MPrint(x, y, s);
-  curX := x + word(Length(s));
-  curY := y;
-  SetCursorPos(curX - 1, curY - 1);
 end;
 
 procedure PrintSelf(paper, ink: byte; x, y, len: word);
@@ -253,8 +302,7 @@ begin
   for i := 0 to len - 1 do begin
     offset := longword(y - 1) * ScreenWidth + longword(x - 1 + i);
     if offset < longword(ScreenWidth) * ScreenHeight then
-      VideoBuf^[offset] :=
-        (word(attr) shl 8) or (VideoBuf^[offset] and $00FF);
+      EnhancedVideoBuf[offset].Attribute := attr;
   end;
 end;
 
@@ -272,12 +320,21 @@ var
   cw: integer;
 begin
   cw := (panelW + 1) div 3;
+  if cw < integer(dx) then begin
+    { Panel too narrow for cols=3-style guides to fit alongside
+      the cols=1 name area; the would-be separator at posX+cw lands
+      inside the name.  Drop the guides and fill the gap right of
+      the name with spaces. }
+    CMPrint(paper, ink, posX + integer(dx), py,
+      Space(panelW - integer(dx) + 1));
+    exit;
+  end;
   if cw > integer(dx) then
     CMPrint(paper, ink, posX + integer(dx), py,
       Space(cw - integer(dx)));
-  CMPrint(paper, sepInk, posX + cw, py, #179);
+  CMPrint(paper, sepInk, posX + cw, py, '│');
   CMPrint(paper, ink, posX + cw + 1, py, Space(cw - 1));
-  CMPrint(paper, sepInk, posX + 2 * cw, py, #179);
+  CMPrint(paper, sepInk, posX + 2 * cw, py, '│');
   CMPrint(paper, ink, posX + 2 * cw + 1, py,
     Space(panelW - 2 * cw));
 end;
@@ -435,7 +492,7 @@ begin
     and cursor position, restored when we leave on exit. }
   Write(#27'[?1049h');
   Flush(Output);
-  InitVideo;
+  InitEnhancedVideo;
   InitKeyboard;
   {$IFDEF WINDOWS}
   { Disable ENABLE_PROCESSED_INPUT to prevent conhost/Windows Terminal

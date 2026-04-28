@@ -29,7 +29,6 @@ Var
      bLoadDesktop:boolean;
      RestoreVideo:boolean;
      BkSpUpDir:boolean;
-     snMouse:boolean;
      SaveOnExit:boolean;
 
      Refresh:boolean;

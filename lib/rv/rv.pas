@@ -6,7 +6,8 @@ unit rv;
 interface
 
 uses
-  Video, Keyboard, Mouse, SysUtils, DateUtils;
+  UnicodeVideo, graphemebreakproperty, Keyboard, Mouse,
+  SysUtils, DateUtils, StrUtils;
 
 { ===== CGA color constants ===== }
 const
@@ -134,7 +135,6 @@ var
   HalfMaxX, HalfMaxY: word;
   TextAttr: byte;
   SegB800: word;    { unused; retained for source compatibility }
-  Moused: boolean;
   { Optional idle callback invoked while rKey polls for input. }
   OnIdle: procedure;
   { Optional resize callback invoked when the terminal is resized. }
@@ -150,9 +150,10 @@ procedure Cls;
 procedure ClrBox(x1, y1, x2, y2: word);
 procedure DrawBox(paper, ink: byte; x1, y1, x2, y2: word);
 procedure Colour(paper, ink: byte);
-procedure Print(x, y: word; const s: string);
-procedure MPrint(x, y: word; const s: string);
-procedure CMPrint(paper, ink, x, y: word; const s: string);
+procedure MPrint(x, y: word; const s: UnicodeString);
+{ Each decoded codepoint maps to one cell; CJK and other wide
+  codepoints occupy two cells. }
+procedure CMPrint(paper, ink, x, y: word; const s: UnicodeString);
 procedure PrintSelf(paper, ink: byte; x, y, len: word);
 procedure CurOn;
 procedure CurOff;
@@ -185,28 +186,28 @@ function  rKey: word;
 procedure rPause;
 
 { ===== Dialog helpers ===== }
-procedure cmCentre(paper, ink: byte; y: word; const s: string);
+procedure cmCentre(paper, ink: byte; y: word; const s: UnicodeString);
 procedure CStatusLineColor(bk, txt1, txt2: byte; y: word;
-  const s: string);
+  const s: UnicodeString);
 
 { Return the visible length of s, ignoring ~` toggle markers
   and lone ` chars. }
-function CCLen(const s: string): integer;
+function CCLen(const s: UnicodeString): integer;
 
 { Render s at (x,y) interpreting ~` as a color toggle.
   Starts in normal color (bkNT/txtNT); each ~` switches
   to/from highlight. }
 procedure StatusLineColor(paper, ink, papermark, inkmark,
-  x, y: integer; const s: string);
+  x, y: integer; const s: UnicodeString);
 procedure cStatusBar(bkNT, txtNT, bkST, txtST, focus: byte;
-  const s: string);
+  const s: UnicodeString);
 procedure cButton(bkA, txtA, bkSh, txtSh: byte; x, y: word;
-  const s: string; active: boolean);
+  const s: UnicodeString; active: boolean);
 
 { Centre s0 within pw columns (accounting for ~` markup),
   pad/truncate to pw, draw with StatusLineColor. }
 procedure InfoLine(bkNT,txtNT,bkST,txtST:byte;
-                   x:word; y:integer; s0:string;
+                   x:word; y:integer; s0:UnicodeString;
                    pw:integer);
 
 { ===== Text input field ===== }
@@ -249,11 +250,10 @@ function LeftStr(const s: string; n: byte): string;
 function RightStr(const s: string; n: byte): string;
 function LeftPad(s: string; n: byte): string;
 function RightPad(s: string; n: byte): string;
-function ConsoleText(const s: string): string;
 function NoSpace(s: string): string;
 function NoSpaceLR(s: string): string;
 function Vall(tempein: string): longint;
-function Fill(len: byte; symb: char): string;
+function Fill(len: integer; const symb: UnicodeString): UnicodeString;
 function WithOut(s, chars: string): string;
 function CLen(s: string): integer;
 function LZ(w: word): string;
@@ -317,9 +317,14 @@ uses
 { ===== Initialization / finalization ===== }
 
 initialization
+  {$IFDEF WINDOWS}
+  { AnsiString/UnicodeString conversions use UTF-8.  cwstring does
+    the equivalent on Unix. }
+  DefaultSystemCodePage := CP_UTF8;
+  SetMultiByteConversionCodePage(CP_UTF8);
+  {$ENDIF}
   rvActive     := false;
   SegB800      := 0;
-  Moused       := false;
   OnIdle       := nil;
   OnResize     := nil;
   needResize   := false;
@@ -352,9 +357,9 @@ finalization
     { Shut down Video/Keyboard while still in the alternate buffer
       so any output they produce does not affect the main buffer. }
     DoneKeyboard;
-    DoneVideo;
+    DoneEnhancedVideo;
     {$IFDEF WINDOWS}
-    { DoneVideo may have restored the console mode without VT
+    { DoneEnhancedVideo may have restored the console mode without VT
       processing. Re-enable it so the escape sequences below
       are interpreted, not printed as literal characters. }
     SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE),

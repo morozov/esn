@@ -89,14 +89,16 @@ begin
 end;
 {$pop}
 
-function Fill(len: byte; symb: char): string;
+function Fill(len: integer; const symb: UnicodeString): UnicodeString;
 var
-  f: byte;
-  p: string;
+  i, m, sl: integer;
 begin
-  p := '';
-  for f := 1 to len do p := p + symb;
-  Fill := p;
+  sl := Length(symb);
+  if (len <= 0) or (sl = 0) then begin Fill := ''; exit; end;
+  SetLength(Fill, len * sl);
+  for i := 0 to len - 1 do
+    for m := 1 to sl do
+      Fill[i * sl + m] := symb[m];
 end;
 
 function WithOut(s, chars: string): string;
@@ -301,22 +303,3 @@ begin
   RightPad := s;
 end;
 
-function ConsoleText(const s: string): string;
-{$IFDEF WINDOWS}
-var
-  src, dst: AnsiString;
-{$ENDIF}
-begin
-  {$IFDEF WINDOWS}
-  src := AnsiString(s);
-  if Length(src) = 0 then begin
-    ConsoleText := s;
-    exit;
-  end;
-  SetLength(dst, Length(src));
-  CharToOemBuffA(PAnsiChar(src), PAnsiChar(dst), Length(src));
-  ConsoleText := string(dst);
-  {$ELSE}
-  ConsoleText := s;
-  {$ENDIF}
-end;

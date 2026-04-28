@@ -3,6 +3,9 @@ program run_tests;
 {$mode objfpc}{$H+}
 
 uses
+  {$IFDEF UNIX}
+  cwstring,
+  {$ENDIF}
   consoletestrunner,
   test_trd,
   test_tap,
@@ -10,7 +13,12 @@ uses
   test_sn_utils,
   test_pc,
   test_resize,
-  test_insert;
+  test_insert,
+  test_unicode_width,
+  test_infoline_clip,
+  test_drawbox_guard,
+  test_fitinfo_path,
+  test_pathfit;
 
 var
   app: TTestRunner;
