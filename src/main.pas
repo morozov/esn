@@ -30,7 +30,6 @@ Function  pcDirMarkOf(w:byte; ind:word):boolean;
 Function  trdDirMarkOf(w:byte; ind:word):boolean;
 Function  TreeCOf(w:byte; path:string):byte;
 Procedure GetCurXYOf(w:byte; var x,y:word);
-Function  ColumnsOf(w:byte):byte;
 Function  FocusedOf(w:byte):boolean;
 
 Procedure Navigate;
@@ -101,11 +100,11 @@ Cls;
 lp.PanelSetup; rp.PanelSetup;
 pf:=lp.f; pfrom:=lp.from;
 total:=lp.tdirs+lp.tfiles;
-ClampPanel(pf, pfrom, lp.PanelHi, lp.Columns, total);
+ClampPanel(pf, pfrom, lp.PanelHi, total);
 lp.f:=pf; lp.from:=pfrom;
 pf:=rp.f; pfrom:=rp.from;
 total:=rp.tdirs+rp.tfiles;
-ClampPanel(pf, pfrom, rp.PanelHi, rp.Columns, total);
+ClampPanel(pf, pfrom, rp.PanelHi, total);
 rp.f:=pf; rp.from:=pfrom;
 if lp.PanelType<>noPanel then lp.Build('012');
 if rp.PanelType<>noPanel then rp.Build('012');
@@ -440,17 +439,6 @@ Begin
 Case w of
  left:  lp.GetCurXY(x,y);
  right: rp.GetCurXY(x,y);
-End;
-End;
-
-
-
-{============================================================================}
-Function ColumnsOf(w:byte):byte;
-Begin
-Case w of
- left:  ColumnsOf:=lp.Columns;
- right: ColumnsOf:=rp.Columns;
 End;
 End;
 

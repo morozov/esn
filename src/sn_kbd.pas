@@ -43,8 +43,7 @@ Type
           sn_kb1_INFO,     sn_kb2_INFO,
           sn_kb1_REREAD,   sn_kb2_REREAD,
           sn_kb1_LFIND,    sn_kb2_LFIND,
-          sn_kb1_GFIND,    sn_kb2_GFIND,
-          sn_kb1_PCOLUMNS, sn_kb2_PCOLUMNS:   word;
+          sn_kb1_GFIND,    sn_kb2_GFIND:      word;
          end;
 
 Var
@@ -119,7 +118,6 @@ begin
           kbd.sn_kb1_REREAD:=_CtrlR;    kbd.sn_kb2_REREAD:=_CtrlR;
           kbd.sn_kb1_LFIND:=_AltS;      kbd.sn_kb2_LFIND:=_AltS;
           kbd.sn_kb1_GFIND:=_AltF7;     kbd.sn_kb2_GFIND:=_AltF7;
-          kbd.sn_kb1_PCOLUMNS:=_CtrlV;  kbd.sn_kb2_PCOLUMNS:=_CtrlV;
 end;
 
 end.

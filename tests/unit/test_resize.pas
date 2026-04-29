@@ -45,7 +45,6 @@ begin
   {$pop}
   p.InfoLines := 3;
   p.NameLine  := false;
-  p.Columns   := 1;
   CmdLine     := false;
 end;
 
@@ -73,7 +72,6 @@ begin
   {$pop}
   rgt.InfoLines := 3;
   rgt.NameLine  := false;
-  rgt.Columns   := 1;
   rgt.Place := Right;
   rgt.PosX  := 1;
   rgt.PanelSetup;
@@ -98,7 +96,6 @@ begin
   {$pop}
   rgt.InfoLines := 3;
   rgt.NameLine  := false;
-  rgt.Columns   := 1;
   rgt.Place := Right;
   rgt.PosX  := 1;
   rgt.PanelSetup;
@@ -148,7 +145,6 @@ begin
   {$pop}
   rgt.InfoLines := 3;
   rgt.NameLine  := false;
-  rgt.Columns   := 1;
   rgt.Place := Right;
   rgt.PosX  := 1;
   rgt.PanelSetup;
@@ -161,7 +157,7 @@ procedure TClampTest.TestClamp_NoChange;
 var f, from: longint;
 begin
   f := 5; from := 1;
-  ClampPanel(f, from, 10, 1, 20);
+  ClampPanel(f, from, 10, 20);
   AssertEquals('f no change',    5, f);
   AssertEquals('from no change', 1, from);
 end;
@@ -169,9 +165,10 @@ end;
 procedure TClampTest.TestClamp_F_TooLarge;
 var f, from: longint;
 begin
-  f := 15; from := 1;
-  ClampPanel(f, from, 10, 1, 20);
-  AssertEquals('f clamped',      10, f);
+  { panelHi=10 → panelHi*3=30; f=35 must clamp down }
+  f := 35; from := 1;
+  ClampPanel(f, from, 10, 100);
+  AssertEquals('f clamped',      30, f);
   AssertEquals('from unchanged',  1, from);
 end;
 
@@ -179,7 +176,7 @@ procedure TClampTest.TestClamp_From_TooLarge;
 var f, from: longint;
 begin
   f := 10; from := 15;
-  ClampPanel(f, from, 10, 1, 20);
+  ClampPanel(f, from, 10, 20);
   AssertEquals('f unchanged',   10, f);
   AssertEquals('from adjusted', 11, from);
 end;
@@ -188,7 +185,7 @@ procedure TClampTest.TestClamp_From_Becomes_Zero;
 var f, from: longint;
 begin
   f := 8; from := 1;
-  ClampPanel(f, from, 10, 1, 5);
+  ClampPanel(f, from, 10, 5);
   AssertEquals('f clamped to total', 5, f);
   AssertEquals('from stays 1',       1, from);
 end;
@@ -197,7 +194,7 @@ procedure TClampTest.TestClamp_Empty_Panel;
 var f, from: longint;
 begin
   f := 1; from := 1;
-  ClampPanel(f, from, 10, 1, 0);
+  ClampPanel(f, from, 10, 0);
   { No crash; f stays 1, from stays 1 }
   AssertEquals('f empty panel',    1, f);
   AssertEquals('from empty panel', 1, from);
@@ -207,9 +204,9 @@ procedure TClampTest.TestClamp_MultiColumn;
 var f, from: longint;
 begin
   f := 25; from := 1;
-  { panelHi * cols = 30, but f=25 > total=20
+  { panelHi * 3 = 30, but f=25 > total=20
     → from + f - 1 = 25 > 20 → from := 20 - 25 + 1 = -4 → 1 }
-  ClampPanel(f, from, 10, 3, 20);
+  ClampPanel(f, from, 10, 20);
   AssertEquals('f multicol',    20, f);
   AssertEquals('from multicol',  1, from);
 end;

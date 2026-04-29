@@ -163,12 +163,6 @@ function  WhereY: word;
 function  Space(n: integer): string;
 procedure Flash(offOn: byte);
 
-{ Paint single-column separator zones for a directory row.
-  Draws two | separators at posX+cw and posX+2*cw (cw=(panelW+1)/3)
-  with fill zones in between.  dx is the name-column width. }
-procedure PaintRowSeps(posX, panelW: integer; dx: word;
-  py, paper, ink, sepInk: integer);
-
 procedure ProcessBar(act,per,total:byte; title:string);
 
 { ===== Window save / restore ===== }

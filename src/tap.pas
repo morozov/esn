@@ -211,9 +211,9 @@ var paper,ink,ii:byte;
 begin
 if p.paneltype<>tapPanel then exit;
 n:=p.taptfiles; px:=p.posx+1; py:=p.putfrom;
-Case p.Columns of 1: dx:=13; 2: dx:=p.PanelW div 2; 3: dx:=(p.PanelW+1) div 3; End;
+dx:=(p.PanelW+1) div 3;
 
-if n>fr-1+p.panelhi*p.Columns then n:=fr-1+p.panelhi*p.Columns;
+if n>fr-1+p.panelhi*3 then n:=fr-1+p.panelhi*3;
 for i:=fr to n do
  begin
   ddx:=0;
@@ -258,8 +258,6 @@ for i:=fr to n do
   if p.trddir^[i].mark then
     cmprint(paper, ink, px + dx + ddx - 3, py, '√');
 
-  if p.Columns=1 then
-    PaintRowSeps(p.PosX, p.PanelW, dx, py, paper, ink, pal.TxtRama);
 
   if ii=paper then ii:=ink;
   PrintSelf(paper,ii,px+(dx+ddx-3),py,1);
@@ -268,13 +266,11 @@ for i:=fr to n do
   if py>p.panelhi+p.putfrom-1 then begin py:=p.putfrom; inc(px,dx); end;
  end;
 
-for i:=n+1 to fr-1+p.panelhi*p.Columns do
+for i:=n+1 to fr-1+p.panelhi*3 do
  begin
   ddx:=0;
   name:=space(dx+ddx-1);
   cmprint(pal.bkNT,pal.txtNT,px,py,name);
-  if p.Columns=1 then
-    PaintRowSeps(p.PosX, p.PanelW, dx, py, pal.bkNT, pal.txtNT, pal.TxtRama);
   inc(py);
   if py>p.panelhi+p.putfrom-1 then begin py:=p.putfrom; inc(px,dx); end;
  end;

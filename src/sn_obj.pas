@@ -91,7 +91,6 @@ Type
       object
        Place                    :byte;
        PanelLong, PanelHi, PanelW:word;
-       Columns                  :byte;
        InfoLines                :byte;
        PutFrom, PosX, PosY      :word;
        NameLine                 :boolean;
@@ -215,9 +214,9 @@ Type
 Var
      rp,lp:TPanel;
 
-function BuildHorizSep(panelW, columns: integer): AnsiString;
+function BuildHorizSep(panelW: integer): AnsiString;
 procedure ClampPanel(var f, from: longint;
-                     panelHi, cols, total: longint);
+                     panelHi, total: longint);
 
 Implementation
 Uses
@@ -380,32 +379,21 @@ if Place=Right then begin PosX:=GmaxX div 2+1; PanelW:=GmaxX-GmaxX div 2-2; end
 End;
 
 
-function BuildHorizSep(panelW, columns: integer): AnsiString;
+function BuildHorizSep(panelW: integer): AnsiString;
 var
-  cw, dh: integer;
+  cw: integer;
 begin
   cw := (panelW + 1) div 3;
-  dh := panelW div 2;
-  case columns of
-    1: BuildHorizSep :=
-         '║' + Fill(cw - 1, '─') + '┴' +
-         Fill(panelW - cw, '─') + '║';
-    2: BuildHorizSep :=
-         '║' + Fill(dh - 1, '─') + '┴' +
-         Fill(panelW - dh, '─') + '║';
-    3: BuildHorizSep :=
-         '║' + Fill(cw - 1, '─') + '┴' +
-         Fill(cw - 1, '─') + '┴' +
-         Fill(panelW - 2 * cw, '─') + '║';
-  else
-    BuildHorizSep := '║' + Fill(panelW, '─') + '║';
-  end;
+  BuildHorizSep :=
+    '║' + Fill(cw - 1, '─') + '┴' +
+    Fill(cw - 1, '─') + '┴' +
+    Fill(panelW - 2 * cw, '─') + '║';
 end;
 
 procedure ClampPanel(var f, from: longint;
-                     panelHi, cols, total: longint);
+                     panelHi, total: longint);
 begin
-  if f > panelHi * cols then f := panelHi * cols;
+  if f > panelHi * 3 then f := panelHi * 3;
   if (total > 0) and (f > total) then f := total;
   if f < 1 then f := 1;
   if from + f - 1 > total then begin
@@ -425,8 +413,6 @@ Var
     i,cw:integer;
 Begin
 PanelSetup;{}
-if Columns<1 then Columns:=1;
-if Columns>3 then Columns:=3;
 
 if pos('0',parts)<>0 then if PanelType<>noPanel then
  begin
@@ -452,7 +438,7 @@ if pos('1',parts)<>0 then if (PanelType>=1)and(PanelType<=10) then
             posx+2*cw,1+i,'│');
    end;
 
-  s:=BuildHorizSep(PanelW, Columns);
+  s:=BuildHorizSep(PanelW);
   cmprint(pal.BkRama,pal.TxtRama,posx,PanelLong-InfoLines-1,s);
  end;
 
@@ -630,7 +616,7 @@ GetTreeC(pcnd);
  end;
 
   for i := pctdirs + pctfiles + 1 to
-            pctdirs + pctfiles + PanelHi * Columns do begin
+            pctdirs + pctfiles + PanelHi * 3 do begin
     pcDir^[i].fname := '';
     pcDir^[i].fext  := '';
  end;
@@ -658,9 +644,9 @@ Var
     i,n:integer;
 Begin
 n:=tdirs+tfiles;
-if n>from-1+panelhi*Columns then n:=from-1+panelhi*Columns;
+if n>from-1+panelhi*3 then n:=from-1+panelhi*3;
 px:=posx+1; py:=putfrom;
-Case Columns of 1: dx:=PanelW; 2: dx:=PanelW div 2; 3: dx:=(PanelW+1) div 3; End;
+dx:=(PanelW+1) div 3;
 for i:=from to n do
  begin
   if i=integer(Index) then
@@ -688,9 +674,9 @@ begin
 if paneltype<>pcPanel then exit;{}
 
 n:=pctdirs+pctfiles;
-if n>fr-1+panelhi*Columns then n:=fr-1+panelhi*Columns;
+if n>fr-1+panelhi*3 then n:=fr-1+panelhi*3;
 px:=posx+1; py:=putfrom;
-Case Columns of 1: dx:=13; 2: dx:=PanelW div 2; 3: dx:=(PanelW+1) div 3; End;
+dx:=(PanelW+1) div 3;
 for i:=fr to n do
  begin
   ddx:=0;
@@ -717,9 +703,6 @@ for i:=fr to n do
   if e <> ' ' then
     cmprint(paper, ink, px + dx + integer(ddx) - 5, py, e);
 
-  if Columns=1 then
-    PaintRowSeps(PosX, PanelW, dx, py, paper, ink, pal.TxtRama);
-
   if ii=paper then ii:=ink;
   if focused and(i=from+f-1) then ii:=pal.txtCurNT;
   if focused and(i=from+f-1)and(pcdir^[i].mark) then
@@ -730,13 +713,11 @@ for i:=fr to n do
   if py>panelhi+putfrom-1 then begin py:=putfrom; inc(px,dx); end;
  end;
 
-for i:=n+1 to fr-1+panelhi*Columns do
+for i:=n+1 to fr-1+panelhi*3 do
  begin
   ddx:=0;
   name:=space(dx+integer(ddx)-1);
   cmprint(pal.bkNT,pal.txtNT,px,py,name);
-  if Columns=1 then
-    PaintRowSeps(PosX, PanelW, dx, py, pal.bkNT, pal.txtNT, pal.TxtRama);
   inc(py);
   if py>panelhi+putfrom-1 then begin py:=putfrom; inc(px,dx); end;
  end;
@@ -1512,8 +1493,8 @@ Begin
         pcf := 1; pcfrom := 1;
         while pcfrom + pcf - 1 < i do begin
           Inc(pcf);
-          if pcf > PanelHi * Columns then begin
-            pcf := PanelHi * Columns;
+          if pcf > PanelHi * 3 then begin
+            pcf := PanelHi * 3;
             Inc(pcfrom);
        end;
      end;
@@ -1534,8 +1515,8 @@ Begin
           trdf := 1; trdfrom := 1;
           while trdfrom + trdf - 1 < i do begin
             Inc(trdf);
-            if trdf > PanelHi * Columns then begin
-              trdf := PanelHi * Columns; Inc(trdfrom);
+            if trdf > PanelHi * 3 then begin
+              trdf := PanelHi * 3; Inc(trdfrom);
          end;
    END;
        end;
@@ -1559,8 +1540,8 @@ Begin
           fdif := 1; fdifrom := 1;
           while fdifrom + fdif - 1 < i do begin
             Inc(fdif);
-            if fdif > PanelHi * Columns then begin
-              fdif := PanelHi * Columns;
+            if fdif > PanelHi * 3 then begin
+              fdif := PanelHi * 3;
               Inc(fdifrom);
          end;
        end;
@@ -1584,8 +1565,8 @@ Begin
           sclf := 1; sclfrom := 1;
           while sclfrom + sclf - 1 < i do begin
             Inc(sclf);
-            if sclf > PanelHi * Columns then begin
-              sclf := PanelHi * Columns; Inc(sclfrom);
+            if sclf > PanelHi * 3 then begin
+              sclf := PanelHi * 3; Inc(sclfrom);
          end;
    END;
        end;
@@ -1609,8 +1590,8 @@ Begin
           fddf := 1; fddfrom := 1;
           while fddfrom + fddf - 1 < i do begin
             Inc(fddf);
-            if fddf > PanelHi * Columns then begin
-              fddf := PanelHi * Columns;
+            if fddf > PanelHi * 3 then begin
+              fddf := PanelHi * 3;
               Inc(fddfrom);
          end;
        end;
@@ -1637,8 +1618,8 @@ Begin
           zxzf := 1; zxzfrom := 1;
           while zxzfrom + zxzf - 1 < i do begin
             Inc(zxzf);
-            if zxzf > PanelHi * Columns then begin
-              zxzf := PanelHi * Columns;
+            if zxzf > PanelHi * 3 then begin
+              zxzf := PanelHi * 3;
               Inc(zxzfrom);
          end;
        end;
@@ -2821,9 +2802,9 @@ loop:
        for i:=1 to length(s) do t[i]:=s[i];
        if wild(fname,t,false) then begin
          inc(f,abs(integer(a)-Index));
-         if f>PanelHi*Columns then begin
-           inc(from,(f-PanelHi*Columns));
-           f:=PanelHi*Columns;
+         if f>PanelHi*3 then begin
+           inc(from,(f-PanelHi*3));
+           f:=PanelHi*3;
          end;
          Outside; Inside;
          break;
@@ -2849,10 +2830,10 @@ loop:
      fnd:=false;
      if wild(fname,t,false) then
       begin       inc(f,abs(integer(a)-Index));
-       if f>PanelHi*Columns then
+       if f>PanelHi*3 then
         begin
-         inc(from,(f-PanelHi*Columns));
-         f:=PanelHi*Columns;
+         inc(from,(f-PanelHi*3));
+         f:=PanelHi*3;
             end;
        Outside; Inside;
        rePDF;
@@ -3002,12 +2983,12 @@ if kb= _Up then Dec(f);
 if kb= _Down then Inc(f);
 if kb= _Left then Dec(f,PanelHi);
 if kb= _Right then Inc(f,PanelHi);
-if kb= _PgUp then Dec(f,PanelHi*Columns-1);
-if kb= _PgDn then Inc(f,PanelHi*Columns-1);
+if kb= _PgUp then Dec(f,PanelHi*3-1);
+if kb= _PgDn then Inc(f,PanelHi*3-1);
 if kb= _Home then begin from:=1; f:=1; end;
 if kb= _End then begin
-              f:=Columns*PanelHi;
-           from:=tdirs+tfiles-Columns*PanelHi+1;
+              f:=3*PanelHi;
+           from:=tdirs+tfiles-3*PanelHi+1;
           End;
 
 if kb= _Enter then Enter;
@@ -3018,25 +2999,15 @@ if kb= _BkSp     then CtrlPgUp;
 if kb= _CtrlPgDn then CtrlPgDn;
 if kb= _Space then begin Insert; kb:=0; end;
 
-    if (kb=kbd.sn_kb1_PCOLUMNS) or
-       (kb=kbd.sn_kb2_PCOLUMNS) then begin
-      if Columns >= 3 then Columns := 1
-      else Inc(Columns);
-      Outside;
-      Build('012d');
-      Inside;
-      rePDF;
-    end;
-
-    if tdirs + tfiles > Columns * PanelHi then
-      n := Columns * PanelHi
+    if tdirs + tfiles > 3 * PanelHi then
+      n := 3 * PanelHi
     else
       n := tdirs + tfiles;
     if n < 1 then n := 1;
     if f > n then begin Inc(from, f - n); f := n; end;
     if f < 1 then begin Dec(from, 1 - f); f := 1; end;
-    if from > tdirs + tfiles - Columns * PanelHi + 1 then
-      from := tdirs + tfiles - Columns * PanelHi + 1;
+    if from > tdirs + tfiles - 3 * PanelHi + 1 then
+      from := tdirs + tfiles - 3 * PanelHi + 1;
     if from < 1 then from := 1;
 
 Outside;
@@ -3050,7 +3021,6 @@ Begin
 lp.posx:=1; rp.posx:=GmaxX div 2+1;
 lp.posy:=1; rp.posy:=1;
 
-lp.Columns:=3; rp.Columns:=3;
 lp.InfoLines:=3; rp.InfoLines:=3;
 
 lp.NameLine:=true; rp.NameLine:=true;
@@ -3073,7 +3043,6 @@ End.Begin
 lp.posx:=1; rp.posx:=GmaxX div 2+1;
 lp.posy:=1; rp.posy:=1;
 
-lp.Columns:=3; rp.Columns:=3;
 lp.InfoLines:=3; rp.InfoLines:=3;
 
 lp.NameLine:=true; rp.NameLine:=true;

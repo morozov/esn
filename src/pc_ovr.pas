@@ -200,17 +200,12 @@ Begin
  CancelSB;
  GetCurXYOf(focus,CurXPos,CurYPos);
  { Match the entry slot width that pcPDF uses (sn_obj.pas) so the
-   overlay covers the rendered name+ext exactly: 12 cells in 1-col
-   mode, PanelW/2-1 in 2-col, (PanelW+1)/3-1 in 3-col. }
+   overlay covers the rendered name+ext exactly: (PanelW+1)/3-1. }
  Case focus of
   left:  pw:=lp.PanelW;
   right: pw:=rp.PanelW;
  End;
- Case ColumnsOf(focus) of
-  1: slot:=12;
-  2: slot:=pw div 2 - 1;
- else slot:=(pw + 1) div 3 - 1;
- End;
+ slot:=(pw + 1) div 3 - 1;
  if slot > 255 then slot:=255;
  visLen:=slot;
 

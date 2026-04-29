@@ -279,10 +279,7 @@ Case focus of left:p:=lp; right:p:=rp; End;
 if (p.trdDir^[p.Index].tapflag<>0)or(p.Index<=1) then exit;
 s:=p.trdDir^[p.Index].name; GetCurXYOf(focus,xc,yc);
 
- Case ColumnsOf(focus) of
-  1,3: DX:=8;
-  2:   Begin DX:=15; end;
- End;
+ DX:=8;
 
 CancelSB; colour(pal.bkCurNT,pal.txtCurNT);
 curon; s:=tapsnscanf(xc,yc,s); curoff;
