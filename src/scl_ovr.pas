@@ -49,9 +49,13 @@ inc(fpos,9+14*p.zxDisk.files);
 
 seek(f,fpos);
 blockread(f,HobetaInfo.body^,256*HobetaInfo.totalsec);
+(* Capture and clear the read's IOResult before close — under
+   I-suppressed scope, FPC's Close becomes a no-op when InOutRes is
+   non-zero on entry, leaking the file descriptor. *)
+i:=ioresult;
 close(f);
 {$I+}
-if ioresult=0 then sclLoad:=true else FreeMem(HobetaInfo.body,256*HobetaInfo.totalsec);
+if i=0 then sclLoad:=true else FreeMem(HobetaInfo.body,256*HobetaInfo.totalsec);
 End;
 
 
