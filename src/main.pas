@@ -81,7 +81,8 @@ if not SetCurrentDir(p) then
   if not SetCurrentDir(p) then p:=GetCurrentDir;
  end;
 
-if p[Length(p)]<>PathDelim then p:=p+PathDelim;
+if p='' then p:=PathDelim
+else if p[Length(p)]<>PathDelim then p:=p+PathDelim;
 CheckPath:=p;
 
 SetCurrentDir(orig);
