@@ -36,7 +36,7 @@ run() {
     "first real TRD file entry has type indicator <T>"
 
   step 4 "Ctrl+PgUp to exit TRD and return to pcPanel"
-  exit_zx_panel
+  send_key ctrl+pgup
   assert_info_line "${CASE_ID}_04_back_to_pc" "sample.trd" \
     "cursor is back on sample.trd after exiting trdPanel"
   assert_text_present "${CASE_ID}_04_status_bar" "Copy" \

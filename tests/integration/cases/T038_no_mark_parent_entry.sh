@@ -22,7 +22,7 @@ run() {
 
   step 2 "Move cursor to .. entry and press Insert"
   send_key home
-  send_insert
+  send_key insert
   assert_text_present "${CASE_ID}_02_no_mark" "No files selected" \
     ".. entry must not be markable"
   assert_text_absent "${CASE_ID}_02_no_checkmark" "√" \

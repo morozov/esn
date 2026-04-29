@@ -35,7 +35,7 @@ run() {
 
   step 3 "PC panel — mark one file, check selected summary"
   send_key home down
-  send_insert
+  send_key insert
   assert_text_present "${CASE_ID}_03_selected_one" "selected in 1 file" \
     "info line 2 shows bytes selected in 1 file"
 
@@ -46,12 +46,12 @@ run() {
     "cursor on sample.trd"
   send_key open return
   send_key down
-  send_insert
+  send_key insert
   assert_text_present "${CASE_ID}_04_blocks_selected" "block" \
     "TRD info line 2 shows block(s) selected"
   assert_text_present "${CASE_ID}_04_blocks_free" "blocks free" \
     "TRD info line 3 shows free sector count"
-  exit_zx_panel
+  send_key ctrl+pgup
 }
 
 teardown() {

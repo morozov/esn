@@ -43,7 +43,7 @@ run() {
   step 3 "Status bar is same width as screen (80 chars)"
   assert_rect_bg "${CASE_ID}_03_sbar_full_width" 25 1 1 70 cyan \
     "Status bar (first 70 cols) has cyan background"
-  exit_zx_panel
+  send_key ctrl+pgup
 
   # -----------------------------------------------------------------------
   step 4 "Tab between panels — status bar unchanged"

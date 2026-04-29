@@ -51,7 +51,7 @@ run() {
     "Status bar is intact after closing dialog"
 
   step 5 "Exit ZXZ panel (Enter also opens ZXZ panel after dialog)"
-  exit_zx_panel
+  send_key ctrl+pgup
 }
 
 teardown() {

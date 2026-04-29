@@ -23,7 +23,7 @@ run() {
 
   step 2 "Press Insert to mark first file, cursor advances"
   send_key home down
-  send_insert
+  send_key insert
   assert_text_present "${CASE_ID}_02_mark_char" "√" \
     "√ mark character is visible on marked entry"
   assert_text_present "${CASE_ID}_02_selected_count" "selected in 1 file" \
@@ -37,13 +37,13 @@ run() {
     "marked file extension area (cols 11-13) has bright yellow foreground"
 
   step 3 "Press Insert again on next file — marks it too"
-  send_insert
+  send_key insert
   assert_text_present "${CASE_ID}_03_two_files" "selected in 2 files" \
     "second info line shows 2 files selected"
 
   step 4 "Press Insert on a marked file — unmarks it (toggle)"
   send_key up
-  send_insert
+  send_key insert
   assert_text_present "${CASE_ID}_04_unmarked" "selected in 1 file" \
     "after unmark, second info line shows 1 file selected"
 
@@ -71,7 +71,7 @@ run() {
 
   step 8 "Insert on << entry does not mark it"
   send_key home
-  send_insert
+  send_key insert
   assert_text_present "${CASE_ID}_08_go_up_no_mark" "No files selected" \
     "<< entry cannot be marked — still 'No files selected'"
 }

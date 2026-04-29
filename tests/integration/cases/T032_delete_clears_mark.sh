@@ -22,7 +22,7 @@ setup() {
 
 run() {
   step 1 "Mark the file with Insert"
-  send_insert
+  send_key insert
   assert_text_present "${CASE_ID}_01_marked" "√" \
     "√ mark character is visible on marked entry"
   assert_text_present "${CASE_ID}_01_selected" "selected in 1 file" \

@@ -23,7 +23,7 @@ setup() {
 run() {
   step 1 "Type 's' to search — cursor moves to sample.scl"
   send_key settle alt+s
-  tmux send-keys -t esn_test -l 's' 2>/dev/null || true
+  send_text 's'
   sleep 0.5
   send_key escape
 
@@ -35,11 +35,11 @@ run() {
   # backspace to clear, then type 'e' — should find empty.tap
   # which is BEFORE sample.scl in sort order.
   send_key settle alt+s
-  tmux send-keys -t esn_test -l 's' 2>/dev/null || true
+  send_text 's'
   sleep 0.3
-  tmux send-keys -t esn_test BSpace 2>/dev/null || true
+  send_key backspace
   sleep 0.3
-  tmux send-keys -t esn_test -l 'e' 2>/dev/null || true
+  send_text 'e'
   sleep 0.5
   send_key escape
 
@@ -48,7 +48,7 @@ run() {
 
   step 3 "Non-matching character is rejected"
   send_key settle alt+s
-  tmux send-keys -t esn_test -l 'z' 2>/dev/null || true
+  send_text 'z'
   sleep 0.3
   _screen_invalidate
 

@@ -62,7 +62,7 @@ run() {
     "no phantom 4th entry — kwik.2 remains the last real entry visible"
 
   step 7 "Exit ZXZ panel"
-  exit_zx_panel
+  send_key ctrl+pgup
   assert_info_line "${CASE_ID}_07_back_to_pc" "kwiksnax.zxz" \
     "cursor returns to kwiksnax.zxz in PC panel"
 }

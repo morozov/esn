@@ -301,16 +301,47 @@ _app_delay() {
 }
 
 # ---------------------------------------------------------------------------
-# _app_key_tmux KEY
-# Translate one key token to a tmux send-keys argument.
+# Key delivery
 # ---------------------------------------------------------------------------
+#
+# Tests describe keystrokes with human tokens (`return`, `escape`,
+# `alt+f6`, `ctrl+pgup`, `shift+tab`, `f9`, `insert`, `right`, …) and
+# bare printable characters (`a`, `1`).  Each token is dispatched
+# through one of two paths:
+#
+# 1. tmux key name (`Enter`, `BSpace`, `F6`, `C-v`) for keys tmux can
+#    name natively, OR a plain escape sequence (e.g. `\e[5~` for PgUp)
+#    sent as bytes.
+#
+# 2. Atomic hex bytes via `tmux send-keys -H` for sequences whose
+#    bytes must arrive in a single write() so FPC's escape-sequence
+#    timer cannot split them.  This applies to:
+#      - Escape — FPC's double-ESC hack expects \x1b\x1b\x00;
+#      - Alt+F1..F10 — leading ESC must coalesce with the F-key
+#        sequence so FPC reports rawCode=_AltFn rather than plain Fn.
+#
+# Use `send_text` for typing literal multi-character strings (the
+# in-app local-find input and similar).  Plain printable single-key
+# tokens (e.g. `s`, `1`) also work via `send_key`.
+# ---------------------------------------------------------------------------
+
+_app_send_atomic() {
+  tmux send-keys -H -t "$_APP_TMUX_SESSION" "$@" 2>/dev/null || true
+}
+
+_app_send_token() {
+  tmux send-keys -t "$_APP_TMUX_SESSION" "$1" 2>/dev/null || true
+}
+
+# Translate one non-atomic key token into a tmux send-keys argument.
+# Atomic-byte keys (escape, alt+f*, insert) are handled in send_key
+# directly and never reach this function.
 _app_key_tmux() {
   local lk="${1,,}"
   case "$lk" in
     return)                    echo "Enter" ;;
     tab)                       echo "Tab" ;;
     shift+tab)                 echo "BTab" ;;
-    escape)                    echo "Escape" ;;
     space)                     echo "Space" ;;
     delete|backspace)          echo "BSpace" ;;
     up)                        echo "Up" ;;
@@ -336,21 +367,6 @@ _app_key_tmux() {
     ctrl+*)
       local c="${lk#ctrl+}"
       echo "C-${c}"
-      ;;
-    alt+f*)
-      local fnum="${lk#alt+f}"
-      case "$fnum" in
-        1)  printf '%s' $'\eOP'    ;;
-        2)  printf '%s' $'\eOQ'    ;;
-        3)  printf '%s' $'\eOR'    ;;
-        4)  printf '%s' $'\eOS'    ;;
-        5)  printf '%s' $'\e[15~'  ;;
-        6)  printf '%s' $'\e[17~'  ;;
-        7)  printf '%s' $'\e[18~'  ;;
-        8)  printf '%s' $'\e[19~'  ;;
-        9)  printf '%s' $'\e[20~'  ;;
-        10) printf '%s' $'\e[21~'  ;;
-      esac
       ;;
     alt+*)
       local c="${lk#alt+}"
@@ -380,10 +396,10 @@ _app_key_tmux() {
 # ---------------------------------------------------------------------------
 # send_key [DELAY] [KEY …]
 #
-# Sends zero or more keystrokes to ESN, waits DELAY (default: settle), then
-# invalidates the screen cache. Subsequent assertion calls trigger capture.
+# Send zero or more keystrokes to ESN, wait DELAY (default: settle),
+# then invalidate the screen cache.
 #
-# DELAY symbolic words: settle, resize, open, fileop
+# DELAY: settle | resize | open | fileop
 # ---------------------------------------------------------------------------
 send_key() {
   local delay="settle"
@@ -393,19 +409,22 @@ send_key() {
   esac
 
   for key in "$@"; do
-    if [[ "$key" == "escape" ]]; then
-      # FPC's double_esc_hack expects \x1b\x1b\x00 (two ESC + NUL).
-      # Send all three bytes atomically via -H so they land in a
-      # single write() to the PTY.  Two separate tmux commands race:
-      # FPC can read \x1b\x1b before \x00 arrives, its timeout fires,
-      # and two Escape presses are delivered instead of one.
-      tmux send-keys -H -t "$_APP_TMUX_SESSION" 1b 1b 00 \
-        2>/dev/null || true
-    else
-      local token
-      token=$(_app_key_tmux "$key")
-      tmux send-keys -t "$_APP_TMUX_SESSION" "$token" 2>/dev/null || true
-    fi
+    local lk="${key,,}"
+    case "$lk" in
+      escape)   _app_send_atomic 1b 1b 00              ;;
+      insert)   _app_send_atomic 1b 5b 32 7e           ;;
+      alt+f1)   _app_send_atomic 1b 1b 4f 50           ;;
+      alt+f2)   _app_send_atomic 1b 1b 4f 51           ;;
+      alt+f3)   _app_send_atomic 1b 1b 4f 52           ;;
+      alt+f4)   _app_send_atomic 1b 1b 4f 53           ;;
+      alt+f5)   _app_send_atomic 1b 1b 5b 31 35 7e     ;;
+      alt+f6)   _app_send_atomic 1b 1b 5b 31 37 7e     ;;
+      alt+f7)   _app_send_atomic 1b 1b 5b 31 38 7e     ;;
+      alt+f8)   _app_send_atomic 1b 1b 5b 31 39 7e     ;;
+      alt+f9)   _app_send_atomic 1b 1b 5b 32 30 7e     ;;
+      alt+f10)  _app_send_atomic 1b 1b 5b 32 31 7e     ;;
+      *)        _app_send_token "$(_app_key_tmux "$lk")" ;;
+    esac
   done
 
   _app_delay "$delay"
@@ -413,22 +432,22 @@ send_key() {
 }
 
 # ---------------------------------------------------------------------------
-# send_insert
-# Send the Insert key and invalidate the screen cache.
+# send_text [DELAY] TEXT
+#
+# Type the literal characters of TEXT, then wait DELAY (default:
+# settle) and invalidate the screen cache.  No key-name interpretation.
 # ---------------------------------------------------------------------------
-send_insert() {
-  tmux send-keys -t "$_APP_TMUX_SESSION" $'\e[2~' 2>/dev/null || true
-  sleep_for_settle
-  _screen_invalidate
-}
-
-# ---------------------------------------------------------------------------
-# exit_zx_panel
-# Exit the current ZX panel back to the PC panel (Ctrl+PgUp).
-# ---------------------------------------------------------------------------
-exit_zx_panel() {
-  tmux send-keys -t "$_APP_TMUX_SESSION" $'\e[5;5~' 2>/dev/null || true
-  sleep_for_settle
+send_text() {
+  local delay="settle"
+  case "${1:-}" in
+    settle|resize|open|fileop)
+      delay="$1"; shift ;;
+  esac
+  local text="${1:-}"
+  if [[ -n "$text" ]]; then
+    tmux send-keys -t "$_APP_TMUX_SESSION" -l "$text" 2>/dev/null || true
+  fi
+  _app_delay "$delay"
   _screen_invalidate
 }
 

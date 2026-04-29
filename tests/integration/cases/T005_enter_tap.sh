@@ -33,7 +33,7 @@ run() {
     "first block shows type indicator"
 
   step 4 "Ctrl+PgUp to exit TAP"
-  exit_zx_panel
+  send_key ctrl+pgup
   assert_info_line "${CASE_ID}_04_back_to_pc" "sample.tap" \
     "cursor is back on sample.tap"
 }

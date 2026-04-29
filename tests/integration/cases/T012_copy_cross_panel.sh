@@ -33,7 +33,7 @@ run() {
   # -----------------------------------------------------------------------
   step 2 "Move to first real TRD file and mark it"
   send_key down
-  send_insert
+  send_key insert
   assert_text_present "${CASE_ID}_02_file_marked" "√" \
     "Marked file shows √ indicator"
   assert_text_present "${CASE_ID}_02_blocks_selected" "block" \

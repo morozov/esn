@@ -301,13 +301,8 @@ send_key() {
   return 1
 }
 
-send_insert() {
-  echo "ERROR: send_insert not implemented — source app.sh first" >&2
-  return 1
-}
-
-exit_zx_panel() {
-  echo "ERROR: exit_zx_panel not implemented — source app.sh first" >&2
+send_text() {
+  echo "ERROR: send_text not implemented — source app.sh first" >&2
   return 1
 }
 

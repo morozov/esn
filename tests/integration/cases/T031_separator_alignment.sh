@@ -73,7 +73,7 @@ run() {
   step 3 "ZX panel 1: separators align between header and entry rows"
   _assert_separators "03" "ZX1" "$sep1" "$sep2" "$cw"
 
-  exit_zx_panel
+  send_key ctrl+pgup
 
   # -- Second ZX panel ----------------------------------------------------
 
@@ -85,7 +85,7 @@ run() {
   step 5 "ZX panel 2: separators align between header and entry rows"
   _assert_separators "05" "ZX2" "$sep1" "$sep2" "$cw"
 
-  exit_zx_panel
+  send_key ctrl+pgup
 }
 
 teardown() {

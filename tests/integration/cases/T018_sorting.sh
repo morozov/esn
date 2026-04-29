@@ -63,7 +63,7 @@ run() {
   assert_text_present "${CASE_ID}_07_trd_no_sort" "<<" \
     "Ctrl+F3 in trdPanel has no effect — go-up entry still present"
 
-  exit_zx_panel
+  send_key ctrl+pgup
 }
 
 teardown() {

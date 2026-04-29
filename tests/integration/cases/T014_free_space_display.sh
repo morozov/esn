@@ -42,7 +42,7 @@ run() {
 
   # -----------------------------------------------------------------------
   step 4 "SCL panel — total files display"
-  exit_zx_panel
+  send_key ctrl+pgup
   send_key home
   send_key down
   send_key open return
@@ -52,7 +52,7 @@ run() {
 
   # -----------------------------------------------------------------------
   step 5 "TAP panel — total items display"
-  exit_zx_panel
+  send_key ctrl+pgup
   send_key down
   send_key open return
   send_key
@@ -60,7 +60,7 @@ run() {
     "Third info line in tapPanel shows 'Total' entry count"
 
   # Return to PC panel
-  exit_zx_panel
+  send_key ctrl+pgup
 }
 
 teardown() {

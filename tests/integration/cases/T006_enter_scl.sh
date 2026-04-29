@@ -35,7 +35,7 @@ run() {
     "first real SCL file entry has type indicator <T>"
 
   step 4 "Ctrl+PgUp to exit SCL"
-  exit_zx_panel
+  send_key ctrl+pgup
   assert_info_line "${CASE_ID}_04_back_to_pc" "sample.scl" \
     "cursor is back on sample.scl"
 }

@@ -27,7 +27,7 @@ run() {
 
   # -----------------------------------------------------------------------
   step 2 "Ctrl+PgUp from trdPanel — exit to pcPanel"
-  exit_zx_panel
+  send_key ctrl+pgup
   assert_info_line "${CASE_ID}_02_cursor_on_trd_file" "sample.trd" \
     "Cursor is back on sample.trd after exiting trdPanel"
 
@@ -50,7 +50,7 @@ run() {
   assert_text_present "${CASE_ID}_04_in_scl" "Hobeta98" \
     "Left panel is now in sclPanel mode (Hobeta98 label)"
 
-  exit_zx_panel
+  send_key ctrl+pgup
   assert_info_line "${CASE_ID}_04_back_from_scl" "sample.scl" \
     "Ctrl+PgUp from sclPanel returns to pcPanel, cursor on sample.scl"
 
@@ -62,14 +62,14 @@ run() {
   assert_text_present "${CASE_ID}_05_in_tap" "Total" \
     "Left panel is in tapPanel mode (Total count visible)"
 
-  exit_zx_panel
+  send_key ctrl+pgup
   assert_info_line "${CASE_ID}_05_back_from_tap" "sample.tap" \
     "Ctrl+PgUp from tapPanel returns to pcPanel, cursor on sample.tap"
 
   # -----------------------------------------------------------------------
   step 6 "Ctrl+PgUp in pcPanel — go up one directory level"
   send_key home
-  exit_zx_panel
+  send_key ctrl+pgup
   assert_text_present "${CASE_ID}_06_went_up" ".." \
     "After Ctrl+PgUp in pcPanel, parent dir is accessible"
 }
