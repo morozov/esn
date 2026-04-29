@@ -280,39 +280,106 @@ begin
   UpdateScreen(false);
 end;
 
-{ ===== scanf — single-line text input ===== }
+{ ===== scanf — single-line text input =====
+
+  The buffer is kept as UnicodeString and edited in grapheme clusters
+  so that multi-byte UTF-8 characters (Cyrillic, accented Latin, CJK,
+  emoji) behave as single editable units.  pos_ and dispFrom are
+  cluster indices; visLen is interpreted as terminal display cells
+  and maxLen as a UTF-8 byte cap on the returned string.  The result
+  is encoded back to UTF-8 for the AnsiString return type. }
 
 function scanf(x, y: word; const def: string;
   maxLen, visLen, startPos: byte): string;
 var
-  s: string;
-  pos_: byte;  { cursor position in s, 1-based }
+  s: UnicodeString;
+  clusters: array of UnicodeString;
+  widths: array of integer;
+  byteLen: integer;
+  pos_: integer;
+  dispFrom: integer;
   k: word;
   ch: char;
-  dispFrom: byte;  { first char of s visible at column x }
+
+  procedure Recompute;
+  var
+    egc: UnicodeString;
+    n: integer;
+  begin
+    SetLength(clusters, 0);
+    SetLength(widths, 0);
+    n := 0;
+    for egc in
+      TUnicodeStringExtendedGraphemeClustersEnumerator.Create(s) do
+    begin
+      Inc(n);
+      SetLength(clusters, n);
+      SetLength(widths, n);
+      clusters[n - 1] := egc;
+      widths[n - 1] := ExtendedGraphemeClusterDisplayWidth(egc);
+    end;
+    byteLen := Length(UTF8Encode(s));
+  end;
+
+  function CodeUnitOffset(n: integer): integer;
+  var
+    i: integer;
+  begin
+    Result := 1;
+    for i := 1 to n - 1 do
+      Inc(Result, Length(clusters[i - 1]));
+  end;
+
+  function CellsBetween(a, b: integer): integer;
+  var
+    i, last: integer;
+  begin
+    Result := 0;
+    last := b - 1;
+    if last > Length(clusters) then last := Length(clusters);
+    for i := a to last do
+      Inc(Result, widths[i - 1]);
+  end;
 
   procedure Redraw;
   var
-    vis: string;
-    coff: word;
+    i, cells, cellsToCursor: integer;
+    vis: UnicodeString;
   begin
-    if pos_ > dispFrom + visLen - 1 then
-      dispFrom := pos_ - visLen + 1;
-    if (dispFrom > 1) and (pos_ < dispFrom) then
-      dispFrom := pos_;
-    vis := Copy(s, dispFrom, visLen);
-    while Length(vis) < visLen do
+    if pos_ < dispFrom then dispFrom := pos_;
+    while CellsBetween(dispFrom, pos_) > visLen do
+      Inc(dispFrom);
+
+    vis := '';
+    cells := 0;
+    cellsToCursor := -1;
+    i := dispFrom;
+    while i <= Length(clusters) do
+    begin
+      if i = pos_ then cellsToCursor := cells;
+      if cells + widths[i - 1] > visLen then break;
+      vis := vis + clusters[i - 1];
+      Inc(cells, widths[i - 1]);
+      Inc(i);
+    end;
+    if cellsToCursor < 0 then cellsToCursor := cells;
+    while cells < visLen do
+    begin
       vis := vis + ' ';
+      Inc(cells);
+    end;
+
     CMPrint(TextAttr shr 4, TextAttr and $0F, x, y, vis);
-    coff := x + pos_ - dispFrom;
-    GotoXY(coff, y);
+    if cellsToCursor > visLen then cellsToCursor := visLen;
+    GotoXY(x + word(cellsToCursor), y);
     UpdateScreen(false);
   end;
 
 begin
-  s := def;
-  if startPos > Length(s) + 1 then
-    pos_ := Length(s) + 1
+  s := UTF8Decode(def);
+  Recompute;
+  if startPos > Length(clusters) + 1 then
+    pos_ := Length(clusters) + 1
   else if startPos < 1 then
     pos_ := 1
   else
@@ -343,25 +410,30 @@ begin
         if pos_ > 1 then Dec(pos_);
       end;
       _Right, Pad6: begin
-        if pos_ <= Length(s) then Inc(pos_);
+        if pos_ <= Length(clusters) then Inc(pos_);
       end;
       _Home: begin
         pos_ := 1;
         dispFrom := 1;
       end;
       _End: begin
-        pos_ := Length(s) + 1;
+        pos_ := Length(clusters) + 1;
       end;
       _BkSp: begin
-        if (pos_ > 1) and (Length(s) > 0) then begin
-          Delete(s, pos_ - 1, 1);
+        if (pos_ > 1) and (Length(clusters) > 0) then begin
+          Delete(s, CodeUnitOffset(pos_ - 1),
+            Length(clusters[pos_ - 2]));
           Dec(pos_);
           if dispFrom > 1 then Dec(dispFrom);
+          Recompute;
         end;
       end;
       _Del: begin
-        if pos_ <= Length(s) then
-          Delete(s, pos_, 1);
+        if pos_ <= Length(clusters) then begin
+          Delete(s, CodeUnitOffset(pos_),
+            Length(clusters[pos_ - 1]));
+          Recompute;
+        end;
       end;
     else
       ch := Chr(Lo(k));
@@ -369,15 +441,16 @@ begin
         PgDn, …) with low byte $E0; reject so they are not inserted
         as a stray byte. }
       if (ch >= ' ') and (Lo(k) <> $E0)
-         and (Length(s) < maxLen) then begin
-        Insert(ch, s, pos_);
+         and (byteLen < maxLen) then begin
+        Insert(UnicodeString(ch), s, CodeUnitOffset(pos_));
         Inc(pos_);
+        Recompute;
       end;
     end;
     Redraw;
   until false;
   CurOff;
-  scanf := s;
+  scanf := UTF8Encode(s);
 end;
 
 { ===== ChooseItem popup menu ===== }
