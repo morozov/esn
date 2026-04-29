@@ -19,7 +19,7 @@ testing/
   cases/
     T001_startup.sh
     T002_navigation.sh
-    …  (30 cases total, T001–T030)
+    …                — case files numbered TNNN, run in lexical order
   results/           — timestamped output directories (not committed)
 ```
 
@@ -71,29 +71,35 @@ lifecycle and accumulates pass/fail counts.
 
 ### Lifecycle
 
-| Function                  | Description                          |
-|---------------------------|--------------------------------------|
-| `app_reset [COLS [ROWS]]` | Stop and restart ESN (default 80×25) |
-| `app_resize COLS ROWS`    | Resize the tmux window at runtime    |
+| Function                  | Description                                          |
+|---------------------------|------------------------------------------------------|
+| `make_fixture_dir FILE…`  | Temp dir seeded with named files from `fixtures/`    |
+| `app_reset [COLS [ROWS]]` | Stop and restart ESN (default 80×25, in `APP_WORKDIR`) |
+| `app_resize COLS ROWS`    | Resize the tmux window at runtime                    |
+
+`make_fixture_dir` exports `APP_WORKDIR` so the next `app_reset`
+launches ESN there.  The directory is removed automatically after
+the case finishes.
 
 ### Sending input
 
-| Function                  | Description                                   |
-|---------------------------|-----------------------------------------------|
-| `send_key [DELAY] [KEY…]` | Send keys; wait DELAY; invalidate cache       |
-| `send_insert`             | Send the Insert key                           |
-| `close_dialog TEXT`       | Close a dialog with Escape (see below)        |
-| `exit_zx_panel`           | Exit ZX panel back to PC panel (Ctrl+PgUp)    |
-| `try_keys KEY…`           | Fire-and-forget; suppresses errors (teardown) |
+| Function                   | Description                                   |
+|----------------------------|-----------------------------------------------|
+| `send_key  [DELAY] [KEY…]` | Send named keys; wait DELAY; invalidate cache |
+| `send_text [DELAY] TEXT`   | Type literal characters of TEXT               |
+| `close_dialog TEXT`        | Close a dialog with Escape (see below)        |
+| `try_keys KEY…`            | Fire-and-forget; suppresses errors (teardown) |
 
 `DELAY` is one of `settle` (50 ms, default), `open` (150 ms),
 `fileop` (300 ms), `resize` (400 ms).
 
 Key tokens: named keys (`return`, `escape`, `tab`, `shift+tab`,
 `up`, `down`, `left`, `right`, `home`, `end`, `pageup`, `pagedown`,
-`backspace`, `delete`, `space`, `f1`–`f10`), modifier combos
-(`ctrl+x`, `alt+x`, `alt+f1`–`alt+f10`, `shift+f1`–`shift+f10`),
-or any single printable character.
+`backspace`, `delete`, `space`, `insert`, `f1`–`f10`), modifier
+combos (`ctrl+x`, `ctrl+pgup`, `ctrl+pgdn`, `alt+x`, `alt+f1`–
+`alt+f10`, `shift+f1`–`shift+f10`), or any single printable
+character.  Use `send_text` to type a multi-character string into
+an in-app input (search box, inline rename).
 
 **Closing dialogs with Escape.** Always use `close_dialog TEXT`
 instead of `send_key escape` when dismissing a dialog. TEXT is the
@@ -101,6 +107,19 @@ dialog's identifying string (e.g. `"System information"`,
 `"Mask"`) — the function sends Escape and polls until that text
 leaves the screen. Use bare `send_key escape` only when the intent
 is to trigger the Exit dialog on the main panel.
+
+**Adding a new key token.** Most tokens map to a tmux key name
+(`F6`, `Up`, `C-v`) or a plain escape sequence (`\e[5~` for PgUp)
+and are sent through `tmux send-keys`.  Tokens whose bytes must
+arrive in one PTY write — `escape`, `insert`, `alt+f1`–`alt+f10` —
+go through `tmux send-keys -H` from `send_key` directly, because
+FPC's escape-sequence timer would otherwise split them and report a
+different code.  Confirm the bytes you choose reach FPC as the
+intended `rKey` value by compiling a small probe against the
+`Keyboard` unit and feeding the bytes via `tmux send-keys -H`.
+Notably, xterm modifier sequences (`\e[17;3~` for Alt+F6) silently
+degrade to plain F-keys; the ESC-prefix form (`\e\e[17~`) is what
+produces `rawCode=_AltF6`.
 
 ### Screen access
 
