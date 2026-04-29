@@ -71,14 +71,14 @@ lifecycle and accumulates pass/fail counts.
 
 ### Lifecycle
 
-| Function                  | Description                                          |
-|---------------------------|------------------------------------------------------|
-| `make_fixture_dir FILE…`  | Temp dir seeded with named files from `fixtures/`    |
+| Function                  | Description                                            |
+|---------------------------|--------------------------------------------------------|
+| `make_fixture_dir FILE…`  | Temp dir seeded with named files from `fixtures/`      |
 | `app_reset [COLS [ROWS]]` | Stop and restart ESN (default 80×25, in `APP_WORKDIR`) |
-| `app_resize COLS ROWS`    | Resize the tmux window at runtime                    |
+| `app_resize COLS ROWS`    | Resize the tmux window at runtime                      |
 
 `make_fixture_dir` exports `APP_WORKDIR` so the next `app_reset`
-launches ESN there.  The directory is removed automatically after
+launches ESN there. The directory is removed automatically after
 the case finishes.
 
 ### Sending input
@@ -98,7 +98,7 @@ Key tokens: named keys (`return`, `escape`, `tab`, `shift+tab`,
 `backspace`, `delete`, `space`, `insert`, `f1`–`f10`), modifier
 combos (`ctrl+x`, `ctrl+pgup`, `ctrl+pgdn`, `alt+x`, `alt+f1`–
 `alt+f10`, `shift+f1`–`shift+f10`), or any single printable
-character.  Use `send_text` to type a multi-character string into
+character. Use `send_text` to type a multi-character string into
 an in-app input (search box, inline rename).
 
 **Closing dialogs with Escape.** Always use `close_dialog TEXT`
@@ -110,11 +110,11 @@ is to trigger the Exit dialog on the main panel.
 
 **Adding a new key token.** Most tokens map to a tmux key name
 (`F6`, `Up`, `C-v`) or a plain escape sequence (`\e[5~` for PgUp)
-and are sent through `tmux send-keys`.  Tokens whose bytes must
+and are sent through `tmux send-keys`. Tokens whose bytes must
 arrive in one PTY write — `escape`, `insert`, `alt+f1`–`alt+f10` —
 go through `tmux send-keys -H` from `send_key` directly, because
 FPC's escape-sequence timer would otherwise split them and report a
-different code.  Confirm the bytes you choose reach FPC as the
+different code. Confirm the bytes you choose reach FPC as the
 intended `rKey` value by compiling a small probe against the
 `Keyboard` unit and feeding the bytes via `tmux send-keys -H`.
 Notably, xterm modifier sequences (`\e[17;3~` for Alt+F6) silently
