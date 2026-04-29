@@ -117,6 +117,10 @@ for i:=1 to p.scltfiles do
   p.trddir^[i+1].mark:=false;
  end;
 
+(* Clear stale InOutRes from any in-loop read that ran past EOF —
+   under I-suppressed scope, FPC's Close becomes a no-op when
+   InOutRes is non-zero on entry, leaking the file descriptor. *)
+if ioresult<>0 then;
 close(fb);
 {$I+}
 if ioresult<>0 then;
