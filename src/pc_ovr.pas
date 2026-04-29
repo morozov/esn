@@ -188,91 +188,46 @@ End;
 {============================================================================}
 Procedure pcRename;
 Var
-    s,stemp:string; ff:file; CurXPos, CurYPos:word;
-     dx:byte;
-{== SCANF ===================================================================}
-function SNscanf(scanf_posx, scanf_posy:word;scanf_str:string):string;
-var
-     scanf_kod:word;
-     scanf_x:byte;
-     scanf_str_old:string;
-label loop;
-begin
-scanf_esc:=false;
-scanf_str_old:=scanf_str;
-scanf_x:=1;
-loop:
-mprint(scanf_posx,scanf_posy,scanf_str);
-gotoxy(scanf_posx+scanf_x-1,scanf_posy);
-UpdateScreen(false);
-scanf_kod:=rKey;
-if scanf_kod=_Right then
-  begin inc(scanf_x); if scanf_x=DX+1 then inc(scanf_x); end
-else if scanf_kod=_Left then
-  begin dec(scanf_x); if scanf_x=DX+1 then dec(scanf_x); end
-else if (scanf_kod=_Up) or (scanf_kod=_Down) then
-  scanf_kod:=_Enter
-else if (chr(lo(scanf_kod)) in
-         [' '..')','-','0'..'9','@'..'[',']'..#254])
-        and (scanf_x<=length(scanf_str)) then
-  begin
-    scanf_str[scanf_x]:=chr(lo(scanf_kod));
-    inc(scanf_x);
-    if scanf_x=DX+1 then inc(scanf_x);
-  end
-else if chr(lo(scanf_kod))='.' then
-  scanf_x:=DX+2;
-
-if scanf_kod=_ESC then begin snscanf:=scanf_str_old; scanf_esc:=true; exit; end;
-if (scanf_kod=_Enter)or(scanf_kod=PadEnter) then begin snscanf:=scanf_str; exit; end;
-
-if scanf_x<1 then scanf_x:=1;
-if scanf_x>DX+4 then begin scanf_x:=DX+4; end;
-goto loop;
-end;
-{============================================================================}
-{============================================================================}
-
+    s, stemp: string;
+    ff: file;
+    CurXPos, CurYPos: word;
+    visLen: byte;
 Begin
  CurXPos:=0; CurYPos:=0;
- Case focus of
-  left: stemp:=lp.pcDir^[IndexOf(focus)].fname;
-  right: stemp:=rp.pcDir^[IndexOf(focus)].fname;
- End;
- if nospace(stemp)='..' then exit;
+ s:=TrueNameOf(focus,IndexOf(focus));
+ if s='..' then exit;
  CancelSB;
  GetCurXYOf(focus,CurXPos,CurYPos);
  Case ColumnsOf(focus) of
-  1,3: DX:=8;
-  2:   Begin DX:=15; end;
+  2:    visLen:=19;
+ else   visLen:=12;
  End;
 
  Colour(pal.bkCurNT,pal.txtCurNT);
- Case focus of
-  left:  stemp:=sRexpand(lp.pcdir^[IndexOf(focus)].fname,DX)+'.'+sRexpand(lp.pcdir^[IndexOf(focus)].fext,3);
-  right: stemp:=sRexpand(rp.pcdir^[IndexOf(focus)].fname,DX)+'.'+sRexpand(rp.pcdir^[IndexOf(focus)].fext,3);
- End;
- s:=TrueNameOf(focus,IndexOf(focus));
- if IndexOf(focus)>tdirsOf(focus) then stemp:=LowerCase(stemp);
- CurOn; stemp:=nospace(snscanf(CurXPos,CurYPos,stemp)); CurOff;
+ CurOn;
+ stemp:=scanf(CurXPos,CurYPos,s,255,visLen,1);
+ CurOff;
  if not scanf_esc then
   begin
-   {$I-}
-   assign(ff,pcndOf(focus)+s);
-   rename(ff,pcndOf(focus)+stemp);
-   {$I+}
-   if ioresult<>0 then;
-   reMDF;
-   if stemp[length(stemp)]='.' then delete(stemp,length(stemp),1);
-   Case focus of
-    left: lp.pcnn:=stemp;
-    right: rp.pcnn:=stemp;
-   End;
-   reTrueCur;
-   reInside;
-   reInfo('ni');
-   rePDF;
+   stemp:=Trim(stemp);
+   if (stemp<>'') and (stemp<>s) then
+    begin
+     {$I-}
+     assign(ff,pcndOf(focus)+s);
+     rename(ff,pcndOf(focus)+stemp);
+     {$I+}
+     if ioresult<>0 then;
+     reMDF;
+     Case focus of
+      left:  lp.pcnn:=stemp;
+      right: rp.pcnn:=stemp;
+     End;
+     reTrueCur;
+     reInside;
+     reInfo('ni');
+    end;
   end;
+ rePDF;
 End;
 
 

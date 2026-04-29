@@ -330,7 +330,7 @@ begin
         scanf_esc := true;
         break;
       end;
-      _Enter, PadEnter: break;
+      _Enter, PadEnter, _Up, _Down: break;
       _Tab: begin
         scanf_tab := true;
         break;
@@ -365,7 +365,11 @@ begin
       end;
     else
       ch := Chr(Lo(k));
-      if (ch >= ' ') and (Length(s) < maxLen) then begin
+      { rKey reports nav keys not handled above (Up, Down, PgUp,
+        PgDn, …) with low byte $E0; reject so they are not inserted
+        as a stray byte. }
+      if (ch >= ' ') and (Lo(k) <> $E0)
+         and (Length(s) < maxLen) then begin
         Insert(ch, s, pos_);
         Inc(pos_);
       end;
