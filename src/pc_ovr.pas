@@ -191,6 +191,7 @@ Var
     s, stemp: string;
     ff: file;
     CurXPos, CurYPos: word;
+    pw, slot: word;
     visLen: byte;
 Begin
  CurXPos:=0; CurYPos:=0;
@@ -198,10 +199,20 @@ Begin
  if s='..' then exit;
  CancelSB;
  GetCurXYOf(focus,CurXPos,CurYPos);
- Case ColumnsOf(focus) of
-  2:    visLen:=19;
- else   visLen:=12;
+ { Match the entry slot width that pcPDF uses (sn_obj.pas) so the
+   overlay covers the rendered name+ext exactly: 12 cells in 1-col
+   mode, PanelW/2-1 in 2-col, (PanelW+1)/3-1 in 3-col. }
+ Case focus of
+  left:  pw:=lp.PanelW;
+  right: pw:=rp.PanelW;
  End;
+ Case ColumnsOf(focus) of
+  1: slot:=12;
+  2: slot:=pw div 2 - 1;
+ else slot:=(pw + 1) div 3 - 1;
+ End;
+ if slot > 255 then slot:=255;
+ visLen:=slot;
 
  Colour(pal.bkCurNT,pal.txtCurNT);
  CurOn;
