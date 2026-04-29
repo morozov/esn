@@ -26,6 +26,29 @@ function  isFDI(var p:TPanel; path:string):boolean;
 procedure fdiMDF(var p:TPanel; path:string);
 procedure fdiPDF(var p:TPanel; fr:integer);
 
+{ Absolute byte offset in the FDI file of the first byte of sector
+  (tr, sc), where tr = cyl*2 + head (0..159) and sc = sec_id - 1
+  (0..15). The returned offset honours each sector's physical position
+  as recorded in the FDI per-track header, so it is correct even for
+  disks with rotational skew or non-linear sector layout. }
+function  fdiSecAbs(var p:TPanel; tr,sc:byte):longint;
+
+{ Absolute byte offset in the FDI file of `byteInTrack0` within
+  cyl 0/head 0. Maps the byte to (sec_id, offset_in_sector) and looks
+  the sector up via fdiSecAbs, so it is correct even when track 0 has
+  shuffled sectors. }
+function  fdiTrk0Abs(var p:TPanel; byteInTrack0:longint):longint;
+
+{ Read `nsec` consecutive logical sectors starting at (tr, sc) into
+  `buf` (which must have room for nsec*256 bytes). Walks the per-sector
+  physical offsets, so works on FDIs with arbitrary layout. }
+procedure fdiReadSectors(var f:file; var p:TPanel;
+                         tr,sc:byte; nsec:word; var buf);
+
+{ Mirror of fdiReadSectors for writes. }
+procedure fdiWriteSectors(var f:file; var p:TPanel;
+                          tr,sc:byte; nsec:word; const buf);
+
 Implementation
 
 Uses
@@ -54,6 +77,54 @@ end;
 
 
 
+type TFdiByteFile = file of byte;
+
+{============================================================================}
+{ Walk the FDI per-track headers, populate p.fdiSecOff^ with the
+  absolute file offset of each sector. fb must already be open and
+  p.fdiRec must already be filled in. }
+procedure fdiBuildSecOff(var p:TPanel; var fb:TFdiByteFile);
+var i,cyl,head,nsec,sec_id,size_code,sz:integer;
+    tr:integer;
+    pos,trackOff,offInTrack,bb:longint;
+    a,b,c,d:byte;
+begin
+  if p.fdiSecOff=nil then exit;
+  { Default everything to bpos-equivalent so missing tracks/sectors
+    still produce sensible offsets if the FDI is malformed. }
+  for i:=0 to FdiMaxSectors-1 do
+    p.fdiSecOff^[i]:=longint(p.fdiRec.offData)
+                    +(i div FdiSecsPerTrack)*4096
+                    +(i mod FdiSecsPerTrack)*256;
+  pos:=p.fdiRec.offHeaderCyl;
+  seek(fb,pos);
+  for cyl:=0 to p.fdiRec.cyl-1 do
+   for head:=0 to p.fdiRec.heads-1 do
+    begin
+      read(fb,a); read(fb,b); read(fb,c); read(fb,d);
+      trackOff:=longint(a)+longint(b)shl 8
+               +longint(c)shl 16+longint(d)shl 24;
+      read(fb,a); read(fb,b); read(fb,a); nsec:=a;
+      tr:=cyl*2+head;
+      for i:=0 to nsec-1 do
+        begin
+          read(fb,a); read(fb,b); read(fb,a); sec_id:=a;
+          read(fb,a); size_code:=a;
+          read(fb,a);                       { flags — ignored }
+          read(fb,a); read(fb,b);
+          offInTrack:=longint(a)+longint(b)shl 8;
+          sz:=128 shl size_code;
+          if (tr<FdiMaxTracks)
+             and (sec_id>=1) and (sec_id<=FdiSecsPerTrack)
+             and (sz=256) then
+            begin
+              bb:=longint(p.fdiRec.offData)+trackOff+offInTrack;
+              p.fdiSecOff^[tr*FdiSecsPerTrack+(sec_id-1)]:=bb;
+            end;
+        end;
+    end;
+end;
+
 {============================================================================}
 function isFDI(var p:TPanel; path:string):boolean;
 var fb:file of byte;
@@ -80,13 +151,69 @@ read(fb,a); read(fb,b); {E} p.fdiRec.extDataLen:=a+256*b;
 p.fdiRec.offHeaderCyl:=$E+p.fdiRec.extDataLen;
 
 if p.fdiRec.heads<>2 then goto fin;
-seek(fb,p.fdiRec.offData+$8e7); read(fb,b); if not (b in [$10]) then goto fin;
+
+fdiBuildSecOff(p,fb);
+seek(fb,fdiTrk0Abs(p,$8e7)); read(fb,b);
+if not (b in [$10]) then goto fin;
 isFDI:=true;
 fin:
 if ioresult<>0 then; close(fb);
 {$I+}
 fin2:
 if ioresult<>0 then;
+end;
+
+{============================================================================}
+function fdiSecAbs(var p:TPanel; tr,sc:byte):longint;
+begin
+  if (p.fdiSecOff<>nil)
+     and (tr<FdiMaxTracks) and (sc<FdiSecsPerTrack) then
+    fdiSecAbs:=p.fdiSecOff^[tr*FdiSecsPerTrack+sc]
+  else
+    fdiSecAbs:=longint(p.fdiRec.offData)+longint(tr)*4096+longint(sc)*256;
+end;
+
+{============================================================================}
+function fdiTrk0Abs(var p:TPanel; byteInTrack0:longint):longint;
+var sc:byte; offInSec:longint;
+begin
+  sc:=byteInTrack0 div 256;
+  offInSec:=byteInTrack0 mod 256;
+  fdiTrk0Abs:=fdiSecAbs(p,0,sc)+offInSec;
+end;
+
+{============================================================================}
+procedure fdiReadSectors(var f:file; var p:TPanel;
+                         tr,sc:byte; nsec:word; var buf);
+var i:word; cur_tr,cur_sc:byte; dst:pbyte; nr:word;
+begin
+  dst:=@buf; nr:=0;
+  cur_tr:=tr; cur_sc:=sc;
+  for i:=1 to nsec do
+    begin
+      seek(f,fdiSecAbs(p,cur_tr,cur_sc));
+      blockread(f,dst^,256,nr);
+      inc(dst,256);
+      inc(cur_sc);
+      if cur_sc>=FdiSecsPerTrack then begin cur_sc:=0; inc(cur_tr); end;
+    end;
+end;
+
+{============================================================================}
+procedure fdiWriteSectors(var f:file; var p:TPanel;
+                          tr,sc:byte; nsec:word; const buf);
+var i:word; cur_tr,cur_sc:byte; src:pbyte; nw:word;
+begin
+  src:=pbyte(@buf); nw:=0;
+  cur_tr:=tr; cur_sc:=sc;
+  for i:=1 to nsec do
+    begin
+      seek(f,fdiSecAbs(p,cur_tr,cur_sc));
+      blockwrite(f,src^,256,nw);
+      inc(src,256);
+      inc(cur_sc);
+      if cur_sc>=FdiSecsPerTrack then begin cur_sc:=0; inc(cur_tr); end;
+    end;
 end;
 {============================================================================}
 {============================================================================}
@@ -123,14 +250,14 @@ filemode := fmReadShared;
 assign(fb,path); reset(fb);
 seek(fb,4); read(fb,b); p.zxdisk.tracks:=b;
 
-seek(fb,p.fdiRec.offData+$8e1); read(fb,b); p.zxdisk.n1freesec:=b;
-seek(fb,p.fdiRec.offData+$8e2); read(fb,b); p.zxdisk.ntr1freesec:=b;
-seek(fb,p.fdiRec.offData+$8e3); read(fb,b); p.zxdisk.disktyp:=b;
-seek(fb,p.fdiRec.offData+$8e4); read(fb,b); p.zxdisk.files:=b;
-seek(fb,p.fdiRec.offData+$8e5); read(fb,b); read(fb,b2); p.zxdisk.free:=b+256*b2;
-seek(fb,p.fdiRec.offData+$8e7); read(fb,b); p.zxdisk.trdoscode:=b;
-seek(fb,p.fdiRec.offData+$8f4); read(fb,b); p.zxdisk.delfiles:=b;
-seek(fb,p.fdiRec.offData+$8f5); stemp:=''; for i:=1 to 8 do begin read(fb,b); stemp:=stemp+chr(b); end;
+seek(fb,fdiTrk0Abs(p,$8e1)); read(fb,b); p.zxdisk.n1freesec:=b;
+seek(fb,fdiTrk0Abs(p,$8e2)); read(fb,b); p.zxdisk.ntr1freesec:=b;
+seek(fb,fdiTrk0Abs(p,$8e3)); read(fb,b); p.zxdisk.disktyp:=b;
+seek(fb,fdiTrk0Abs(p,$8e4)); read(fb,b); p.zxdisk.files:=b;
+seek(fb,fdiTrk0Abs(p,$8e5)); read(fb,b); read(fb,b2); p.zxdisk.free:=b+256*b2;
+seek(fb,fdiTrk0Abs(p,$8e7)); read(fb,b); p.zxdisk.trdoscode:=b;
+seek(fb,fdiTrk0Abs(p,$8f4)); read(fb,b); p.zxdisk.delfiles:=b;
+seek(fb,fdiTrk0Abs(p,$8f5)); stemp:=''; for i:=1 to 8 do begin read(fb,b); stemp:=stemp+chr(b); end;
 p.zxdisk.disklabel:=stemp;
 
 p.trddir^[1].name:='<<      ';
@@ -146,7 +273,7 @@ if Cat9 then
 BEGIN
 for i:=1 to p.zxDisk.files do
  begin
-  seek(fb,p.fdiRec.offData+16*(i-1));
+  seek(fb,fdiTrk0Abs(p,16*(i-1)));
   for k:=0 to 15 do read(fb,buf[k+1]);
   s:=''; for k:=1 to 8 do s:=s+chr(buf[k]);
   p.trddir^[i+1].name:=s;
@@ -164,7 +291,7 @@ BEGIN
 FoundFiles:=0; i:=1;
 While i<=128 do
  begin
-  seek(fb,p.fdiRec.offData+16*(i-1));
+  seek(fb,fdiTrk0Abs(p,16*(i-1)));
   for k:=0 to 15 do read(fb,buf[k+1]);
   if buf[1]<>0 then
    Begin

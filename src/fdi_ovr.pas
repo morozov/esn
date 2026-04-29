@@ -2,7 +2,7 @@
 Unit FDI_Ovr;
 Interface
 Uses
-     RV,sn_Obj, Vars, Palette, Main, TRD, PC,Main_Ovr,TRD_Ovr,SCL;
+     RV,sn_Obj, Vars, Palette, Main, TRD, PC,Main_Ovr,TRD_Ovr,SCL,FDI;
 
 function  fdiLoad(var p:TPanel; ind:word):boolean;
 function  fdiSave(var p:TPanel):boolean;
@@ -34,8 +34,9 @@ fdiLoad:=false;
 {$I-}
 GetMem(HobetaInfo.body,256*HobetaInfo.totalsec);
 assign(f,p.fdifile); filemode := fmReadShared; reset(f,1);
-seek(f,p.fdiRec.offData+bpos(p.trdDir^[ind].n1tr,p.trdDir^[ind].n1sec));
-blockread(f,HobetaInfo.body^,256*HobetaInfo.totalsec);
+fdiReadSectors(f,p,
+               p.trdDir^[ind].n1tr,p.trdDir^[ind].n1sec,
+               HobetaInfo.totalsec,HobetaInfo.body^);
 close(f);
 {$I+}
 if ioresult=0 then fdiLoad:=true else FreeMem(HobetaInfo.body,256*HobetaInfo.totalsec);
@@ -51,8 +52,9 @@ fdiSave:=false;
 {$I-}
 assign(f,p.fdifile); filemode := fmReadWriteShared; reset(f,1);
 
-seek(f,p.fdiRec.offData+bpos(p.zxDisk.nTr1FreeSec,p.zxDisk.n1FreeSec));
-blockwrite(f,HobetaInfo.body^,256*HobetaInfo.totalsec);
+fdiWriteSectors(f,p,
+                p.zxDisk.nTr1FreeSec,p.zxDisk.n1FreeSec,
+                HobetaInfo.totalsec,HobetaInfo.body^);
 
 inc(p.zxdisk.files);
 dec(p.zxdisk.free,hobetainfo.totalsec);
@@ -71,11 +73,11 @@ for i:=1 to hobetainfo.totalsec do
   if p.zxdisk.n1freesec>15 then begin p.zxdisk.n1freesec:=0; inc(p.zxdisk.ntr1freesec); end;
  end;
 
-seek(f,p.fdiRec.offData+$8e1); b:=p.zxdisk.n1freesec;   blockwrite(f,b,1);
-seek(f,p.fdiRec.offData+$8e2); b:=p.zxdisk.ntr1freesec; blockwrite(f,b,1);
-seek(f,p.fdiRec.offData+$8e4); b:=p.zxdisk.files;       blockwrite(f,b,1);
-seek(f,p.fdiRec.offData+$8e5); b:=lo(p.zxdisk.free);    blockwrite(f,b,1);
-seek(f,p.fdiRec.offData+$8e6); b:=hi(p.zxdisk.free);    blockwrite(f,b,1);
+seek(f,fdiTrk0Abs(p,$8e1)); b:=p.zxdisk.n1freesec;   blockwrite(f,b,1);
+seek(f,fdiTrk0Abs(p,$8e2)); b:=p.zxdisk.ntr1freesec; blockwrite(f,b,1);
+seek(f,fdiTrk0Abs(p,$8e4)); b:=p.zxdisk.files;       blockwrite(f,b,1);
+seek(f,fdiTrk0Abs(p,$8e5)); b:=lo(p.zxdisk.free);    blockwrite(f,b,1);
+seek(f,fdiTrk0Abs(p,$8e6)); b:=hi(p.zxdisk.free);    blockwrite(f,b,1);
 
 for i:=1 to 8 do buf[i-1]:=ord(p.trddir^[p.zxdisk.files].name[i]);
 buf[8]:=ord(p.trddir^[p.zxdisk.files].typ);
@@ -86,7 +88,7 @@ buf[12]:=hi(p.trddir^[p.zxdisk.files].length);
 buf[13]:=p.trddir^[p.zxdisk.files].totalsec;
 buf[14]:=p.trddir^[p.zxdisk.files].n1sec;
 buf[15]:=p.trddir^[p.zxdisk.files].n1tr;
-seek(f,p.fdiRec.offData+16*(p.zxdisk.files-1)); blockwrite(f,buf,16);
+seek(f,fdiTrk0Abs(p,16*(p.zxdisk.files-1))); blockwrite(f,buf,16);
 
 FreeMem(HobetaInfo.body,256*HobetaInfo.totalsec);
 close(f);
@@ -108,7 +110,7 @@ fdiDel:=false;
 
   for i:=1 to p.tfiles do if p.trddir^[i].mark then
    begin
-    inc(p.zxdisk.delfiles); seek(fs,p.fdiRec.offData+$8f4); blockwrite(fs,p.zxdisk.delfiles,1);
+    inc(p.zxdisk.delfiles); seek(fs,fdiTrk0Abs(p,$8f4)); blockwrite(fs,p.zxdisk.delfiles,1);
     p.trddir^[i].name[1]:=chr(ord('1')-48);
     for io:=1 to 8 do hbuf[io-1]:=ord(p.trddir^[i].name[io]);
     hbuf[8]:=ord(p.trddir^[i].typ);
@@ -119,7 +121,7 @@ fdiDel:=false;
     hbuf[13]:=p.trddir^[i].totalsec;
     hbuf[14]:=p.trddir^[i].n1sec;
     hbuf[15]:=p.trddir^[i].n1tr;
-    seek(fs,p.fdiRec.offData+16*(i-2)); blockwrite(fs,hbuf,16);
+    seek(fs,fdiTrk0Abs(p,16*(i-2))); blockwrite(fs,hbuf,16);
     p.trddir^[i].mark:=false;
    end;
   close(fs);
@@ -166,7 +168,7 @@ if not scanf_esc then
    if (stemp[1]<>chr(ord('1')-48))and(stemp[1]<>chr(ord('0')-48))
    then dec(p.zxdisk.delfiles);
 
-  seek(fs,p.fdiRec.offData+$8f4); b:=p.zxdisk.delfiles;  blockwrite(fs,b,1);
+  seek(fs,fdiTrk0Abs(p,$8f4)); b:=p.zxdisk.delfiles;  blockwrite(fs,b,1);
 
   for io:=1 to 8 do hbuf[io-1]:=ord(stemp[io]);
   if (TRDOS3)and(p.trddir^[p.Index].typ<>'B') then hbuf[8]:=ord(stemp[10]) else hbuf[8]:=ord(stemp[11]);
@@ -177,7 +179,7 @@ if not scanf_esc then
   hbuf[13]:=p.trddir^[i].totalsec;
   hbuf[14]:=p.trddir^[i].n1sec;
   hbuf[15]:=p.trddir^[i].n1tr;
-  seek(fs,p.fdiRec.offData+16*(i-2));
+  seek(fs,fdiTrk0Abs(p,16*(i-2)));
   blockwrite(fs,hbuf,16);
 
   close(fs);
@@ -194,11 +196,11 @@ End;
 function fdiMove(var p:TPanel):boolean;
 type hbuft=array[1..2] of byte;
 var fr,t:word;
-    c,i,a,m:integer; fs:file; buf:^hbuft; nr,nw:word; hbuf:array[0..15] of byte;
+    c,i,a,m:integer; fs:file; buf:^hbuft; hbuf:array[0..15] of byte;
     b:byte;
     stemp:string;
 begin
-fdiMove:=false; nr:=0; nw:=0;
+fdiMove:=false;
 if p.zxdisk.delfiles=0 then exit;
 CancelSB;
 stemp:='Do you wish to move'#255'this disk ?';
@@ -239,10 +241,12 @@ for i:=1 to p.fditfiles do
   if (ord(p.trddir^[a].name[1])<>1)and(ord(p.trddir^[a].name[1])<>0) then
    begin
     getmem(buf,p.trddir^[a].totalsec*256);
-    seek(fs,p.fdiRec.offData+bpos(p.trddir^[a].n1tr,p.trddir^[a].n1sec));
-    blockread(fs,buf^,p.trddir^[a].totalsec*256,nr);
-    seek(fs,p.fdiRec.offData+bpos(p.zxdisk.ntr1freesec,p.zxdisk.n1freesec));
-    blockwrite(fs,buf^,nr,nw);
+    fdiReadSectors(fs,p,
+                   p.trddir^[a].n1tr,p.trddir^[a].n1sec,
+                   p.trddir^[a].totalsec,buf^);
+    fdiWriteSectors(fs,p,
+                    p.zxdisk.ntr1freesec,p.zxdisk.n1freesec,
+                    p.trddir^[a].totalsec,buf^);
     freemem(buf,p.trddir^[a].totalsec*256);
 
     p.trddir^[i].n1tr:=p.zxdisk.ntr1freesec;
@@ -267,18 +271,18 @@ for i:=1 to p.fditfiles do
     hbuf[13]:=p.trddir^[i].totalsec;
     hbuf[14]:=p.trddir^[i].n1sec;
     hbuf[15]:=p.trddir^[i].n1tr;
-    seek(fs,p.fdiRec.offData+16*(i-2)); blockwrite(fs,hbuf,16);
+    seek(fs,fdiTrk0Abs(p,16*(i-2))); blockwrite(fs,hbuf,16);
 
     inc(i);
    end;
-  for m:=i-1 to 128 do begin seek(fs,p.fdiRec.offData+16*(m-1)); b:=0; blockwrite(fs,b,1); end;
-  seek(fs,p.fdiRec.offData+$8e1); b:=p.zxdisk.n1freesec;   blockwrite(fs,b,1);
-  seek(fs,p.fdiRec.offData+$8e2); b:=p.zxdisk.ntr1freesec; blockwrite(fs,b,1);
-  seek(fs,p.fdiRec.offData+$8e4); b:=i-2;                  blockwrite(fs,b,1);
-  seek(fs,p.fdiRec.offData+$8f4); b:=0;                    blockwrite(fs,b,1);
+  for m:=i-1 to 128 do begin seek(fs,fdiTrk0Abs(p,16*(m-1))); b:=0; blockwrite(fs,b,1); end;
+  seek(fs,fdiTrk0Abs(p,$8e1)); b:=p.zxdisk.n1freesec;   blockwrite(fs,b,1);
+  seek(fs,fdiTrk0Abs(p,$8e2)); b:=p.zxdisk.ntr1freesec; blockwrite(fs,b,1);
+  seek(fs,fdiTrk0Abs(p,$8e4)); b:=i-2;                  blockwrite(fs,b,1);
+  seek(fs,fdiTrk0Abs(p,$8f4)); b:=0;                    blockwrite(fs,b,1);
 
-  seek(fs,p.fdiRec.offData+$8e5); b:=lo(p.zxdisk.free);    blockwrite(fs,b,1);
-  seek(fs,p.fdiRec.offData+$8e6); b:=hi(p.zxdisk.free);    blockwrite(fs,b,1);
+  seek(fs,fdiTrk0Abs(p,$8e5)); b:=lo(p.zxdisk.free);    blockwrite(fs,b,1);
+  seek(fs,fdiTrk0Abs(p,$8e6)); b:=hi(p.zxdisk.free);    blockwrite(fs,b,1);
 
   close(fs);
   {$I+}
@@ -312,7 +316,7 @@ if not scanf_esc then
  begin
   {$I-}
   assign(fs,p.fdifile); filemode := fmReadWriteShared; reset(fs);
-  seek(fs,p.fdiRec.offData+$8f5);
+  seek(fs,fdiTrk0Abs(p,$8f5));
   for i:=1 to 8 do begin b:=ord(s[i]); write(fs,b); end;
   close(fs);
   {$I+}

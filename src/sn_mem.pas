@@ -28,6 +28,9 @@ begin
  getmem(lp.trdins,257*sizeof(zxInsedRec));
  getmem(rp.trdins,257*sizeof(zxInsedRec));
 
+ getmem(lp.fdiSecOff,sizeof(TFdiSecOffMap));
+ getmem(rp.fdiSecOff,sizeof(TFdiSecOffMap));
+
 end;
 
 
@@ -47,6 +50,9 @@ begin
 
  freemem(lp.trdins,257*sizeof(zxInsedRec));
  freemem(rp.trdins,257*sizeof(zxInsedRec));
+
+ freemem(lp.fdiSecOff,sizeof(TFdiSecOffMap));
+ freemem(rp.fdiSecOff,sizeof(TFdiSecOffMap));
 
 end;
 

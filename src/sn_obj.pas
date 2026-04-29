@@ -71,7 +71,19 @@ Type
       end;
      pcInsedP=array[1..1] of pcInsedRec;
 
+Const
+  { TR-DOS geometry: max 80 cyls × 2 heads × 16 sectors. }
+  FdiMaxTracks = 160;
+  FdiSecsPerTrack = 16;
+  FdiMaxSectors = FdiMaxTracks * FdiSecsPerTrack;
+
 Type
+   { Per-(track, sec_id) absolute byte offset into the FDI file.
+     Indexed as tr * 16 + sc, where tr = cyl*2 + head and sc = sec_id-1.
+     Built by fdiBuildSecOff from the FDI per-track sector descriptors. }
+   TFdiSecOffMap = array[0..FdiMaxSectors - 1] of longint;
+   PFdiSecOffMap = ^TFdiSecOffMap;
+
    tfdi=
     record
      kLabel:string[3];
@@ -142,6 +154,7 @@ Type
        fddFile,zxzFile,sclFile  :string;
 
        fdiRec:tfdi;
+       fdiSecOff:PFdiSecOffMap;
 
        Procedure flpMDFs(flpDriveName:char);
        Procedure flpPDFs(fr:integer);

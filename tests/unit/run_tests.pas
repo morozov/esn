@@ -10,6 +10,7 @@ uses
   test_trd,
   test_tap,
   test_scl,
+  test_fdi,
   test_sn_utils,
   test_pc,
   test_resize,
