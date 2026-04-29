@@ -206,17 +206,22 @@ mprint(scanf_posx,scanf_posy,scanf_str);
 gotoxy(scanf_posx+scanf_x-1,scanf_posy);
 UpdateScreen(false);
 scanf_kod:=rKey;
-if (chr(lo(scanf_kod)) in[' '..')','-','0'..'9','@'..'[',']'..#254])and(scanf_x<=length(scanf_str)) then
- begin
-  scanf_str[scanf_x]:=chr(lo(scanf_kod));
-  inc(scanf_x);
-  if scanf_x=DX+1 then inc(scanf_x);
- end;
-if chr(lo(scanf_kod))='.' then scanf_x:=DX+2;
-
-if scanf_kod=_Right then begin inc(scanf_x); if scanf_x=DX+1 then inc(scanf_x); end;
-if scanf_kod=_Left then begin dec(scanf_x); if scanf_x=DX+1 then dec(scanf_x); end;
-if (scanf_kod=_Up) or (scanf_kod=_Down) then scanf_kod:=_Enter;
+if scanf_kod=_Right then
+  begin inc(scanf_x); if scanf_x=DX+1 then inc(scanf_x); end
+else if scanf_kod=_Left then
+  begin dec(scanf_x); if scanf_x=DX+1 then dec(scanf_x); end
+else if (scanf_kod=_Up) or (scanf_kod=_Down) then
+  scanf_kod:=_Enter
+else if (chr(lo(scanf_kod)) in
+         [' '..')','-','0'..'9','@'..'[',']'..#254])
+        and (scanf_x<=length(scanf_str)) then
+  begin
+    scanf_str[scanf_x]:=chr(lo(scanf_kod));
+    inc(scanf_x);
+    if scanf_x=DX+1 then inc(scanf_x);
+  end
+else if chr(lo(scanf_kod))='.' then
+  scanf_x:=DX+2;
 
 if scanf_kod=_ESC then begin snscanf:=scanf_str_old; scanf_esc:=true; exit; end;
 if (scanf_kod=_Enter)or(scanf_kod=PadEnter) then begin snscanf:=scanf_str; exit; end;

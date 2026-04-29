@@ -235,13 +235,6 @@ scanf_kod:=rKey;
 if scanf_kod=_ESC then begin tapsnscanf:=scanf_str_old; scanf_esc:=true; exit; end;
 if scanf_kod=_Enter then begin tapsnscanf:=scanf_str; exit; end;
 
-if (chr(lo(scanf_kod)) in[' '..')','-','0'..'9','@'..'[',']'..#255])and(scanf_x<=length(scanf_str)) then
- begin
-  scanf_str[scanf_x]:=chr(lo(scanf_kod));
-  inc(scanf_x);
- end;
-
-
 if scanf_kod=_Right then
    begin
     inc(scanf_x);
@@ -257,10 +250,16 @@ if scanf_kod=_Right then
       dec(scanf_x);
       colour(pal.bkCurNT,pal.txtCurNT);
      end;
-   end;
-if scanf_kod=_Left then begin dec(scanf_x); end;
-if scanf_kod=_Up then scanf_kod:=_ESC;
-if scanf_kod=_Down then scanf_kod:=_ESC;
+   end
+else if scanf_kod=_Left then dec(scanf_x)
+else if (scanf_kod=_Up) or (scanf_kod=_Down) then scanf_kod:=_ESC
+else if (chr(lo(scanf_kod)) in
+         [' '..')','-','0'..'9','@'..'[',']'..#255])
+        and (scanf_x<=length(scanf_str)) then
+ begin
+  scanf_str[scanf_x]:=chr(lo(scanf_kod));
+  inc(scanf_x);
+ end;
 
 if scanf_kod=_ESC then begin tapsnscanf:=scanf_str_old; scanf_esc:=true; exit; end;
 
