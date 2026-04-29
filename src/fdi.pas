@@ -97,6 +97,7 @@ begin
                     +(i div FdiSecsPerTrack)*4096
                     +(i mod FdiSecsPerTrack)*256;
   pos:=p.fdiRec.offHeaderCyl;
+  {$I-}
   seek(fb,pos);
   for cyl:=0 to p.fdiRec.cyl-1 do
    for head:=0 to p.fdiRec.heads-1 do
@@ -123,6 +124,8 @@ begin
             end;
         end;
     end;
+  if ioresult<>0 then;
+  {$I+}
 end;
 
 {============================================================================}
@@ -183,12 +186,19 @@ begin
 end;
 
 {============================================================================}
+(* I/O suppression on the seek/blockread is required: the helper is
+   invoked from fdi_ovr.pas inside its own I-suppressed block, but the
+   I/O directive is per-unit at compile time and does not carry across
+   the call. Without this, a malformed FDI with sector offsets past
+   EOF raises EInOutError instead of setting IOResult, propagating out
+   of the caller's error path. *)
 procedure fdiReadSectors(var f:file; var p:TPanel;
                          tr,sc:byte; nsec:word; var buf);
 var i:word; cur_tr,cur_sc:byte; dst:pbyte; nr:word;
 begin
   dst:=@buf; nr:=0;
   cur_tr:=tr; cur_sc:=sc;
+  {$I-}
   for i:=1 to nsec do
     begin
       seek(f,fdiSecAbs(p,cur_tr,cur_sc));
@@ -197,6 +207,8 @@ begin
       inc(cur_sc);
       if cur_sc>=FdiSecsPerTrack then begin cur_sc:=0; inc(cur_tr); end;
     end;
+  if ioresult<>0 then;
+  {$I+}
 end;
 
 {============================================================================}
@@ -206,6 +218,7 @@ var i:word; cur_tr,cur_sc:byte; src:pbyte; nw:word;
 begin
   src:=pbyte(@buf); nw:=0;
   cur_tr:=tr; cur_sc:=sc;
+  {$I-}
   for i:=1 to nsec do
     begin
       seek(f,fdiSecAbs(p,cur_tr,cur_sc));
@@ -214,6 +227,8 @@ begin
       inc(cur_sc);
       if cur_sc>=FdiSecsPerTrack then begin cur_sc:=0; inc(cur_tr); end;
     end;
+  if ioresult<>0 then;
+  {$I+}
 end;
 {============================================================================}
 {============================================================================}
