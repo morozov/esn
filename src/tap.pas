@@ -91,6 +91,10 @@ assign(f,path); reset(f,1);
 if ioresult<>0 then begin if ioresult<>0 then; close(fb); if ioresult<>0 then; exit; end;
 if filesize(fb)=0 then begin isTAP:=true; goto fin; end;
 seek(fb,0); read(fb,b); read(fb,b1); w:=b+256*b1;
+{ Need at least flag (1B) + checksum (1B) past the 2-byte length, plus
+  one body byte for the XOR loop below. Without this, getmem(buf,w-2)
+  underflows to a huge size and SysGetMem raises EInvalidPointer. }
+if w<3 then goto fin;
 seek(fb,2); read(fb,csf);
 
 getmem(buf,w-2);
