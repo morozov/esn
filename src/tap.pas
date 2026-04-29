@@ -155,6 +155,11 @@ for m:=1 to 256 do
   read(fb,b); read(fb,b1); w:=b+256*b1;  read(fb,csf);{}
   if EOF(fb) then break;{}
 
+  { Header blocks reference buf^[1..18]; data blocks reference
+    buf^[1..2]. A block shorter than a full header is corrupt for our
+    purposes — bail out instead of GetMem'ing with w-1 underflowed. }
+  if w<19 then break;
+
   getmem(buf,w-1); p.trdDir^[p.taptfiles+1].offset:=pos+3;
   seek(f,pos+2); blockread(f,buf^,w-1);
   for i:=2 to w-1 do csf:=csf xor buf^[i];
