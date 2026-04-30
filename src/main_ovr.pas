@@ -167,6 +167,37 @@ var
   RestScr;
                   end;
 
+{ Truncate the inner ~`...~` highlighted segment of s with an ellipsis
+  so that the rendered width (after stripping the ~` markers) fits in
+  maxCells display cells.  Returns s unchanged when no segment is
+  present or when the rendered text already fits. }
+function FitInlineHighlight(const s: AnsiString;
+                            maxCells: integer): AnsiString;
+var
+  startPos, restPos: integer;
+  prefix, inner, suffix: AnsiString;
+  available, leadCells, tailCells: integer;
+begin
+  FitInlineHighlight := s;
+  startPos := Pos('~`', s);
+  if startPos = 0 then exit;
+  restPos := Pos('~`', Copy(s, startPos + 2, MaxInt));
+  if restPos = 0 then exit;
+  prefix := Copy(s, 1, startPos - 1);
+  inner := Copy(s, startPos + 2, restPos - 1);
+  suffix := Copy(s, startPos + 1 + restPos + 2, MaxInt);
+  if dispWidth(prefix) + dispWidth(inner) + dispWidth(suffix) <= maxCells
+    then exit;
+  available := maxCells - dispWidth(prefix) - dispWidth(suffix);
+  if available < 3 then available := 3;
+  { Reserve a small tail so file extensions remain visible. }
+  tailCells := (available - 3) div 4;
+  if tailCells < 0 then tailCells := 0;
+  leadCells := available - 3 - tailCells;
+  inner := PathFit(inner, available, leadCells, tailCells);
+  FitInlineHighlight := prefix + '~`' + inner + '~`' + suffix;
+end;
+
 {============================================================================}
 {$push}{$hints off}{$notes off}
 Function  WillCopyMove(wtype:word; var TargetPath:string; var Skip:boolean):boolean;
@@ -320,6 +351,10 @@ end; { while }
 {== END SCANF ===============================================================}
 {============================================================================}
 Var p:TPanel;
+Const
+  { Cell budget shared by the status line above the input field and the
+    input field itself, leaving 1 cell of margin before the right border. }
+  kFieldCells = 52;
 Begin
   a1:=' Overwrite all existing files                    ';
   a2:=' Skip all existing files                         ';
@@ -415,12 +450,13 @@ then
   cmCentre(pal.bkdRama,pal.txtdRama,halfmaxy-5,' Copy ')
 else
   cmCentre(pal.bkdRama,pal.txtdRama,halfmaxy-5,' Rename/Move ');
-StatusLineColor(pal.bkdLabelST,pal.txtdLabelST,pal.bkdLabelNT,pal.txtdLabelNT,halfmaxx-24,halfmaxy-3,s);
+StatusLineColor(pal.bkdLabelST,pal.txtdLabelST,pal.bkdLabelNT,pal.txtdLabelNT,
+  halfmaxx-24,halfmaxy-3,FitInlineHighlight(s, kFieldCells));
 UpdateScreen(false);
 
 Colour(pal.bkdInputNT,pal.txtdInputNT);
-CMPrint(pal.bkdInputNT,pal.txtdInputNT,halfmaxx-25,halfmaxy-2,Space(52)); curon;
- s:=Trim(pscanf(halfmaxx-25,halfmaxy-2,'',52,52,1)); curoff; restscr;
+CMPrint(pal.bkdInputNT,pal.txtdInputNT,halfmaxx-25,halfmaxy-2,Space(kFieldCells)); curon;
+ s:=Trim(pscanf(halfmaxx-25,halfmaxy-2,'',kFieldCells,kFieldCells,1)); curoff; restscr;
  if not scanf_esc then
   begin
    TargetPath:=pcndOf(oFocus);
