@@ -313,9 +313,15 @@ uses
 initialization
   {$IFDEF WINDOWS}
   { AnsiString/UnicodeString conversions use UTF-8.  cwstring does
-    the equivalent on Unix. }
+    the equivalent on Unix.  The file-system variants make SysUtils
+    path APIs (GetCurrentDir, FindFirst, SetCurrentDir, Assign, …)
+    interpret AnsiString paths as UTF-8 and call the W-form of the
+    Win32 API; without them, those APIs default to CP_ACP and any
+    non-ASCII path component round-trips as garbage. }
   DefaultSystemCodePage := CP_UTF8;
   SetMultiByteConversionCodePage(CP_UTF8);
+  SetMultiByteFileSystemCodePage(CP_UTF8);
+  SetMultiByteRTLFileSystemCodePage(CP_UTF8);
   {$ENDIF}
   rvActive     := false;
   SegB800      := 0;
