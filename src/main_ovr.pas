@@ -451,7 +451,7 @@ then
 else
   cmCentre(pal.bkdRama,pal.txtdRama,halfmaxy-5,' Rename/Move ');
 StatusLineColor(pal.bkdLabelST,pal.txtdLabelST,pal.bkdLabelNT,pal.txtdLabelNT,
-  halfmaxx-24,halfmaxy-3,FitInlineHighlight(s, kFieldCells));
+  halfmaxx-25,halfmaxy-3,FitInlineHighlight(s, kFieldCells));
 UpdateScreen(false);
 
 Colour(pal.bkdInputNT,pal.txtdInputNT);

@@ -25,12 +25,14 @@ setup() {
 # WillCopyMove dialog geometry on 80x25 (HalfMaxX=40, HalfMaxY=12):
 #   left  border ║ at col 12   row 9
 #   right border ║ at col 69   row 9
-#   status line drawn at      col 16   row 9   (interior, 53 cells wide)
+#   status line drawn at      col 15   row 9   (52 cells, aligned
+#                                                with the input field
+#                                                at row 10)
 DIALOG_ROW=9
 DIALOG_RIGHT_BORDER_COL=69
 DIALOG_INTERIOR_RIGHT_COL=68
-DIALOG_STATUS_COL=16
-DIALOG_STATUS_WIDTH=53
+DIALOG_STATUS_COL=15
+DIALOG_STATUS_WIDTH=54
 
 # Helper: assert the dialog's right vertical border is intact on the
 # status row (one cell wide).
@@ -70,6 +72,11 @@ run() {
   assert_rect_contains "${CASE_ID}_03d_copy_ext_visible" \
     "$DIALOG_ROW" "$DIALOG_STATUS_COL" 1 "$DIALOG_STATUS_WIDTH" ".tap" \
     "File extension at the tail of the long name remains visible"
+  # The status line must start in the same column as the input field
+  # below (col 15) — the cell to its left must be empty.
+  assert_rect_text "${CASE_ID}_03e_copy_align_left" \
+    "$DIALOG_ROW" "$DIALOG_STATUS_COL" 1 1 "C" \
+    "Status line begins at col $DIALOG_STATUS_COL (aligned with input)"
 
   send_key escape
   wait_for_no_text " Copy "
@@ -92,6 +99,9 @@ run() {
   assert_rect_contains "${CASE_ID}_05d_move_ext_visible" \
     "$DIALOG_ROW" "$DIALOG_STATUS_COL" 1 "$DIALOG_STATUS_WIDTH" ".tap" \
     "File extension at the tail of the long name remains visible"
+  assert_rect_text "${CASE_ID}_05e_move_align_left" \
+    "$DIALOG_ROW" "$DIALOG_STATUS_COL" 1 1 "R" \
+    "Status line begins at col $DIALOG_STATUS_COL (aligned with input)"
 
   send_key escape
   wait_for_no_text "Rename/Move"
