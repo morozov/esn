@@ -1960,29 +1960,36 @@ var
   function DriveDisplayName(letter: char; driveNum: byte): string;
   {$IFDEF WINDOWS}
   var
-    volName: array[0..255] of AnsiChar;
-    fsName: array[0..255] of AnsiChar;
+    volName: array[0..255] of WideChar;
+    rootA: AnsiString;
+    root: UnicodeString;
     serial, maxCompLen, flags: DWORD;
     dtype: UINT;
     ok: BOOL;
+    volLabel: UnicodeString;
   {$ENDIF}
   begin
     DriveDisplayName := letter + '_DRIVE';
     {$IFDEF WINDOWS}
-    dtype := GetDriveTypeA(PAnsiChar(AnsiString(letter + ':\')));
+    rootA := letter + ':\';
+    root := UnicodeString(rootA);
+    dtype := GetDriveTypeW(PWideChar(root));
     if dtype = DRIVE_RAMDISK then DriveDisplayName := 'RAMDISK'
     else if dtype = DRIVE_CDROM then DriveDisplayName := 'CDROM'
     else if dtype = DRIVE_REMOVABLE then DriveDisplayName := 'REMOVABLE'
     else begin
       FillChar(volName, SizeOf(volName), 0);
-      FillChar(fsName, SizeOf(fsName), 0);
-      ok := GetVolumeInformationA(
-        PAnsiChar(AnsiString(letter + ':\')),
-        @volName[0], SizeOf(volName),
+      ok := GetVolumeInformationW(
+        PWideChar(root),
+        @volName[0], Length(volName),
         @serial, maxCompLen, flags,
-        @fsName[0], SizeOf(fsName));
-      if ok and (Trim(StrPas(@volName[0])) <> '') then
-        DriveDisplayName := StrPas(@volName[0]);
+        nil, 0);
+      if ok then begin
+        SetString(volLabel, PWideChar(@volName[0]),
+                  lstrlenW(@volName[0]));
+        if Trim(volLabel) <> '' then
+          DriveDisplayName := UTF8Encode(volLabel);
+      end;
     end;
     {$ELSE}
     if driveNum = driveNum then ;
