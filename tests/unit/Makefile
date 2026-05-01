@@ -1,6 +1,6 @@
 FPC      := fpc
 # See top-level Makefile for -Fcutf8 / -vm4104,4105 rationale.
-FPCFLAGS := -Sd -O2 -gl -Sc -Sm -Sewn -vewnhi -Fcutf8 -vm4104,4105
+FPCFLAGS := -Sd -O2 -gl -Sc -Sm -Sewnh -vewnhi -Fcutf8 -vm4104,4105
 
 UNAME := $(shell uname)
 ifeq ($(UNAME),Darwin)

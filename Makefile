@@ -7,7 +7,7 @@ export VERSION      ?= 1.15-dev
 # callers still hold AnsiString-CP_UTF8 (filenames, panel data).
 # The conversions are byte-correct on all supported platforms;
 # the warnings would otherwise drown out genuine issues.
-FPCFLAGS := -Sd -O2 -gl -Sc -Sm -Sewn -vewnhi -Fcutf8 -vm4104,4105
+FPCFLAGS := -Sd -O2 -gl -Sc -Sm -Sewnh -vewnhi -Fcutf8 -vm4104,4105
 
 # On macOS, point FPC at the active SDK so the linker can find libSystem.
 UNAME := $(shell uname)
