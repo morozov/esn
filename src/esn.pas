@@ -28,7 +28,9 @@ begin
   Write(StdErr, #27'[?25h'#27'[?1049l');
   Flush(StdErr);
   {$IFDEF DARWIN}
-  staticAddr := pointer(ptruint(ExceptAddr) - ptruint(dyld_get_image_vmaddr_slide(0)));
+  {$PUSH}{$POINTERMATH ON}
+  staticAddr := PByte(ExceptAddr) - dyld_get_image_vmaddr_slide(0);
+  {$POP}
   {$ELSE}
   staticAddr := ExceptAddr;
   {$ENDIF}

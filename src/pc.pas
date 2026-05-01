@@ -73,6 +73,8 @@ var
   egc: UnicodeString;
   i, total, n: integer;
 begin
+  clusters := nil;
+  widths := nil;
   n := 0;
   for egc in TUnicodeStringExtendedGraphemeClustersEnumerator.Create(us) do
   begin

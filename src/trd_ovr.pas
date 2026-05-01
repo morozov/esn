@@ -777,6 +777,7 @@ var
     hbuf:array[1..17] of byte;
     nr,nw:word;
 begin
+nr:=0; nw:=0;
 case p.paneltype of
  pcPanel:
    begin

@@ -42,6 +42,8 @@ var
     buf:array[1..8] of byte;
 Begin
 isSCL:=false;
+nr:=0;
+for w:=1 to 8 do buf[w]:=0;
 {$I-}
 filemode := fmReadShared; assign(ff,path); reset(ff,1);
 if ioresult<>0 then Exit;

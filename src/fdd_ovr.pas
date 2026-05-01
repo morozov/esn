@@ -4,8 +4,6 @@ Interface
 Uses
      RV,sn_Obj, Vars, Palette, Main, TRD, Main_Ovr,PC,FDD,TRD_Ovr,SCL;
 
-Procedure fddInfoPanel(w:byte);
-
 Function  fddLoad(var p:TPanel; ind:word):boolean;
 Function  fddSave(var p:TPanel):boolean;
 
@@ -20,13 +18,6 @@ procedure fddMakeImage(var p:TPanel; BootOnly:boolean);
 Implementation
 
 uses SysUtils, UnicodeVideo;
-
-{============================================================================}
-Procedure fddInfoPanel(w:byte);
-begin
-end;
-
-
 
 {============================================================================}
 Function fddLoad(var p:TPanel; ind:word):boolean;

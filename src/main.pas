@@ -37,8 +37,8 @@ Procedure Navigate;
 Implementation
 Uses
      RV,
-     Vars, sn_Mem, sn_Obj, Palette,
-     Main_Ovr, SysUtils, UnicodeVideo;
+     Vars, sn_Obj, Palette,
+     SysUtils, UnicodeVideo;
 
 
 {============================================================================}

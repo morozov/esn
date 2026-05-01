@@ -157,9 +157,7 @@ end;
 
 function MakePanel: TPanel;
 begin
-  {$push}{$notes off}
-  FillChar(result, SizeOf(result), 0);
-  {$pop}
+  result := Default(TPanel);
   result.PanelType := pcPanel;
   GetMem(result.pcDir, MaxEntries * SizeOf(pcDirRec));
   {$push}{$notes off}
